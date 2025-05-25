@@ -1,0 +1,55 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mano-mano-dashboard-b7a75",
+          "appId": "1:646165658405:android:62d86aa6835712ba1478cc",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "mano-mano-dashboard-b7a75",
+          "appId": "1:646165658405:ios:258c6086ccfcbc0e1478cc",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "mano-mano-dashboard-b7a75",
+          "appId": "1:646165658405:ios:258c6086ccfcbc0e1478cc",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mano-mano-dashboard-b7a75",
+          "configurations": {
+            "android": "1:646165658405:android:62d86aa6835712ba1478cc",
+            "ios": "1:646165658405:ios:258c6086ccfcbc0e1478cc",
+            "macos": "1:646165658405:ios:258c6086ccfcbc0e1478cc",
+            "web": "1:646165658405:web:bda66c1c8af47c721478cc",
+            "windows": "1:646165658405:web:e44f4055ce42ad631478cc"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

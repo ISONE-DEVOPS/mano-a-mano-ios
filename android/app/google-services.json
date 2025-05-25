@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "646165658405",
+    "project_id": "mano-mano-dashboard-b7a75",
+    "storage_bucket": "mano-mano-dashboard-b7a75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646165658405:android:62d86aa6835712ba1478cc",
+        "android_client_info": {
+          "package_name": "com.example.mano_mano_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxi5pum5PTOEdpY7OPXkHBh0deBYupciY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
