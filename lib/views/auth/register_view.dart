@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart' show TapGestureRecognizer;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -32,6 +34,7 @@ class _RegisterViewState extends State<RegisterView> {
 
   bool _loading = false;
   String? _error;
+  bool _acceptedTerms = false;
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
@@ -88,6 +91,10 @@ class _RegisterViewState extends State<RegisterView> {
         'checkpoints': {},
       });
 
+      // Salvar consentimento nos termos
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('acceptedTerms', true);
+
       // Após salvar carro, verifica valor do evento
       final eventDoc =
           await FirebaseFirestore.instance
@@ -126,21 +133,31 @@ class _RegisterViewState extends State<RegisterView> {
     required TextEditingController controller,
     TextInputType? keyboardType,
     bool obscureText = false,
+    String? hintText,
   }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          decoration: InputDecoration(
-            border: InputBorder.none,
-            icon: Icon(icon, color: const Color(0xFF0E0E2C)),
-            labelText: label,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+        color: Colors.white,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        style: Theme.of(context).textTheme.bodyMedium,
+        decoration: InputDecoration(
+          icon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+          labelText: label,
+          hintText: hintText,
+          hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
+          labelStyle: Theme.of(context).textTheme.labelLarge,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          constraints: const BoxConstraints(maxHeight: 48),
         ),
       ),
     );
@@ -155,6 +172,7 @@ class _RegisterViewState extends State<RegisterView> {
             icon: Icons.person,
             label: 'Nome do condutor',
             controller: _nameController,
+            hintText: 'Ex: João Silva',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -162,6 +180,7 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Telefone',
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            hintText: 'Ex: 912345678',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -169,6 +188,7 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Contato de emergência',
             controller: _emergencyContactController,
             keyboardType: TextInputType.phone,
+            hintText: 'Ex: 912345678',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -176,6 +196,7 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Email',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            hintText: 'exemplo@email.com',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -183,6 +204,7 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Senha',
             controller: _passwordController,
             obscureText: true,
+            hintText: 'Mínimo 6 caracteres',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -190,19 +212,30 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Confirmar Senha',
             controller: _confirmPasswordController,
             obscureText: true,
+            hintText: 'Repita a senha',
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _selectedShirtSize,
             items:
                 _shirtSizes.map((size) {
-                  return DropdownMenuItem(value: size, child: Text(size));
+                  return DropdownMenuItem(
+                    value: size,
+                    child: Text(
+                      size,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  );
                 }).toList(),
             onChanged: (val) => setState(() => _selectedShirtSize = val),
             decoration: InputDecoration(
               border: InputBorder.none,
-              icon: Icon(Icons.checkroom, color: const Color(0xFF0E0E2C)),
+              icon: Icon(
+                Icons.checkroom,
+                color: Theme.of(context).scaffoldBackgroundColor,
+              ),
               labelText: 'Tamanho da t-shirt',
+              labelStyle: Theme.of(context).textTheme.labelLarge,
             ),
           ),
           const SizedBox(height: 24),
@@ -226,7 +259,12 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
           ],
         ],
       ),
@@ -242,18 +280,21 @@ class _RegisterViewState extends State<RegisterView> {
             icon: Icons.directions_car,
             label: 'Matrícula',
             controller: _licensePlateController,
+            hintText: 'Ex: AB-12-CD',
           ),
           const SizedBox(height: 16),
           _inputCard(
             icon: Icons.directions_car_filled,
             label: 'Marca',
             controller: _carBrandController,
+            hintText: 'Ex: Toyota',
           ),
           const SizedBox(height: 16),
           _inputCard(
             icon: Icons.drive_eta,
             label: 'Modelo',
             controller: _carModelController,
+            hintText: 'Ex: Corolla',
           ),
           const SizedBox(height: 24),
           Row(
@@ -286,7 +327,12 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
           ],
         ],
       ),
@@ -298,9 +344,11 @@ class _RegisterViewState extends State<RegisterView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Passageiros (máximo 4)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Column(
@@ -319,45 +367,107 @@ class _RegisterViewState extends State<RegisterView> {
                       children: [
                         Text(
                           'Passageiro ${i + 1}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: passageirosControllers[i]['nome'],
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.person),
-                            labelText: 'Nome',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(12),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.white,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: TextField(
+                            controller: passageirosControllers[i]['nome'],
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.person),
+                              labelText: 'Nome',
+                              hintText: 'Ex: Maria Oliveira',
+                              hintStyle:
+                                  Theme.of(
+                                    context,
+                                  ).inputDecorationTheme.hintStyle,
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10,
                               ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: passageirosControllers[i]['telefone'],
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.phone),
-                            labelText: 'Telefone',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(12),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.white,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: TextField(
+                            controller: passageirosControllers[i]['telefone'],
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.phone),
+                              labelText: 'Telefone',
+                              hintText: 'Ex: 912345678',
+                              hintStyle:
+                                  Theme.of(
+                                    context,
+                                  ).inputDecorationTheme.hintStyle,
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10,
                               ),
                             ),
                           ),
-                          keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 8),
-                        TextField(
-                          controller: passageirosControllers[i]['tshirt'],
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.checkroom),
-                            labelText: 'Tamanho da t-shirt',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(12),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.white,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: DropdownButtonFormField<String>(
+                            value:
+                                passageirosControllers[i]['tshirt']!
+                                        .text
+                                        .isNotEmpty
+                                    ? passageirosControllers[i]['tshirt']!.text
+                                    : null,
+                            items:
+                                _shirtSizes.map((size) {
+                                  return DropdownMenuItem(
+                                    value: size,
+                                    child: Text(
+                                      size,
+                                      style:
+                                          Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                    ),
+                                  );
+                                }).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                passageirosControllers[i]['tshirt']!.text =
+                                    val ?? '';
+                              });
+                            },
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              icon: Icon(
+                                Icons.checkroom,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
+                              labelText: 'Tamanho da t-shirt',
+                              labelStyle:
+                                  Theme.of(context).textTheme.labelLarge,
                             ),
                           ),
                         ),
@@ -394,7 +504,12 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           const SizedBox(height: 24),
           if (_error != null)
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -433,9 +548,11 @@ class _RegisterViewState extends State<RegisterView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Escolha o evento',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         StreamBuilder<QuerySnapshot>(
@@ -455,25 +572,74 @@ class _RegisterViewState extends State<RegisterView> {
             }
             return DropdownButtonFormField<String>(
               isExpanded: true,
-              hint: const Text('Selecione um evento'),
+              hint: Text(
+                'Selecione um evento',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               value: _selectedEventId,
               items:
                   docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     return DropdownMenuItem(
                       value: doc.id,
-                      child: Text(data['nome'] ?? data['Nome'] ?? 'Sem nome'),
+                      child: Text(
+                        data['nome'] ?? data['Nome'] ?? 'Sem nome',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     );
                   }).toList(),
               onChanged: (val) => setState(() => _selectedEventId = val),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
                 labelText: 'Evento',
+                labelStyle: Theme.of(context).textTheme.labelLarge,
               ),
             );
           },
         ),
         const SizedBox(height: 24),
+        // CheckboxListTile for terms and privacy
+        CheckboxListTile(
+          value: _acceptedTerms,
+          onChanged: (value) => setState(() => _acceptedTerms = value ?? false),
+          activeColor: Theme.of(context).colorScheme.primary,
+          title: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              children: [
+                const TextSpan(text: 'Li e aceito os '),
+                TextSpan(
+                  text: 'Termos e Condições',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer:
+                      TapGestureRecognizer()
+                        ..onTap = () {
+                          Get.toNamed('/terms');
+                        },
+                ),
+                const TextSpan(text: ' e a '),
+                TextSpan(
+                  text: 'Política de Privacidade',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer:
+                      TapGestureRecognizer()
+                        ..onTap = () {
+                          Get.toNamed('/privacy');
+                        },
+                ),
+              ],
+            ),
+          ),
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -492,7 +658,9 @@ class _RegisterViewState extends State<RegisterView> {
             ),
             ElevatedButton(
               onPressed:
-                  (_loading || _selectedEventId == null) ? null : _register,
+                  (_loading || _selectedEventId == null || !_acceptedTerms)
+                      ? null
+                      : _register,
               child:
                   _loading
                       ? const SizedBox(
@@ -509,16 +677,33 @@ class _RegisterViewState extends State<RegisterView> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: Colors.red)),
+          Text(
+            _error!,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
         ],
       ],
     );
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadAcceptedTerms();
+  }
+
+  Future<void> _loadAcceptedTerms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('acceptedTerms') ?? false;
+    setState(() => _acceptedTerms = accepted);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E2C),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -527,7 +712,10 @@ class _RegisterViewState extends State<RegisterView> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Spacer(),
@@ -545,12 +733,13 @@ class _RegisterViewState extends State<RegisterView> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 8),
-                  const Center(
+                  Center(
                     child: Text(
                       'Criar uma conta',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),
@@ -561,13 +750,24 @@ class _RegisterViewState extends State<RegisterView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Já tem uma conta?',
-                        style: TextStyle(color: Colors.white70),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withAlpha(179),
+                        ),
                       ),
                       TextButton(
                         onPressed: () => Get.toNamed('/login'),
-                        child: const Text('Entrar'),
+                        child: Text(
+                          'Entrar',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -582,19 +782,20 @@ class _RegisterViewState extends State<RegisterView> {
                 children: [
                   Text(
                     'Etapa ${_currentStep + 1} de 4',
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       letterSpacing: 0.2,
                     ),
                   ),
                   const SizedBox(height: 6),
                   LinearProgressIndicator(
                     value: (_currentStep + 1) / 4,
-                    backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.blueAccent,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withAlpha(61),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
                     ),
                     minHeight: 6,
                   ),
@@ -605,9 +806,9 @@ class _RegisterViewState extends State<RegisterView> {
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(32),
                     topRight: Radius.circular(32),
                   ),

@@ -43,22 +43,22 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E2C),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
+        title: Text(
           'Recuperar Senha',
-          style: TextStyle(color: Colors.white),
+          style: Theme.of(context).textTheme.titleLarge,
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Informe seu email e enviaremos instruções para redefinir sua senha.',
-              style: TextStyle(color: Colors.white70),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
             TextField(
@@ -80,12 +80,6 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               height: 50,
               child: ElevatedButton(
                 onPressed: _loading ? null : _resetPassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple.shade700,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
                 child:
                     _loading
                         ? const CircularProgressIndicator(color: Colors.white)
@@ -97,7 +91,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 padding: const EdgeInsets.only(top: 20),
                 child: Text(
                   _message!,
-                  style: const TextStyle(color: Colors.white70),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ),

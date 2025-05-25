@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class NavTopBar extends StatelessWidget {
   final String location;
@@ -16,6 +17,7 @@ class NavTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String dataHoje = DateFormat('dd/MM/yyyy').format(DateTime.now());
     return Material(
       elevation: 2,
       shadowColor: Colors.black45,
@@ -62,7 +64,7 @@ class NavTopBar extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Olá, $userName!',
+                        'Data: $dataHoje',
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.white70,

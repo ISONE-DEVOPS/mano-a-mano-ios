@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/gestures.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/firebase_service.dart';
 import '../dashboard/home_view.dart';
 import '../../screens/permission_screen.dart';
@@ -19,6 +21,24 @@ class _LoginViewState extends State<LoginView> {
   String? _error;
   bool _showPassword = false;
   bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+  }
+
+  Future<void> _loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('rememberMe') ?? false;
+    });
+  }
+
+  Future<void> _saveRememberMe(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('rememberMe', value);
+  }
 
   void _goToPermissions(String role) {
     Get.to(
@@ -60,8 +80,10 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E2C),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -77,20 +99,13 @@ class _LoginViewState extends State<LoginView> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Bem-vindo(a)!',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Bem-vindo(a)!', style: textTheme.titleLarge),
               const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'Entre com sua conta ou registre-se para participar dos eventos Shell ao KM.',
-                  style: TextStyle(color: Colors.white70, fontSize: 15),
+                  style: textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -100,12 +115,12 @@ class _LoginViewState extends State<LoginView> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.redAccent),
+                      Icon(Icons.error_outline, color: colorScheme.error),
                       const SizedBox(width: 8),
                       Text(
                         _error!,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
+                        style: TextStyle(
+                          color: colorScheme.error,
                           fontSize: 16,
                         ),
                       ),
@@ -123,24 +138,35 @@ class _LoginViewState extends State<LoginView> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        hintText: 'Digite seu email',
+                        hintStyle:
+                            Theme.of(context).inputDecorationTheme.hintStyle,
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          color: colorScheme.onSurface,
+                        ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
+                      style: textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 14),
                     TextField(
                       controller: _passwordController,
                       obscureText: !_showPassword,
                       decoration: InputDecoration(
-                        labelText: 'Senha',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        hintText: 'Digite sua senha',
+                        hintStyle:
+                            Theme.of(context).inputDecorationTheme.hintStyle,
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          color: colorScheme.onSurface,
+                        ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -149,6 +175,7 @@ class _LoginViewState extends State<LoginView> {
                             _showPassword
                                 ? Icons.visibility
                                 : Icons.visibility_off,
+                            color: colorScheme.onSurface,
                           ),
                           onPressed:
                               () => setState(
@@ -156,29 +183,71 @@ class _LoginViewState extends State<LoginView> {
                               ),
                         ),
                       ),
+                      style: textTheme.bodyLarge,
                     ),
                     Row(
                       children: [
                         Checkbox(
                           value: _rememberMe,
-                          onChanged:
-                              (v) => setState(() => _rememberMe = v ?? false),
-                          activeColor: Colors.deepPurple,
+                          onChanged: (v) {
+                            final newValue = v ?? false;
+                            setState(() => _rememberMe = newValue);
+                            _saveRememberMe(newValue);
+                          },
+                          activeColor: colorScheme.primary,
                         ),
-                        const Text(
-                          'Lembrar-me',
-                          style: TextStyle(color: Colors.white70),
-                        ),
+                        Text('Lembrar-me', style: textTheme.bodyMedium),
                         const Spacer(),
                         TextButton(
                           onPressed: () {
                             Get.toNamed('/forgot-password');
                           },
-                          child: const Text(
+                          child: Text(
                             'Esqueceu a senha?',
-                            style: TextStyle(
+                            style: textTheme.bodyMedium?.copyWith(
                               fontSize: 13,
-                              color: Color(0xFFFFD700),
+                              color: colorScheme.secondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontSize: 13,
+                              ),
+                              children: [
+                                const TextSpan(text: 'Aceito os '),
+                                TextSpan(
+                                  text: 'Termos e Condições',
+                                  style: TextStyle(
+                                    decoration: TextDecoration.underline,
+                                    color: colorScheme.secondary,
+                                  ),
+                                  recognizer:
+                                      TapGestureRecognizer()
+                                        ..onTap = () {
+                                          Get.toNamed('/terms');
+                                        },
+                                ),
+                                const TextSpan(text: ' e a '),
+                                TextSpan(
+                                  text: 'Política de Privacidade',
+                                  style: TextStyle(
+                                    decoration: TextDecoration.underline,
+                                    color: colorScheme.secondary,
+                                  ),
+                                  recognizer:
+                                      TapGestureRecognizer()
+                                        ..onTap = () {
+                                          Get.toNamed('/privacy');
+                                        },
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -189,33 +258,23 @@ class _LoginViewState extends State<LoginView> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE6BE00),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
                         onPressed: _loading ? null : _login,
                         child:
                             _loading
-                                ? const CircularProgressIndicator(
-                                  color: Colors.white,
+                                ? CircularProgressIndicator(
+                                  color: colorScheme.onPrimary,
                                 )
-                                : const Text(
-                                  'Entrar',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                  ),
-                                ),
+                                : Text('Entrar', style: textTheme.bodyLarge),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: () => Get.toNamed('/register'),
-                      child: const Text(
+                      child: Text(
                         'Não tem uma conta? Registre-se',
-                        style: TextStyle(color: Color(0xFFFFD700)),
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.secondary,
+                        ),
                       ),
                     ),
                   ],

@@ -15,6 +15,8 @@ import '../views/admin/route_editor_view.dart';
 import '../views/events/user_events_view.dart';
 import '../views/auth/forgot_password_view.dart';
 import '../views/admin/add_checkpoints_view.dart';
+import '../views/terms/terms_screen.dart';
+import '../views/privacy/privacy_policy_screen.dart';
 
 class AppPages {
   static const initial = '/';
@@ -64,5 +66,7 @@ class AppPages {
       name: '/add-checkpoints',
       page: () => AddCheckpointsView(eventId: Get.arguments),
     ),
+    GetPage(name: '/terms', page: () => const TermsScreen()),
+    GetPage(name: '/privacy', page: () => const PrivacyPolicyScreen()),
   ];
 }

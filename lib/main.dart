@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'routes/app_pages.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,12 +24,9 @@ class ManoManoDashboard extends StatelessWidget {
       title: 'Dashboard Mano Mano',
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
-      theme: ThemeData(
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0E0E2C),
-          foregroundColor: Colors.white,
-        ),
-      ),
+      theme: AppTheme.theme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
     );
   }
 }

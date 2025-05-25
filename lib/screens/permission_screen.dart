@@ -1,12 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class PermissionScreen extends StatelessWidget {
+class PermissionScreen extends StatefulWidget {
   final VoidCallback onContinue;
 
   const PermissionScreen({super.key, required this.onContinue});
 
   @override
+  State<PermissionScreen> createState() => _PermissionScreenState();
+}
+
+class _PermissionScreenState extends State<PermissionScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissionStatus();
+  }
+
+  Future<void> _checkPermissionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('permissionsAccepted') ?? false;
+    if (accepted) {
+      widget.onContinue();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _acceptPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('permissionsAccepted', true);
+    widget.onContinue();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0E0E2C),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Permissões Necessárias'),
@@ -53,7 +92,7 @@ class PermissionScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFF0E0E2C),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed: onContinue,
+              onPressed: _acceptPermissions,
             ),
           ],
         ),
