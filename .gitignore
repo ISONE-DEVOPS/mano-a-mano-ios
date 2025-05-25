@@ -31,7 +31,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+build/
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +43,19 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# VS Code (opcional, remova o comentário se quiser versionar .vscode)
+# .vscode/
+
+# Arquivos de ambiente
+.env
+.env.*
+
+# Arquivos locais do Android
+android/local.properties
+
+# Cobertura de testes
+coverage/
+
+# Garante que todas pastas de build sejam ignoradas
+**/build/
