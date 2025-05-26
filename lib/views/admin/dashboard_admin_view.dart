@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,7 +31,7 @@ class DashboardAdminView extends StatelessWidget {
               children: [
                 Text(
                   'Olá, ${FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador'} 👋',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -40,6 +41,92 @@ class DashboardAdminView extends StatelessWidget {
                 Text(
                   'Aqui está um resumo da atividade recente.',
                   style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Ranking dos Carros',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 200,
+                  child: FutureBuilder<QuerySnapshot>(
+                    future:
+                        FirebaseFirestore.instance
+                            .collection('cars')
+                            .orderBy('pontuacao_total', descending: true)
+                            .limit(3)
+                            .get(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final docs = snapshot.data!.docs;
+                      final bars =
+                          docs.mapIndexed((i, doc) {
+                            final pontos = (doc['pontuacao_total'] ?? 0) as int;
+                            return BarChartGroupData(
+                              x: i,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: pontos.toDouble(),
+                                  width: 20,
+                                  color: Colors.amber,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ],
+                              showingTooltipIndicators: [0],
+                            );
+                          }).toList();
+
+                      final labels =
+                          docs.map((doc) => doc['matricula'] ?? '---').toList();
+
+                      return BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          barTouchData: BarTouchData(enabled: true),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (value, meta) {
+                                  final index = value.toInt();
+                                  if (index < 0 || index >= labels.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Text(
+                                    labels[index],
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          barGroups: bars,
+                          gridData: FlGridData(show: false),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 24),
                 LayoutBuilder(
@@ -52,6 +139,27 @@ class DashboardAdminView extends StatelessWidget {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
+                        _StatCard(
+                          label: 'Ranking Atual',
+                          valueFuture: FirebaseFirestore.instance
+                              .collection('cars')
+                              .orderBy('pontuacao_total', descending: true)
+                              .limit(3)
+                              .get()
+                              .then((snap) {
+                                final lines = snap.docs
+                                    .mapIndexed((i, doc) {
+                                      final matricula =
+                                          doc['matricula'] ?? '---';
+                                      final pontos =
+                                          doc['pontuacao_total'] ?? 0;
+                                      return '${i + 1}. $matricula ($pontos)';
+                                    })
+                                    .join('\n');
+                                return lines.isEmpty ? 'Sem dados' : lines;
+                              }),
+                          width: cardWidth,
+                        ),
                         _StatCard(
                           label: 'Total Utilizadores Ativos',
                           valueFuture: FirebaseFirestore.instance
@@ -270,7 +378,7 @@ class _DashboardCard extends StatelessWidget {
             children: [
               Icon(icon, size: 48, color: Colors.amber),
               const SizedBox(height: 12),
-              Text(title, style: const TextStyle(color: Colors.white)),
+              Text(title, style: TextStyle(color: Colors.white, fontSize: 14)),
             ],
           ),
         ),
@@ -310,14 +418,17 @@ class _StatCard extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.amber,
+                    color: Colors.amber.shade400,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(label, style: const TextStyle(color: Colors.white)),
+                Text(
+                  label,
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
               ],
             );
           },

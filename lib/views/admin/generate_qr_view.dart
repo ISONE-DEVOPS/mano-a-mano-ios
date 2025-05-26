@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:open_file/open_file.dart';
 
 class GenerateQrView extends StatefulWidget {
   const GenerateQrView({super.key});
@@ -9,69 +14,267 @@ class GenerateQrView extends StatefulWidget {
 }
 
 class _GenerateQrViewState extends State<GenerateQrView> {
-  final _postoController = TextEditingController();
+  String? _postoSelecionado;
+  List<String> _postos = [];
   String _tipo = 'entrada';
   String? _qrData;
+  final ScreenshotController _screenshotController = ScreenshotController();
 
-  void _generateQR() {
-    final posto = _postoController.text.trim();
-    if (posto.isEmpty) {
+  @override
+  void initState() {
+    super.initState();
+    _carregarPostos();
+  }
+
+  void _carregarPostos() async {
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('events')
+            .doc('3kqVSO4rgvIamJo0Och3')
+            .get();
+    final data = doc.data();
+    if (data == null || data['checkpoints'] == null) return;
+
+    final checkpoints = Map<String, dynamic>.from(data['checkpoints']);
+    setState(() {
+      _postos = checkpoints.keys.toList();
+    });
+  }
+
+  void _generateQR() async {
+    if (_postoSelecionado == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Selecione um posto')));
+      return;
+    }
+
+    if (_qrData != null &&
+        _qrData!.contains('"posto_id": "$_postoSelecionado"') &&
+        _qrData!.contains('"tipo": "$_tipo"')) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insira o identificador do posto')),
+        const SnackBar(content: Text('QR já gerado para esse posto e tipo')),
       );
       return;
     }
+
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('events')
+            .doc('3kqVSO4rgvIamJo0Och3')
+            .get();
+    final data = doc.data();
+    if (data == null || data['checkpoints'] == null) return;
+
+    if (!mounted) return;
+
+    final checkpoints = Map<String, dynamic>.from(data['checkpoints']);
+    final postoData = Map<String, dynamic>.from(
+      checkpoints[_postoSelecionado!] ?? {},
+    );
+    final qrJson = {
+      'posto_id': _postoSelecionado,
+      'tipo': _tipo,
+      'nome': postoData['name'] ?? '',
+    };
+
     setState(() {
-      _qrData = '$posto-$_tipo';
+      _qrData = qrJson.toString();
     });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('QR Code gerado com sucesso')));
+  }
+
+  void _abrirQRCode() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final path = '${directory.path}/qr_code_${_postoSelecionado}_$_tipo.png';
+    final file = File(path);
+    final exists = await file.exists();
+
+    if (!mounted) return;
+
+    if (exists) {
+      await OpenFile.open(path);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ficheiro ainda não disponível')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Gerar QR Code - Checkpoint')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Identificador do Posto'),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _postoController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Ex: posto12',
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Tipo de Checkpoint'),
-            const SizedBox(height: 6),
-            DropdownButton<String>(
-              value: _tipo,
-              items: const [
-                DropdownMenuItem(value: 'entrada', child: Text('Entrada')),
-                DropdownMenuItem(value: 'saida', child: Text('Saída')),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _tipo = value);
-              },
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _generateQR,
-              child: const Text('Gerar QR Code'),
-            ),
-            const SizedBox(height: 24),
-            if (_qrData != null)
-              Center(
-                child: QrImageView(
-                  data: _qrData!,
-                  version: QrVersions.auto,
-                  size: 200.0,
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+          primary: const Color(0xFFFFC600), // Shell Yellow 200
+          secondary: const Color(0xFFDD1D21), // Shell Red 500
+        ),
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Gerar QR Code - Checkpoint'),
+          backgroundColor: const Color(0xFFDD1D21), // Shell Red 500
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Selecionar Posto'),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _postoSelecionado,
+                items:
+                    _postos
+                        .map(
+                          (posto) => DropdownMenuItem(
+                            value: posto,
+                            child: Text(posto),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) => setState(() => _postoSelecionado = value),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Escolha um posto',
                 ),
               ),
-          ],
+              const SizedBox(height: 20),
+              const Text('Tipo de Checkpoint'),
+              const SizedBox(height: 6),
+              Row(
+                children:
+                    ['entrada', 'saida'].map((tipo) {
+                      final isSelected = _tipo == tipo;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ElevatedButton(
+                          onPressed: () => setState(() => _tipo = tipo),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isSelected
+                                    ? const Color(0xFFDD1D21)
+                                    : Colors.grey[300],
+                            foregroundColor:
+                                isSelected ? Colors.white : Colors.black,
+                          ),
+                          child: Text(tipo.toUpperCase()),
+                        ),
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 24),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _generateQR,
+                    icon: const Icon(Icons.qr_code),
+                    label: const Text('Gerar QR'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC600),
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed:
+                        _qrData == null
+                            ? null
+                            : () async {
+                              final image =
+                                  await _screenshotController.capture();
+                              if (image == null) return;
+
+                              final directory =
+                                  await getApplicationDocumentsDirectory();
+                              final imagePath =
+                                  await File(
+                                    '${directory.path}/qr_code_${_postoSelecionado}_$_tipo.png',
+                                  ).create();
+                              await imagePath.writeAsBytes(image);
+
+                              if (!mounted) return;
+
+                              await OpenFile.open(imagePath.path);
+                            },
+                    icon: const Icon(Icons.share),
+                    label: const Text('Partilhar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDD1D21),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed:
+                        _qrData == null
+                            ? null
+                            : () {
+                              _abrirQRCode();
+                            },
+                    icon: const Icon(Icons.visibility),
+                    label: const Text('Abrir QR'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC600),
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (_qrData != null)
+                Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Screenshot(
+                        controller: _screenshotController,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: const Color(0xFFDD1D21),
+                              width: 4,
+                            ), // Shell Red 500
+                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.white,
+                          ),
+                          child: QrImageView(
+                            data: _qrData!,
+                            version: QrVersions.auto,
+                            size: 200.0,
+                            embeddedImage: const AssetImage(
+                              'assets/images/shell_logo.png',
+                            ),
+                            embeddedImageStyle: const QrEmbeddedImageStyle(
+                              size: Size(40, 40),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: -40,
+                        child: Text(
+                          'Checkpoint: $_postoSelecionado',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFFDD1D21), // Shell Red
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

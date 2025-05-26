@@ -161,24 +161,26 @@ class _AdminViewState extends State<AdminView> {
 
   final List<Widget> _pages = [
     const DashboardAdminView(),
-    const GenerateQrView(),
-    const PerguntasView(),
     const EditionView(),
     const EventsView(),
+    const PerguntasView(),
+    const GenerateQrView(),
     const GalleryView(),
     const UsersAdminView(),
     ProfileView(),
+    const SizedBox(), // Placeholder para Logout
   ];
 
   final List<String> _menuTitles = [
     'Dashboard',
-    'QR Code',
-    'Perguntas',
     'Edição',
     'Eventos',
+    'Perguntas',
+    'QR Code',
     'Galeria',
     'Utilizadores',
     'Perfil',
+    'Logout',
   ];
 
   @override
@@ -191,19 +193,11 @@ class _AdminViewState extends State<AdminView> {
             onDestinationSelected:
                 (index) => setState(() => _selectedIndex = index),
             labelType: NavigationRailLabelType.all,
-            backgroundColor: Colors.grey.shade200,
+            backgroundColor: const Color.fromARGB(255, 14, 1, 1),
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.bar_chart),
                 label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.qr_code),
-                label: Text('QR Code'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.quiz),
-                label: Text('Perguntas'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.edit),
@@ -212,6 +206,14 @@ class _AdminViewState extends State<AdminView> {
               NavigationRailDestination(
                 icon: Icon(Icons.event),
                 label: Text('Eventos'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.quiz),
+                label: Text('Perguntas'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.qr_code),
+                label: Text('QR Code'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.photo_library),
@@ -224,6 +226,10 @@ class _AdminViewState extends State<AdminView> {
               NavigationRailDestination(
                 icon: Icon(Icons.person),
                 label: Text('Perfil'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.logout),
+                label: Text('Logout'),
               ),
             ],
           ),
@@ -246,7 +252,7 @@ class _AdminViewState extends State<AdminView> {
         ],
       ),
       floatingActionButton:
-          _selectedIndex == 4
+          _selectedIndex == 2
               ? FloatingActionButton(
                 tooltip: 'Adicionar Evento',
                 backgroundColor: Colors.black,
