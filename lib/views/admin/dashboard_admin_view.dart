@@ -3,7 +3,6 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 
 class DashboardAdminView extends StatefulWidget {
   const DashboardAdminView({super.key});
@@ -27,83 +26,81 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Theme(
-      data: AppBackendTheme.dark,
-      child: Scaffold(
-        appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
-        backgroundColor: const Color(0xFF0E0E2C),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 32.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Image.asset(
-                      'assets/images/Logo_Shell_KM.png',
-                      height: 80,
-                      fit: BoxFit.contain,
-                    ),
+    return Scaffold(
+      appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
+      backgroundColor: const Color(0xFF0E0E2C),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Image.asset(
+                    'assets/images/Logo_Shell_KM.png',
+                    height: 80,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 24),
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(FirebaseAuth.instance.currentUser?.uid)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const SizedBox(height: 24);
-                      }
-                      final data = snapshot.data!.data() as Map<String, dynamic>?;
-                      final nome = data?['nome'] ?? 'Administrador';
-                      return Text(
-                        'Olá, $nome 👋',
-                        style: TextStyle(
-                          color: Colors.amber,
-                          fontSize: screenWidth < 400 ? 16 : 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Aqui está um resumo da atividade recente.',
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: screenWidth < 400 ? 12 : 14,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Ranking dos Carros',
-                    style: TextStyle(
-                      color: Colors.amber,
-                      fontSize: screenWidth < 400 ? 14 : 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Divider(color: Colors.white24),
-                  const SizedBox(height: 16),
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 600),
-                    opacity: _opacity,
-                    child: Center(
-                      child: SizedBox(
-                        height: 300,
-                        width: screenWidth < 600 ? screenWidth - 32 : 600,
-                        child: _buildBarChart(),
+                ),
+                const SizedBox(height: 24),
+                FutureBuilder<DocumentSnapshot>(
+                  future:
+                      FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .get(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox(height: 24);
+                    }
+                    final data = snapshot.data!.data() as Map<String, dynamic>?;
+                    final nome = data?['nome'] ?? 'Administrador';
+                    return Text(
+                      'Olá, $nome 👋',
+                      style: TextStyle(
+                        color: Colors.amber,
+                        fontSize: screenWidth < 400 ? 16 : 20,
+                        fontWeight: FontWeight.bold,
                       ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Aqui está um resumo da atividade recente.',
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: screenWidth < 400 ? 12 : 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Ranking dos Carros',
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: screenWidth < 400 ? 14 : 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 16),
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 600),
+                  opacity: _opacity,
+                  child: Center(
+                    child: SizedBox(
+                      height: 300,
+                      width: screenWidth < 600 ? screenWidth - 32 : 600,
+                      child: _buildBarChart(),
                     ),
                   ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
         ),
@@ -156,7 +153,6 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
             barTouchData: BarTouchData(
               enabled: true,
               touchTooltipData: BarTouchTooltipData(
-                tooltipBgColor: Colors.blueGrey.shade700,
                 tooltipMargin: 12,
                 direction: TooltipDirection.top,
                 getTooltipItem: (group, _, __, ___) {

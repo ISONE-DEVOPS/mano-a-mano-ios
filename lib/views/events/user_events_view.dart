@@ -41,7 +41,7 @@ class _UserEventsViewState extends State<UserEventsView> {
   Future<void> _loadLocation() async {
     try {
       Position pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.low);
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low));
       List<Placemark> placemarks = await placemarkFromCoordinates(
         pos.latitude,
         pos.longitude,

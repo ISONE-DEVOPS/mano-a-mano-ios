@@ -9,6 +9,7 @@ import 'gallery_view.dart';
 import 'events_view.dart';
 import 'profile_view.dart';
 import 'dashboard_admin_view.dart';
+import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 
 void showAddEventDialog(BuildContext context) {
   final formKey = GlobalKey<FormState>();
@@ -176,7 +177,7 @@ class _AdminViewState extends State<AdminView> {
     'Edição',
     'Eventos',
     'Perguntas',
-    'QR Code',
+    'Checkpoints',
     'Galeria',
     'Utilizadores',
     'Perfil',
@@ -185,82 +186,85 @@ class _AdminViewState extends State<AdminView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected:
-                (index) => setState(() => _selectedIndex = index),
-            labelType: NavigationRailLabelType.all,
-            backgroundColor: const Color.fromARGB(255, 14, 1, 1),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.bar_chart),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.edit),
-                label: Text('Edição'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.event),
-                label: Text('Eventos'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.quiz),
-                label: Text('Perguntas'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.qr_code),
-                label: Text('QR Code'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.photo_library),
-                label: Text('Galeria'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.people),
-                label: Text('Utilizadores'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.person),
-                label: Text('Perfil'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.logout),
-                label: Text('Logout'),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.blueGrey.shade900,
-                  width: double.infinity,
-                  child: Text(
-                    _menuTitles[_selectedIndex],
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+    return Theme(
+      data: AppBackendTheme.dark,
+      child: Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected:
+                  (index) => setState(() => _selectedIndex = index),
+              labelType: NavigationRailLabelType.all,
+              backgroundColor: const Color.fromARGB(255, 14, 1, 1),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.bar_chart),
+                  label: Text('Dashboard'),
                 ),
-                Expanded(child: _pages[_selectedIndex]),
+                NavigationRailDestination(
+                  icon: Icon(Icons.edit),
+                  label: Text('Edição'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.event),
+                  label: Text('Eventos'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.quiz),
+                  label: Text('Perguntas'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.qr_code),
+                  label: Text('Checkpoints'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.photo_library),
+                  label: Text('Galeria'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.people),
+                  label: Text('Utilizadores'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person),
+                  label: Text('Perfil'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.logout),
+                  label: Text('Logout'),
+                ),
               ],
             ),
-          ),
-        ],
+            Expanded(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.blueGrey.shade900,
+                    width: double.infinity,
+                    child: Text(
+                      _menuTitles[_selectedIndex],
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                  ),
+                  Expanded(child: _pages[_selectedIndex]),
+                ],
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton:
+            _selectedIndex == 2
+                ? FloatingActionButton(
+                  tooltip: 'Adicionar Evento',
+                  backgroundColor: Colors.black,
+                  child: const Icon(Icons.add, color: Colors.white),
+                  onPressed: () => showAddEventDialog(context),
+                )
+                : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
-      floatingActionButton:
-          _selectedIndex == 2
-              ? FloatingActionButton(
-                tooltip: 'Adicionar Evento',
-                backgroundColor: Colors.black,
-                child: const Icon(Icons.add, color: Colors.white),
-                onPressed: () => showAddEventDialog(context),
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
