@@ -3,308 +3,107 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 
-class DashboardAdminView extends StatelessWidget {
+class DashboardAdminView extends StatefulWidget {
   const DashboardAdminView({super.key});
 
   @override
+  State<DashboardAdminView> createState() => _DashboardAdminViewState();
+}
+
+class _DashboardAdminViewState extends State<DashboardAdminView> {
+  double _opacity = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _opacity = 1);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Painel Administrativo',
-          style: TextStyle(color: Colors.white),
-        ),
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Theme(
+      data: AppBackendTheme.dark,
+      child: Scaffold(
+        appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
         backgroundColor: const Color(0xFF0E0E2C),
-      ),
-      backgroundColor: const Color(0xFF0E0E2C),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(), // rolagem suave
-          child: Padding(
-            padding: const EdgeInsets.only(
-              bottom: 32.0,
-            ), // margem inferior extra
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Olá, ${FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador'} 👋',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 32.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Image.asset(
+                      'assets/images/Logo_Shell_KM.png',
+                      height: 80,
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Aqui está um resumo da atividade recente.',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Ranking dos Carros',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 200,
-                  child: FutureBuilder<QuerySnapshot>(
-                    future:
-                        FirebaseFirestore.instance
-                            .collection('cars')
-                            .orderBy('pontuacao_total', descending: true)
-                            .limit(3)
-                            .get(),
+                  const SizedBox(height: 24),
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(FirebaseAuth.instance.currentUser?.uid)
+                        .get(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const SizedBox(height: 24);
                       }
-
-                      final docs = snapshot.data!.docs;
-                      final bars =
-                          docs.mapIndexed((i, doc) {
-                            final pontos = (doc['pontuacao_total'] ?? 0) as int;
-                            return BarChartGroupData(
-                              x: i,
-                              barRods: [
-                                BarChartRodData(
-                                  toY: pontos.toDouble(),
-                                  width: 20,
-                                  color: Colors.amber,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ],
-                              showingTooltipIndicators: [0],
-                            );
-                          }).toList();
-
-                      final labels =
-                          docs.map((doc) => doc['matricula'] ?? '---').toList();
-
-                      return BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          barTouchData: BarTouchData(enabled: true),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  final index = value.toInt();
-                                  if (index < 0 || index >= labels.length) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return Text(
-                                    labels[index],
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          borderData: FlBorderData(show: false),
-                          barGroups: bars,
-                          gridData: FlGridData(show: false),
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
+                      final nome = data?['nome'] ?? 'Administrador';
+                      return Text(
+                        'Olá, $nome 👋',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: screenWidth < 400 ? 16 : 20,
+                          fontWeight: FontWeight.bold,
                         ),
                       );
                     },
                   ),
-                ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isSmallScreen = constraints.maxWidth < 600;
-                    final cardWidth =
-                        isSmallScreen ? constraints.maxWidth : 180.0;
-
-                    return Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _StatCard(
-                          label: 'Ranking Atual',
-                          valueFuture: FirebaseFirestore.instance
-                              .collection('cars')
-                              .orderBy('pontuacao_total', descending: true)
-                              .limit(3)
-                              .get()
-                              .then((snap) {
-                                final lines = snap.docs
-                                    .mapIndexed((i, doc) {
-                                      final matricula =
-                                          doc['matricula'] ?? '---';
-                                      final pontos =
-                                          doc['pontuacao_total'] ?? 0;
-                                      return '${i + 1}. $matricula ($pontos)';
-                                    })
-                                    .join('\n');
-                                return lines.isEmpty ? 'Sem dados' : lines;
-                              }),
-                          width: cardWidth,
-                        ),
-                        _StatCard(
-                          label: 'Total Utilizadores Ativos',
-                          valueFuture: FirebaseFirestore.instance
-                              .collection('users')
-                              .where('ativo', isEqualTo: true)
-                              .get()
-                              .then((snap) => snap.size.toString()),
-                          width: cardWidth,
-                        ),
-                        _StatCard(
-                          label: 'Total Utilizadores',
-                          valueFuture: FirebaseFirestore.instance
-                              .collection('users')
-                              .get()
-                              .then((snap) => snap.size.toString()),
-                          width: cardWidth,
-                        ),
-                        _StatCard(
-                          label: 'Eventos Ativos',
-                          valueFuture: FirebaseFirestore.instance
-                              .collection('eventos')
-                              .where('ativo', isEqualTo: true)
-                              .get()
-                              .then((snap) => snap.size.toString()),
-                          width: cardWidth,
-                        ),
-                        _StatCard(
-                          label: 'Fotos na Galeria',
-                          valueFuture: FirebaseFirestore.instance
-                              .collection('galeria')
-                              .where('visivel', isEqualTo: true)
-                              .get()
-                              .then((snap) => snap.size.toString()),
-                          width: cardWidth,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Utilizadores Ativos por Mês',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Aqui está um resumo da atividade recente.',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: screenWidth < 400 ? 12 : 14,
+                    ),
                   ),
-                ),
-                FutureBuilder<List<BarChartGroupData>>(
-                  future: _buildMonthlyUserData(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const SizedBox(
-                        height: 200,
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    if (snapshot.data!.isEmpty) {
-                      return const SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: Text(
-                            'Nenhum utilizador ativo nos últimos 6 meses.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      );
-                    }
-                    return SizedBox(
-                      height: 200,
-                      child: BarChart(
-                        BarChartData(
-                          backgroundColor: Colors.transparent,
-                          borderData: FlBorderData(show: false),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 28,
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  const months = [
-                                    'Jan',
-                                    'Feb',
-                                    'Mar',
-                                    'Apr',
-                                    'May',
-                                    'Jun',
-                                    'Jul',
-                                    'Aug',
-                                    'Sep',
-                                    'Oct',
-                                    'Nov',
-                                    'Dec',
-                                  ];
-                                  return Text(
-                                    months[value.toInt()],
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                  );
-                                },
-                                interval: 1,
-                              ),
-                            ),
-                          ),
-                          gridData: FlGridData(show: false),
-                          barGroups: snapshot.data!,
-                        ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Ranking dos Carros',
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontSize: screenWidth < 400 ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(color: Colors.white24),
+                  const SizedBox(height: 16),
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 600),
+                    opacity: _opacity,
+                    child: Center(
+                      child: SizedBox(
+                        height: 300,
+                        width: screenWidth < 600 ? screenWidth - 32 : 600,
+                        child: _buildBarChart(),
                       ),
-                    );
-                  },
-                ),
-                GridView.count(
-                  crossAxisCount:
-                      MediaQuery.of(context).size.width < 600 ? 1 : 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  children: [
-                    _DashboardCard(
-                      title: 'Utilizadores',
-                      icon: Icons.people,
-                      onTap: () => Navigator.pushNamed(context, '/users'),
                     ),
-                    _DashboardCard(
-                      title: 'Eventos',
-                      icon: Icons.event,
-                      onTap: () => Navigator.pushNamed(context, '/events'),
-                    ),
-                    _DashboardCard(
-                      title: 'Galeria',
-                      icon: Icons.image,
-                      onTap: () => Navigator.pushNamed(context, '/gallery'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-              ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
@@ -312,128 +111,94 @@ class DashboardAdminView extends StatelessWidget {
     );
   }
 
-  Future<List<BarChartGroupData>> _buildMonthlyUserData() async {
-    final now = DateTime.now();
-    final sixMonthsAgo = DateTime(now.year, now.month - 5);
-    final snap =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .where('ativo', isEqualTo: true)
-            .where('created_at', isGreaterThanOrEqualTo: sixMonthsAgo)
-            .get();
+  Widget _buildBarChart() {
+    return FutureBuilder<QuerySnapshot>(
+      future:
+          FirebaseFirestore.instance
+              .collection('cars')
+              .orderBy('pontuacao_total', descending: true)
+              .limit(3)
+              .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    final Map<int, int> monthCount = {};
-    for (int i = 0; i < 6; i++) {
-      final month = DateTime(now.year, now.month - i).month;
-      monthCount[month] = 0;
-    }
-
-    for (var doc in snap.docs) {
-      if (!doc.data().containsKey('created_at') || doc['created_at'] == null) {
-        continue;
-      }
-      final createdAt = (doc['created_at'] as Timestamp).toDate();
-      final m = createdAt.month;
-      if (monthCount.containsKey(m)) {
-        monthCount[m] = monthCount[m]! + 1;
-      }
-    }
-
-    final List<BarChartGroupData> groups = [];
-    final orderedMonths = monthCount.keys.toList()..sort();
-    for (var i = 0; i < orderedMonths.length; i++) {
-      final month = orderedMonths[i];
-      final count = monthCount[month]!;
-      groups.add(
-        BarChartGroupData(
-          x: month,
-          barRods: [
-            BarChartRodData(toY: count.toDouble(), color: Colors.amber),
-          ],
-        ),
-      );
-    }
-    final hasData = groups.any((g) => g.barRods.any((r) => r.toY > 0));
-    if (!hasData) return [];
-    return groups;
-  }
-}
-
-class _DashboardCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final void Function()? onTap;
-
-  const _DashboardCard({required this.title, required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white10,
-      child: InkWell(
-        onTap: onTap,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 48, color: Colors.amber),
-              const SizedBox(height: 12),
-              Text(title, style: TextStyle(color: Colors.white, fontSize: 14)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final Future<String> valueFuture;
-  final double width;
-
-  const _StatCard({
-    required this.label,
-    required this.valueFuture,
-    required this.width,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white12,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: FutureBuilder<String>(
-          future: valueFuture,
-          builder: (context, snapshot) {
-            final value = snapshot.data ?? '...';
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade400,
+        final docs = snapshot.data!.docs;
+        final bars =
+            docs.mapIndexed((i, doc) {
+              final pontos = (doc['pontuacao_total'] ?? 0) as int;
+              final isFirst = i == 0;
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: pontos.toDouble(),
+                    width: isFirst ? 26 : 20,
+                    color: isFirst ? Colors.greenAccent : Colors.amber,
+                    borderRadius: BorderRadius.circular(4),
                   ),
+                ],
+                showingTooltipIndicators: [0],
+              );
+            }).toList();
+
+        final labels =
+            docs
+                .map(
+                  (doc) => (doc['matricula'] ?? '---').toString().toUpperCase(),
+                )
+                .toList();
+
+        return BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceEvenly,
+            barTouchData: BarTouchData(
+              enabled: true,
+              touchTooltipData: BarTouchTooltipData(
+                tooltipBgColor: Colors.blueGrey.shade700,
+                tooltipMargin: 12,
+                direction: TooltipDirection.top,
+                getTooltipItem: (group, _, __, ___) {
+                  final doc = docs[group.x.toInt()];
+                  final matricula = doc['matricula'] ?? '---';
+                  final pontos = doc['pontuacao_total'] ?? 0;
+                  final equipa = doc['nome_equipa'] ?? doc['modelo'] ?? '';
+                  return BarTooltipItem(
+                    '$matricula\n$equipa\n$pontos pontos',
+                    const TextStyle(color: Colors.white),
+                  );
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final index = value.toInt();
+                    if (index < 0 || index >= labels.length) {
+                      return const SizedBox.shrink();
+                    }
+                    return Text(
+                      labels[index],
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    );
+                  },
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            barGroups: bars,
+            gridData: FlGridData(show: false),
+          ),
+        );
+      },
     );
   }
 }

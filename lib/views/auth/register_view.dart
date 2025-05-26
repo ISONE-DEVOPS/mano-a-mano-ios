@@ -25,6 +25,7 @@ class _RegisterViewState extends State<RegisterView> {
   final _carBrandController = TextEditingController();
   final _carModelController = TextEditingController();
   final _emergencyContactController = TextEditingController();
+  final _teamNameController = TextEditingController();
   final _firebaseService = FirebaseService();
 
   final List<String> _shirtSizes = ['P', 'M', 'G', 'GG', 'XG'];
@@ -86,6 +87,7 @@ class _RegisterViewState extends State<RegisterView> {
         'matricula': _licensePlateController.text.trim(),
         'marca': _carBrandController.text.trim(),
         'modelo': _carModelController.text.trim(),
+        'nome_equipa': _teamNameController.text.trim(),
         'passageiros': passageiros,
         'pontuacao_total': 0,
         'checkpoints': {},
@@ -188,7 +190,7 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Contato de emergência',
             controller: _emergencyContactController,
             keyboardType: TextInputType.phone,
-            hintText: 'Ex: 912345678',
+            hintText: 'Ex: 9911111',
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -295,6 +297,13 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Modelo',
             controller: _carModelController,
             hintText: 'Ex: Corolla',
+          ),
+          const SizedBox(height: 16),
+          _inputCard(
+            icon: Icons.group,
+            label: 'Nome da Equipa',
+            controller: _teamNameController,
+            hintText: 'Ex: Os Rápidos',
           ),
           const SizedBox(height: 24),
           Row(

@@ -1,10 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'package:open_file/open_file.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GenerateQrView extends StatefulWidget {
   const GenerateQrView({super.key});
@@ -44,9 +46,10 @@ class _GenerateQrViewState extends State<GenerateQrView> {
   void _generateQR() async {
     if (_postoSelecionado == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecione um posto')));
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Selecione um posto')),
+      );
       return;
     }
 
@@ -54,7 +57,8 @@ class _GenerateQrViewState extends State<GenerateQrView> {
         _qrData!.contains('"posto_id": "$_postoSelecionado"') &&
         _qrData!.contains('"tipo": "$_tipo"')) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
         const SnackBar(content: Text('QR já gerado para esse posto e tipo')),
       );
       return;
@@ -85,26 +89,10 @@ class _GenerateQrViewState extends State<GenerateQrView> {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('QR Code gerado com sucesso')));
-  }
-
-  void _abrirQRCode() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = '${directory.path}/qr_code_${_postoSelecionado}_$_tipo.png';
-    final file = File(path);
-    final exists = await file.exists();
-
-    if (!mounted) return;
-
-    if (exists) {
-      await OpenFile.open(path);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ficheiro ainda não disponível')),
-      );
-    }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('QR Code gerado com sucesso')),
+    );
   }
 
   @override
@@ -203,27 +191,28 @@ class _GenerateQrViewState extends State<GenerateQrView> {
 
                               if (!mounted) return;
 
-                              await OpenFile.open(imagePath.path);
+                              final uri = Uri.file(imagePath.path);
+                              final launched = await launchUrl(uri);
+
+                              if (!mounted) return;
+
+                              if (!mounted) return;
+                              if (!launched) {
+                                final messenger = ScaffoldMessenger.of(context);
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Não foi possível abrir o ficheiro',
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                     icon: const Icon(Icons.share),
                     label: const Text('Partilhar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFDD1D21),
                       foregroundColor: Colors.white,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed:
-                        _qrData == null
-                            ? null
-                            : () {
-                              _abrirQRCode();
-                            },
-                    icon: const Icon(Icons.visibility),
-                    label: const Text('Abrir QR'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC600),
-                      foregroundColor: Colors.black,
                     ),
                   ),
                 ],
