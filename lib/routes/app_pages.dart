@@ -17,6 +17,11 @@ import '../views/auth/forgot_password_view.dart';
 import '../views/admin/add_checkpoints_view.dart';
 import '../views/terms/terms_screen.dart';
 import '../views/privacy/privacy_policy_screen.dart';
+import '../views/admin/challenge_view.dart';
+import '../views/checkin/checkpoint_questions_view.dart';
+import '../views/admin/ranking_detailed_view.dart';
+import '../views/admin/final_activities_view.dart';
+import '../views/profile/team_customization_view.dart';
 
 class AppPages {
   static const initial = '/';
@@ -68,5 +73,16 @@ class AppPages {
     ),
     GetPage(name: '/terms', page: () => const TermsScreen()),
     GetPage(name: '/privacy', page: () => const PrivacyPolicyScreen()),
+    GetPage(name: '/challenges', page: () => ChallengeView()),
+    GetPage(
+      name: '/checkpoint-questions',
+      page: () => const CheckpointQuestionsView(),
+    ),
+    GetPage(name: '/ranking-detailed', page: () => const RankingDetailedView()),
+    GetPage(name: '/final-activities', page: () => FinalActivitiesView()),
+    GetPage(
+      name: '/team-customization',
+      page: () => const TeamCustomizationView(),
+    ),
   ];
 }

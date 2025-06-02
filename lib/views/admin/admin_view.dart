@@ -10,6 +10,9 @@ import 'events_view.dart';
 import 'profile_view.dart';
 import 'dashboard_admin_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
+import 'challenge_view.dart';
+import 'ranking_detailed_view.dart';
+import 'final_activities_view.dart';
 
 void showAddEventDialog(BuildContext context) {
   final formKey = GlobalKey<FormState>();
@@ -170,6 +173,9 @@ class _AdminViewState extends State<AdminView> {
     const UsersAdminView(),
     ProfileView(),
     const SizedBox(), // Placeholder para Logout
+    ChallengeView(),
+    const RankingDetailedView(),
+    FinalActivitiesView(),
   ];
 
   final List<String> _menuTitles = [
@@ -182,6 +188,9 @@ class _AdminViewState extends State<AdminView> {
     'Utilizadores',
     'Perfil',
     'Logout',
+    'Desafios',
+    'Ranking Detalhado',
+    'Atividades Finais',
   ];
 
   @override
@@ -233,6 +242,18 @@ class _AdminViewState extends State<AdminView> {
                 NavigationRailDestination(
                   icon: Icon(Icons.logout),
                   label: Text('Logout'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.flag),
+                  label: Text('Desafios'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.leaderboard),
+                  label: Text('Ranking'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.sports_score),
+                  label: Text('Finais'),
                 ),
               ],
             ),
