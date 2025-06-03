@@ -1,3 +1,4 @@
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,15 @@ class RankingDetailedView extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ranking Detalhado')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'Ranking Detalhado',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: rankings.length,
@@ -25,11 +34,33 @@ class RankingDetailedView extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = rankings[index];
           return ListTile(
-            leading: CircleAvatar(child: Text('${index + 1}')),
-            title: Text(item['team'] as String),
-            subtitle: Text('Checkpoints: ${item['checkpoints']}'),
-            trailing: Text('${item['score']} pts',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            leading: CircleAvatar(
+              backgroundColor: AppColors.secondaryDark,
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(color: Colors.black),
+              ),
+            ),
+            title: Text(
+              item['team'] as String,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              'Checkpoints: ${item['checkpoints']}',
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(179),
+              ),
+            ),
+            trailing: Text(
+              '${item['score']} pts',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           );
         },
       ),

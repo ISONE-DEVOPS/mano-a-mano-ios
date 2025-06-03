@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import '../../controllers/final_activities_controller.dart';
 
 /// Tela para exibir e selecionar os desafios finais de team building.
@@ -14,7 +15,12 @@ class ChallengeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Desafios Finais'),
+        title: const Text(
+          'Desafios Finais',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -25,11 +31,20 @@ class ChallengeView extends StatelessWidget {
               final activity = controller.activities[index];
               final isSelected = controller.selectedActivity.value == activity;
               return Card(
-                color: isSelected ? Colors.yellow[100] : null,
+                color: isSelected
+                    ? AppColors.primary.withAlpha(20)
+                    : AppColors.surface,
                 child: ListTile(
-                  title: Text(activity),
+                  title: Text(
+                    activity,
+                    style: TextStyle(
+                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
                       : null,
                   onTap: () => controller.selectActivity(activity),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import '../../services/auth_service.dart';
 
 class ProfileView extends StatelessWidget {
@@ -10,44 +11,46 @@ class ProfileView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Perfil'),
-        backgroundColor: const Color(0xFF0E0E2C),
+        title: const Text('Perfil', style: TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      backgroundColor: const Color(0xFF0E0E2C),
+      backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             const SizedBox(height: 40),
-            const CircleAvatar(
+            CircleAvatar(
               radius: 40,
-              backgroundColor: Colors.white24,
-              child: Icon(Icons.person, size: 50, color: Colors.white),
+              backgroundColor: AppColors.secondaryDark.withAlpha(51),
+              child: Icon(Icons.person, size: 50, color: AppColors.primary),
             ),
             const SizedBox(height: 20),
             Text(
               user?.email ?? 'Usuário sem email',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppColors.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             const SizedBox(height: 24),
-            const Divider(color: Colors.white24),
+            Divider(color: AppColors.textSecondary.withAlpha(61)),
             const Spacer(),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: const Text(
+                icon: Icon(Icons.logout, color: Colors.white),
+                label: Text(
                   'Sair da Conta',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

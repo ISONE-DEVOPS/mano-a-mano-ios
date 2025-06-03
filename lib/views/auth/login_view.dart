@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'package:get/get.dart';
 import 'package:flutter/gestures.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../../services/firebase_service.dart';
 import '../dashboard/home_view.dart';
 import '../../screens/permission_screen.dart';
@@ -78,212 +80,238 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildLoginForm(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Logo e Bem-vindo
-              const SizedBox(height: 40),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  'assets/images/Logo_Shell_KM.png',
-                  width: 90,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text('Bem-vindo(a)!', style: textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Entre com sua conta ou registre-se para participar dos eventos Shell ao KM.',
-                  style: textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, color: colorScheme.error),
-                      const SizedBox(width: 8),
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: colorScheme.error,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Logo e Bem-vindo
+          const SizedBox(height: 40),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Image.asset(
+              'assets/images/Logo_Shell_KM.png',
+              width: 90,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Bem-vindo(a)!', style: textTheme.titleLarge?.copyWith(color: AppColors.primary)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Entre com sua conta ou registre-se para participar dos eventos Shell ao KM.',
+              style: textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-              const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
 
-              // Formulário
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
+          // Formulário
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: 'Digite seu email',
+                    hintStyle:
+                        Theme.of(context).inputDecorationTheme.hintStyle,
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: colorScheme.onSurface,
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  style: textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: !_showPassword,
+                  decoration: InputDecoration(
+                    hintText: 'Digite sua senha',
+                    hintStyle:
+                        Theme.of(context).inputDecorationTheme.hintStyle,
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.onSurface,
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _showPassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: colorScheme.onSurface,
+                      ),
+                      onPressed:
+                          () => setState(
+                            () => _showPassword = !_showPassword,
+                          ),
+                    ),
+                  ),
+                  style: textTheme.bodyLarge,
+                ),
+                Row(
                   children: [
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        hintText: 'Digite seu email',
-                        hintStyle:
-                            Theme.of(context).inputDecorationTheme.hintStyle,
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          color: colorScheme.onSurface,
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      style: textTheme.bodyLarge,
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (v) {
+                        final newValue = v ?? false;
+                        setState(() => _rememberMe = newValue);
+                        _saveRememberMe(newValue);
+                      },
+                      activeColor: colorScheme.primary,
                     ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: !_showPassword,
-                      decoration: InputDecoration(
-                        hintText: 'Digite sua senha',
-                        hintStyle:
-                            Theme.of(context).inputDecorationTheme.hintStyle,
-                        prefixIcon: Icon(
-                          Icons.lock_outline,
-                          color: colorScheme.onSurface,
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _showPassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: colorScheme.onSurface,
-                          ),
-                          onPressed:
-                              () => setState(
-                                () => _showPassword = !_showPassword,
-                              ),
-                        ),
-                      ),
-                      style: textTheme.bodyLarge,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (v) {
-                            final newValue = v ?? false;
-                            setState(() => _rememberMe = newValue);
-                            _saveRememberMe(newValue);
-                          },
-                          activeColor: colorScheme.primary,
-                        ),
-                        Text('Lembrar-me', style: textTheme.bodyMedium),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            Get.toNamed('/forgot-password');
-                          },
-                          child: Text(
-                            'Esqueceu a senha?',
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontSize: 13,
-                              color: colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontSize: 13,
-                              ),
-                              children: [
-                                const TextSpan(text: 'Aceito os '),
-                                TextSpan(
-                                  text: 'Termos e Condições',
-                                  style: TextStyle(
-                                    decoration: TextDecoration.underline,
-                                    color: colorScheme.secondary,
-                                  ),
-                                  recognizer:
-                                      TapGestureRecognizer()
-                                        ..onTap = () {
-                                          Get.toNamed('/terms');
-                                        },
-                                ),
-                                const TextSpan(text: ' e a '),
-                                TextSpan(
-                                  text: 'Política de Privacidade',
-                                  style: TextStyle(
-                                    decoration: TextDecoration.underline,
-                                    color: colorScheme.secondary,
-                                  ),
-                                  recognizer:
-                                      TapGestureRecognizer()
-                                        ..onTap = () {
-                                          Get.toNamed('/privacy');
-                                        },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _login,
-                        child:
-                            _loading
-                                ? CircularProgressIndicator(
-                                  color: colorScheme.onPrimary,
-                                )
-                                : Text('Entrar', style: textTheme.bodyLarge),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    Text('Lembrar-me', style: textTheme.bodyMedium),
+                    const Spacer(),
                     TextButton(
-                      onPressed: () => Get.toNamed('/register'),
+                      onPressed: () {
+                        Get.toNamed('/forgot-password');
+                      },
                       child: Text(
-                        'Não tem uma conta? Registre-se',
+                        'Esqueceu a senha?',
                         style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.secondary,
+                          fontSize: 13,
+                          color: AppColors.secondary,
                         ),
                       ),
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontSize: 13,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Aceito os '),
+                            TextSpan(
+                              text: 'Termos e Condições',
+                              style: TextStyle(
+                                decoration: TextDecoration.underline,
+                                color: colorScheme.secondary,
+                              ),
+                              recognizer:
+                                  TapGestureRecognizer()
+                                    ..onTap = () {
+                                      Get.toNamed('/terms');
+                                    },
+                            ),
+                            const TextSpan(text: ' e a '),
+                            TextSpan(
+                              text: 'Política de Privacidade',
+                              style: TextStyle(
+                                decoration: TextDecoration.underline,
+                                color: colorScheme.secondary,
+                              ),
+                              recognizer:
+                                  TapGestureRecognizer()
+                                    ..onTap = () {
+                                      Get.toNamed('/privacy');
+                                    },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _loading
+                        ? CircularProgressIndicator(
+                            color: Colors.black,
+                          )
+                        : Text('Entrar', style: textTheme.bodyLarge),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Get.toNamed('/register'),
+                  child: Text(
+                    'Não tem uma conta? Registre-se',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: SizedBox(
+            width: 420,
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: _buildLoginForm(context),
               ),
-              const SizedBox(height: 30),
-            ],
+            ),
           ),
         ),
+      );
+    }
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: _buildLoginForm(context),
       ),
     );
   }

@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   static const Color primary = Color(0xFFDD1D21); // Shell Red
-  static const Color secondary = Color(0xFFFFD700); // Shell Yellow
-  static const Color background = Color(0xFF0E0E2C); // Azul escuro
-  static const Color text = Colors.white;
-  static const Color error = Colors.redAccent;
+  static const Color secondary = Color(0xFFFFC600); // Shell Yellow
+  static const Color background = Color(0xFFFFF3E5); // Sunrise 50
+  static const Color text = Colors.black87;
 }
 
 class AppBackendTheme {
@@ -19,7 +18,7 @@ class AppBackendTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Colors.grey.shade100,
-        error: AppColors.error,
+        //error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.black,
@@ -63,7 +62,7 @@ class AppBackendTheme {
         secondary: AppColors.secondary,
         surface: const Color(0xFF1E1E1E),
         // background removed (deprecated, surface is sufficient)
-        error: AppColors.error,
+        //error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.white,
@@ -104,22 +103,22 @@ class AppTheme {
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
       fontFamily: 'Roboto',
-      colorScheme: const ColorScheme.light(
+      colorScheme: ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.background,
-        error: AppColors.error,
+        //error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
-        onSurface: Colors.white,
+        onSurface: AppColors.text,
         onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.text,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
-      textTheme: const TextTheme(
+      textTheme: TextTheme(
         bodyLarge: TextStyle(color: AppColors.text, fontSize: 16),
         bodyMedium: TextStyle(color: AppColors.text, fontSize: 14),
         titleLarge: TextStyle(
@@ -132,7 +131,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.secondary,
           foregroundColor: Colors.black,
-          padding: EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -142,6 +141,21 @@ class AppTheme {
         fillColor: WidgetStateProperty.all(AppColors.primary),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.primary),
+        ),
+        labelStyle: TextStyle(color: AppColors.text),
         hintStyle: TextStyle(color: Colors.grey.shade600),
       ),
     );
@@ -151,20 +165,20 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: Colors.black,
+      scaffoldBackgroundColor: const Color(0xFF121212),
       fontFamily: 'Roboto',
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Color(0xFF1E1E1E),
-        error: AppColors.error,
+        //error: AppColors.error,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.white,
         onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -181,7 +195,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.secondary,
           foregroundColor: Colors.black,
-          padding: EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

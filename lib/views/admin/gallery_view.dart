@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class GalleryView extends StatelessWidget {
   const GalleryView({super.key});
@@ -6,7 +7,12 @@ class GalleryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Galeria de Fotos')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        title: const Text('Galeria de Fotos', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.builder(
@@ -18,17 +24,18 @@ class GalleryView extends StatelessWidget {
           itemCount: 9,
           itemBuilder: (context, index) {
             return Container(
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.photo, size: 48, color: Colors.grey),
+              color: AppColors.secondaryDark.withAlpha(51),
+              child: const Icon(Icons.photo, size: 48, color: AppColors.primary),
             );
           },
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.secondaryDark,
         onPressed: () {
           // ação de upload futura
         },
-        child: const Icon(Icons.add_a_photo),
+        child: const Icon(Icons.add_a_photo, color: Colors.black),
       ),
     );
   }

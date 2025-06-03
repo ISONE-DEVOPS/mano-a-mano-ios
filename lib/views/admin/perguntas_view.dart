@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class PerguntasView extends StatefulWidget {
   const PerguntasView({super.key});
@@ -58,7 +59,15 @@ class _PerguntasViewState extends State<PerguntasView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar Pergunta')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        title: const Text(
+          'Criar Pergunta',
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -67,7 +76,10 @@ class _PerguntasViewState extends State<PerguntasView> {
             const Text('Posto (opcional)'),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _postoController.text.isNotEmpty ? _postoController.text : null,
+              value:
+                  _postoController.text.isNotEmpty
+                      ? _postoController.text
+                      : null,
               items: List.generate(
                 40,
                 (index) => DropdownMenuItem(
@@ -115,6 +127,10 @@ class _PerguntasViewState extends State<PerguntasView> {
             Center(
               child: ElevatedButton(
                 onPressed: _salvarPergunta,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondaryDark,
+                  foregroundColor: Colors.black,
+                ),
                 child: const Text('Salvar Pergunta'),
               ),
             ),

@@ -1,7 +1,5 @@
-
-
-
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 
 /// Tela de perguntas de checkpoint onde os participantes devem responder corretamente
 /// para continuar no Rally Paper. Apresenta duas perguntas com campos de resposta.
@@ -24,7 +22,11 @@ class _CheckpointQuestionsViewState extends State<CheckpointQuestionsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Perguntas do Checkpoint')),
+      appBar: AppBar(
+        title: const Text('Perguntas do Checkpoint'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -47,6 +49,11 @@ class _CheckpointQuestionsViewState extends State<CheckpointQuestionsView> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondaryDark,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 child: const Text('Submeter'),
               )
             ],
@@ -63,12 +70,15 @@ class _CheckpointQuestionsViewState extends State<CheckpointQuestionsView> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Respostas Recebidas'),
+          title: const Text(
+            'Respostas Recebidas',
+            style: TextStyle(color: AppColors.primary),
+          ),
           content: Text('Resposta 1: ${_answers[0]}\nResposta 2: ${_answers[1]}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar'),
+              child: const Text('Fechar', style: TextStyle(color: AppColors.primary)),
             ),
           ],
         ),

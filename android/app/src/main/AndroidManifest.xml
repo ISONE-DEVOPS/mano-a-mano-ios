@@ -10,7 +10,7 @@
     <uses-feature android:name="android.hardware.camera.any" />
 
     <application
-        android:label="mano_mano_dashboard"
+        android:label="Mano a Mano"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
         <activity

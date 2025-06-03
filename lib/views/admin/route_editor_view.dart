@@ -1,3 +1,4 @@
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -83,6 +84,7 @@ class _RouteEditorViewState extends State<RouteEditorView> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Percurso e checkpoints salvos com sucesso!'),
+        backgroundColor: AppColors.primary,
       ),
     );
   }
@@ -102,17 +104,21 @@ class _RouteEditorViewState extends State<RouteEditorView> {
             ); // Coordenadas centrais de Cabo Verde
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Editor de Percurso'),
+        backgroundColor: AppColors.primary,
+        title: const Text('Editor de Percurso', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveRoute),
+          IconButton(icon: const Icon(Icons.save, color: Colors.white), onPressed: _saveRoute),
           IconButton(
-            icon: const Icon(Icons.clear_all),
-            onPressed:
-                () => setState(() {
-                  _percurso.clear();
-                  _checkpoints.clear();
-                }),
+            icon: const Icon(Icons.clear_all, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _percurso.clear();
+                _checkpoints.clear();
+              });
+            },
           ),
         ],
       ),

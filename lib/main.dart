@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'routes/app_pages.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
@@ -23,7 +24,7 @@ class ManoManoDashboard extends StatelessWidget {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Dashboard Mano Mano',
-      initialRoute: AppPages.initial,
+      initialRoute: kIsWeb ? '/loading-admin' : '/splash',
       getPages: AppPages.routes,
       theme: AppTheme.theme,
       darkTheme: AppTheme.darkTheme,

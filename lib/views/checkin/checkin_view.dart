@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/shared/nav_bottom.dart';
+import '../../theme/app_colors.dart';
 
 class CheckinView extends StatefulWidget {
   const CheckinView({super.key});
@@ -27,7 +28,7 @@ class _CheckinViewState extends State<CheckinView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Leitura de QR Code'),
-        backgroundColor: const Color(0xFF0E0E2C),
+        backgroundColor: AppColors.primary,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -35,7 +36,7 @@ class _CheckinViewState extends State<CheckinView> {
           children: [
             const Text(
               'Escaneie o QR Code do posto',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -129,7 +130,7 @@ class _CheckinViewState extends State<CheckinView> {
               child:
                   resultMessage != null
                       ? Card(
-                        color: Colors.grey.shade100,
+                        color: AppColors.background,
                         elevation: 2,
                         margin: EdgeInsets.zero,
                         child: Center(
@@ -138,6 +139,7 @@ class _CheckinViewState extends State<CheckinView> {
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -147,6 +149,7 @@ class _CheckinViewState extends State<CheckinView> {
                         child: Text(
                           'Aponte a câmera para o QR do posto',
                           textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
             ),

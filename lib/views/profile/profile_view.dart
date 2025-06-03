@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../widgets/shared/nav_bottom.dart';
 
 class ProfileView extends StatelessWidget {
@@ -71,6 +72,21 @@ class ProfileView extends StatelessWidget {
                 Text(
                   'Carro: ${carData['modelo'] ?? ''} (${carData['matricula'] ?? ''})',
                   style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const Divider(height: 32),
+                const Text(
+                  'QR Code do Condutor:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: QrImageView(
+                    data:
+                        'Nome: ${userData['nome'] ?? ''}\nMatrícula: ${carData['matricula'] ?? ''}\nEmail: ${userData['email'] ?? ''}\nTelefone: ${userData['telefone'] ?? ''}',
+                    version: QrVersions.auto,
+                    size: 200.0,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
                 const Divider(height: 32),
                 const Text(

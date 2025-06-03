@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class EditionView extends StatefulWidget {
   const EditionView({super.key});
@@ -69,7 +70,15 @@ class _EditionViewState extends State<EditionView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestão de Edição')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        title: const Text(
+          'Gestão de Edição',
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -99,6 +108,10 @@ class _EditionViewState extends State<EditionView> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _salvarEdicao,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondaryDark,
+                foregroundColor: Colors.black,
+              ),
               child: const Text('Salvar Edição'),
             ),
             const SizedBox(height: 32),
@@ -133,9 +146,7 @@ class _EditionViewState extends State<EditionView> {
                     child: DataTable(
                       sortColumnIndex: _sortColumnIndex,
                       sortAscending: _sortAsc,
-                      headingRowColor: WidgetStateProperty.all(
-                        Colors.grey.shade200,
-                      ),
+                      headingRowColor: WidgetStateProperty.all(AppColors.secondaryDark.withAlpha(51)),
                       columns: [
                         DataColumn(
                           label: const Text('ANO', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -165,7 +176,7 @@ class _EditionViewState extends State<EditionView> {
                                       IconButton(
                                         icon: const Icon(
                                           Icons.visibility,
-                                          color: Colors.orange,
+                                          color: AppColors.secondaryDark,
                                         ),
                                         tooltip: 'Ver detalhes',
                                         onPressed: () {},
@@ -173,7 +184,7 @@ class _EditionViewState extends State<EditionView> {
                                       IconButton(
                                         icon: const Icon(
                                           Icons.edit,
-                                          color: Colors.blue,
+                                          color: AppColors.primary,
                                         ),
                                         tooltip: 'Editar',
                                         onPressed: () {},

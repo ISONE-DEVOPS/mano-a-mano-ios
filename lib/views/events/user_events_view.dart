@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../widgets/shared/nav_topbar.dart';
 import '../../widgets/shared/nav_bottom.dart';
+import '../../theme/app_colors.dart';
 
 class UserEventsView extends StatefulWidget {
   const UserEventsView({super.key});
@@ -130,6 +131,7 @@ class _UserEventsViewState extends State<UserEventsView> {
               final evento = eventos[i];
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   title: Text(evento['nome'] ?? 'Evento'),
                   subtitle: Text(
@@ -148,7 +150,7 @@ class _UserEventsViewState extends State<UserEventsView> {
                     icon: const Icon(Icons.map),
                     label: const Text('Ver Percurso'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0E0E2C),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                     ),
                   ),

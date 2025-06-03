@@ -7,6 +7,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class GenerateQrView extends StatefulWidget {
   const GenerateQrView({super.key});
@@ -100,14 +101,16 @@ class _GenerateQrViewState extends State<GenerateQrView> {
     return Theme(
       data: Theme.of(context).copyWith(
         colorScheme: Theme.of(context).colorScheme.copyWith(
-          primary: const Color(0xFFFFC600), // Shell Yellow 200
-          secondary: const Color(0xFFDD1D21), // Shell Red 500
+          primary: AppColors.primary,
+          secondary: AppColors.secondaryDark,
         ),
       ),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Gerar QR Code - Checkpoint'),
-          backgroundColor: const Color(0xFFDD1D21), // Shell Red 500
+          backgroundColor: AppColors.primary,
+          iconTheme: const IconThemeData(color: Colors.white),
+          titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
         ),
         body: Padding(
           padding: const EdgeInsets.all(24),
@@ -147,10 +150,14 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
                                 isSelected
-                                    ? const Color(0xFFDD1D21)
-                                    : Colors.grey[300],
+                                    ? (tipo == 'entrada'
+                                        ? AppColors.primary
+                                        : AppColors.primary)
+                                    : AppColors.secondaryDark.withAlpha(51),
                             foregroundColor:
-                                isSelected ? Colors.white : Colors.black,
+                                isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
                           ),
                           child: Text(tipo.toUpperCase()),
                         ),
@@ -168,7 +175,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                     icon: const Icon(Icons.qr_code),
                     label: const Text('Gerar QR'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC600),
+                      backgroundColor: AppColors.secondaryDark,
                       foregroundColor: Colors.black,
                     ),
                   ),
@@ -211,7 +218,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                     icon: const Icon(Icons.share),
                     label: const Text('Partilhar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDD1D21),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -229,9 +236,9 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: const Color(0xFFDD1D21),
+                              color: AppColors.primary,
                               width: 4,
-                            ), // Shell Red 500
+                            ),
                             borderRadius: BorderRadius.circular(16),
                             color: Colors.white,
                           ),
@@ -255,7 +262,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Color(0xFFDD1D21), // Shell Red
+                            color: AppColors.primary,
                           ),
                         ),
                       ),

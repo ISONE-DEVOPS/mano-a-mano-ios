@@ -3,6 +3,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class DashboardAdminView extends StatefulWidget {
   const DashboardAdminView({super.key});
@@ -28,7 +29,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
 
     return Scaffold(
       appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
-      backgroundColor: const Color(0xFF0E0E2C),
+      backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -61,7 +62,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                     return Text(
                       'Olá, $nome 👋',
                       style: TextStyle(
-                        color: Colors.amber,
+                        color: AppColors.secondaryDark,
                         fontSize: screenWidth < 400 ? 16 : 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -72,21 +73,39 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                 Text(
                   'Aqui está um resumo da atividade recente.',
                   style: TextStyle(
-                    color: Colors.white60,
+                    color: AppColors.textSecondary.withAlpha(153),
                     fontSize: screenWidth < 400 ? 12 : 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/scan-score'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Registrar Pontuação'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondaryDark,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Ranking dos Carros',
                   style: TextStyle(
-                    color: Colors.amber,
+                    color: AppColors.secondaryDark,
                     fontSize: screenWidth < 400 ? 14 : 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Divider(color: Colors.white24),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.textSecondary.withAlpha(61),
+                ),
                 const SizedBox(height: 16),
                 AnimatedOpacity(
                   duration: const Duration(milliseconds: 600),
@@ -96,6 +115,35 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                       height: 300,
                       width: screenWidth < 600 ? screenWidth - 32 : 600,
                       child: _buildBarChart(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'Pontuações Recentes',
+                  style: TextStyle(
+                    color: AppColors.secondaryDark,
+                    fontSize: screenWidth < 400 ? 14 : 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.textSecondary.withAlpha(61),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/pontuacoes'),
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('Ver Pontuações Registradas'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondaryDark,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -132,7 +180,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                   BarChartRodData(
                     toY: pontos.toDouble(),
                     width: isFirst ? 26 : 20,
-                    color: isFirst ? Colors.greenAccent : Colors.amber,
+                    color: isFirst ? AppColors.secondary : AppColors.secondary,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ],
@@ -162,7 +210,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                   final equipa = doc['nome_equipa'] ?? doc['modelo'] ?? '';
                   return BarTooltipItem(
                     '$matricula\n$equipa\n$pontos pontos',
-                    const TextStyle(color: Colors.white),
+                    TextStyle(color: AppColors.textPrimary),
                   );
                 },
               ),

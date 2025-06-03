@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
@@ -8,21 +6,21 @@ class AppBackendTheme {
     return ThemeData(
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: Colors.grey.shade100,
+      scaffoldBackgroundColor: AppColors.background,
       fontFamily: 'Roboto',
       colorScheme: ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
-        surface: Colors.grey.shade100,
+        surface: AppColors.surface,
         error: AppColors.error,
         onPrimary: Colors.white,
-        onSecondary: Colors.black,
-        onSurface: Colors.black,
+        onSecondary: AppColors.textPrimary,
+        onSurface: AppColors.textPrimary,
         onError: Colors.white,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.grey.shade100,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       textTheme: const TextTheme(
@@ -51,20 +49,20 @@ class AppBackendTheme {
     return ThemeData(
       brightness: Brightness.dark,
       primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: AppColors.textPrimary,
       fontFamily: 'Roboto',
       colorScheme: ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
-        surface: const Color(0xFF1E1E1E),
+        surface: AppColors.surfaceSecondary,
         error: AppColors.error,
         onPrimary: Colors.white,
-        onSecondary: Colors.black,
+        onSecondary: AppColors.textSecondary,
         onSurface: Colors.white,
         onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 1,
       ),

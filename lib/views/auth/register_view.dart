@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
@@ -714,129 +715,140 @@ class _RegisterViewState extends State<RegisterView> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Spacer(),
-                  Image.asset(
-                    'assets/images/Logo_Shell_KM.png',
-                    width: 40,
-                    height: 40,
-                  ),
-                ],
+        child: kIsWeb
+            ? Center(
+                child: SizedBox(
+                  width: 500,
+                  child: _buildRegisterBody(context),
+                ),
+              )
+            : _buildRegisterBody(context),
+      ),
+    );
+  }
+
+  Widget _buildRegisterBody(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                onPressed: () => Navigator.pop(context),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'Criar uma conta',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Já tem uma conta?',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary.withAlpha(179),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Get.toNamed('/login'),
-                        child: Text(
-                          'Entrar',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              const Spacer(),
+              Image.asset(
+                'assets/images/Logo_Shell_KM.png',
+                width: 40,
+                height: 40,
               ),
-            ),
-            const SizedBox(height: 28),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Criar uma conta',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Etapa ${_currentStep + 1} de 4',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      letterSpacing: 0.2,
+                    'Já tem uma conta?',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withAlpha(179),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  LinearProgressIndicator(
-                    value: (_currentStep + 1) / 4,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.onPrimary.withAlpha(61),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
+                  TextButton(
+                    onPressed: () => Get.toNamed('/login'),
+                    child: Text(
+                      'Entrar',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                    minHeight: 6,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(32),
-                    topRight: Radius.circular(32),
-                  ),
-                ),
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildStepCondutor(),
-                    _buildStepCarro(),
-                    _buildStepPassageiros(),
-                    _buildStepEvento(),
-                  ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Etapa ${_currentStep + 1} de 4',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                  letterSpacing: 0.2,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              LinearProgressIndicator(
+                value: (_currentStep + 1) / 4,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withAlpha(61),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary,
+                ),
+                minHeight: 6,
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
+              ),
+            ),
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildStepCondutor(),
+                _buildStepCarro(),
+                _buildStepPassageiros(),
+                _buildStepEvento(),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

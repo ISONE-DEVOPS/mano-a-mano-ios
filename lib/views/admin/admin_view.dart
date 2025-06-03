@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'generate_qr_view.dart';
 import 'perguntas_view.dart';
 import 'users_admin_view.dart';
-import 'edition_view.dart';
 import 'gallery_view.dart';
 import 'events_view.dart';
 import 'profile_view.dart';
 import 'dashboard_admin_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'challenge_view.dart';
 import 'ranking_detailed_view.dart';
 import 'final_activities_view.dart';
@@ -165,32 +165,30 @@ class _AdminViewState extends State<AdminView> {
 
   final List<Widget> _pages = [
     const DashboardAdminView(),
-    const EditionView(),
     const EventsView(),
     const PerguntasView(),
     const GenerateQrView(),
+    ChallengeView(),
+    const RankingDetailedView(),
+    FinalActivitiesView(),
     const GalleryView(),
     const UsersAdminView(),
     ProfileView(),
     const SizedBox(), // Placeholder para Logout
-    ChallengeView(),
-    const RankingDetailedView(),
-    FinalActivitiesView(),
   ];
 
   final List<String> _menuTitles = [
     'Dashboard',
-    'Edição',
     'Eventos',
     'Perguntas',
     'Checkpoints',
+    'Desafios',
+    'Ranking Detalhado',
+    'Atividades Finais',
     'Galeria',
     'Utilizadores',
     'Perfil',
     'Logout',
-    'Desafios',
-    'Ranking Detalhado',
-    'Atividades Finais',
   ];
 
   @override
@@ -205,15 +203,11 @@ class _AdminViewState extends State<AdminView> {
               onDestinationSelected:
                   (index) => setState(() => _selectedIndex = index),
               labelType: NavigationRailLabelType.all,
-              backgroundColor: const Color.fromARGB(255, 14, 1, 1),
+              backgroundColor: AppColors.primary,
               destinations: const [
                 NavigationRailDestination(
                   icon: Icon(Icons.bar_chart),
                   label: Text('Dashboard'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.edit),
-                  label: Text('Edição'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.event),
@@ -226,6 +220,22 @@ class _AdminViewState extends State<AdminView> {
                 NavigationRailDestination(
                   icon: Icon(Icons.qr_code),
                   label: Text('Checkpoints'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(
+                    Icons.extension,
+                  ), // ícone mais representativo para desafios
+                  label: Text('Desafios'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.emoji_events), // ícone de pódio para ranking
+                  label: Text('Ranking Detalhado'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(
+                    Icons.sports_soccer,
+                  ), // ícone esportivo para finais
+                  label: Text('Atividades Finais'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.photo_library),
@@ -243,18 +253,6 @@ class _AdminViewState extends State<AdminView> {
                   icon: Icon(Icons.logout),
                   label: Text('Logout'),
                 ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.flag),
-                  label: Text('Desafios'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.leaderboard),
-                  label: Text('Ranking'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.sports_score),
-                  label: Text('Finais'),
-                ),
               ],
             ),
             Expanded(
@@ -262,11 +260,15 @@ class _AdminViewState extends State<AdminView> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
-                    color: Colors.blueGrey.shade900,
+                    color: AppColors.primary,
                     width: double.infinity,
                     child: Text(
                       _menuTitles[_selectedIndex],
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   Expanded(child: _pages[_selectedIndex]),
@@ -279,8 +281,8 @@ class _AdminViewState extends State<AdminView> {
             _selectedIndex == 2
                 ? FloatingActionButton(
                   tooltip: 'Adicionar Evento',
-                  backgroundColor: Colors.black,
-                  child: const Icon(Icons.add, color: Colors.white),
+                  backgroundColor: AppColors.secondaryDark,
+                  child: const Icon(Icons.add, color: Colors.black),
                   onPressed: () => showAddEventDialog(context),
                 )
                 : null,

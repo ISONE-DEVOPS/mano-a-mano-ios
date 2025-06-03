@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class AddCheckpointsView extends StatefulWidget {
   final String eventId;
@@ -86,9 +87,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0E0E2C),
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         title: const Text('Adicionar Checkpoints'),
       ),
@@ -155,7 +156,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                   ],
                   IconButton(
                     onPressed: _addCheckpoint,
-                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                    icon: const Icon(Icons.add_circle, color: AppColors.secondaryDark),
                     tooltip: 'Adicionar',
                   ),
                 ],
@@ -176,7 +177,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          icon: const Icon(Icons.edit, color: AppColors.secondaryDark),
                           onPressed: () {
                             final item = _checkpoints[index];
                             setState(() {
@@ -190,7 +191,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                           },
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
+                          icon: const Icon(Icons.delete, color: AppColors.primaryDark),
                           onPressed: () {
                             final removido = _checkpoints[index];
                             setState(() => _checkpoints.removeAt(index));
@@ -211,6 +212,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
               ),
             ),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondaryDark,
+                foregroundColor: Colors.black,
+              ),
               icon: const Icon(Icons.save),
               label: const Text('Salvar Checkpoints'),
               onPressed: _saveCheckpoints,

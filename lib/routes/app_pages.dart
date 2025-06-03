@@ -22,12 +22,23 @@ import '../views/checkin/checkpoint_questions_view.dart';
 import '../views/admin/ranking_detailed_view.dart';
 import '../views/admin/final_activities_view.dart';
 import '../views/profile/team_customization_view.dart';
+import '../views/admin/loading_admin_view.dart';
+import '../views/splash/intro_splash_view.dart';
+import '../views/ranking/ranking_view.dart';
+import '../views/pontuacao/pontuacao_detalhada_view.dart';
+import '../views/checkin/conchas_view.dart';
+import '../views/resultados/resultados_finais_view.dart';
+import '../views/profile/team_profile_view.dart';
+import '../views/admin/scan_and_score_view.dart';
+import '../views/admin/pontuacoes_view.dart';
 
 class AppPages {
   static const initial = '/';
 
   static final routes = [
     GetPage(name: '/', page: () => const SplashView()),
+    GetPage(name: '/loading-admin', page: () => const LoadingAdminView()),
+    GetPage(name: '/splash', page: () => const IntroSplashView()),
     GetPage(name: '/login', page: () => const LoginView()),
     GetPage(name: '/register', page: () => const RegisterView()),
     GetPage(name: '/home', page: () => const HomeView()),
@@ -84,5 +95,12 @@ class AppPages {
       name: '/team-customization',
       page: () => const TeamCustomizationView(),
     ),
+    GetPage(name: '/ranking', page: () => const RankingView()),
+    GetPage(name: '/pontuacao-detalhada', page: () => const PontuacaoDetalhadaView()),
+    GetPage(name: '/conchas', page: () => const ConchasView()),
+    GetPage(name: '/resultados-finais', page: () => const ResultadosFinaisView()),
+    GetPage(name: '/team-profile', page: () => const TeamProfileView()),
+    GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
+    GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
   ];
 }

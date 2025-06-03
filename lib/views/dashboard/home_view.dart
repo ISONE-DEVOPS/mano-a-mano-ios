@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/firebase_service.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../widgets/shared/nav_topbar.dart';
+import '../../theme/app_colors.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -211,7 +212,7 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.black, Color(0xFF0E0E2C)],
+          colors: [AppColors.primary, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -251,7 +252,7 @@ class _HomeViewState extends State<HomeView> {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.black, Color(0xFF0E0E2C)],
+              colors: [AppColors.primary, AppColors.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -286,7 +287,7 @@ class _HomeViewState extends State<HomeView> {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.black, Color(0xFF0E0E2C)],
+              colors: [AppColors.primary, AppColors.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -322,7 +323,7 @@ class _HomeViewState extends State<HomeView> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(40),
         child: AppBar(
-          backgroundColor: const Color(0xFF0E0E2C),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
@@ -418,7 +419,7 @@ class _HomeViewState extends State<HomeView> {
                                 Container(
                                   decoration: const BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [Colors.black, Color(0xFF0E0E2C)],
+                                      colors: [AppColors.primary, AppColors.primary],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
@@ -527,7 +528,7 @@ class _HomeViewState extends State<HomeView> {
                                                       : 0.0;
 
                                               return Card(
-                                                color: Colors.white,
+                                                color: AppColors.background,
                                                 margin:
                                                     const EdgeInsets.symmetric(
                                                       vertical: 12,
@@ -552,9 +553,7 @@ class _HomeViewState extends State<HomeView> {
                                                           fontSize: 18,
                                                           fontWeight:
                                                               FontWeight.bold,
-                                                          color: Color(
-                                                            0xFF0E0E2C,
-                                                          ),
+                                                          color: AppColors.primary,
                                                         ),
                                                       ),
                                                       const SizedBox(
@@ -593,12 +592,8 @@ class _HomeViewState extends State<HomeView> {
                                                       const SizedBox(height: 8),
                                                       LinearProgressIndicator(
                                                         value: progress,
-                                                        backgroundColor:
-                                                            Colors
-                                                                .grey
-                                                                .shade300,
-                                                        color:
-                                                            Colors.blueAccent,
+                                                        backgroundColor: Colors.white.withAlpha(61),
+                                                        color: AppColors.secondaryDark,
                                                         minHeight: 8,
                                                       ),
                                                       const Divider(height: 24),
@@ -755,16 +750,16 @@ class _HomeViewState extends State<HomeView> {
                                                                                       : Icons.logout),
                                                                               size:
                                                                                   18,
-                                                                              color:
-                                                                                  entrada !=
-                                                                                              '-' &&
-                                                                                          saida !=
-                                                                                              '-'
-                                                                                      ? Colors.green
-                                                                                      : (entrada !=
-                                                                                              '-'
-                                                                                          ? Colors.orange
-                                                                                          : Colors.red),
+                                                          color:
+                                                              entrada !=
+                                                                          '-' &&
+                                                                      saida !=
+                                                                          '-'
+                                                                  ? Colors.green
+                                                                  : (entrada !=
+                                                                          '-'
+                                                                      ? Colors.orange
+                                                                      : Colors.red),
                                                                             ),
                                                                             const SizedBox(
                                                                               width:
@@ -874,18 +869,18 @@ class _HomeViewState extends State<HomeView> {
                                                                     'percurso',
                                                                   ),
                                                               points: _percurso,
-                                                              color: Colors.blue,
+                                                              color: AppColors.secondaryDark,
                                                               width: 4,
                                                             ),
                                                           },
                                                         )
                                                       : Container(
-                                                          color: Colors.white,
-                                                          child: const Center(
+                                                          color: AppColors.background,
+                                                          child: Center(
                                                             child: Text(
                                                               'Percurso não disponível',
                                                               style: TextStyle(
-                                                                color: Colors.black54,
+                                                                color: AppColors.textPrimary,
                                                               ),
                                                             ),
                                                           ),
@@ -911,7 +906,7 @@ class _HomeViewState extends State<HomeView> {
         children: [
           FloatingActionButton(
             heroTag: 'recenter',
-            backgroundColor: const Color(0xFF0E0E2C),
+            backgroundColor: AppColors.primary,
             onPressed: () {
               if (_mapController != null && _percurso.length >= 2) {
                 double minLat = _percurso.first.latitude;
@@ -937,7 +932,7 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 12),
           FloatingActionButton(
             heroTag: 'maps',
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: AppColors.secondary,
             onPressed: () {
               if (_percurso.isNotEmpty) {
                 final destino = _percurso.last;

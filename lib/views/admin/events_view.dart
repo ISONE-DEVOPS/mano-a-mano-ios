@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class EventsView extends StatefulWidget {
   const EventsView({super.key});
@@ -24,7 +25,15 @@ class _EventsViewState extends State<EventsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestão de Eventos'), actions: []),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        title: const Text(
+          'Gestão de Eventos',
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: StreamBuilder<QuerySnapshot>(
@@ -44,7 +53,7 @@ class _EventsViewState extends State<EventsView> {
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
+                headingRowColor: WidgetStateProperty.all(AppColors.secondaryDark.withAlpha(50)),
                 sortAscending: _sortAsc,
                 sortColumnIndex: _sortColumnIndex,
                 columns: [
@@ -54,139 +63,112 @@ class _EventsViewState extends State<EventsView> {
                   const DataColumn(label: Text('PREÇO')),
                   const DataColumn(label: Text('AÇÕES / PERCURSO')),
                 ],
-                rows:
-                    docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final dataEvento =
-                          (data['data_event'] as Timestamp?)?.toDate();
-                      final dataTexto =
-                          dataEvento != null
-                              ? DateFormat(
-                                'dd/MM/yyyy – HH:mm',
-                              ).format(dataEvento)
-                              : '';
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(dataTexto)),
-                          DataCell(Text(data['nome'] ?? '')),
-                          DataCell(Text(data['local'] ?? '')),
-                          DataCell(Text('${data['price'] ?? ''}')),
-                          DataCell(
-                            Row(
-                              children: [
-                                // Adicionar checkpoints
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.playlist_add,
-                                    color: Colors.teal,
-                                  ),
-                                  tooltip: 'Adicionar checkpoints',
-                                  onPressed: () {
-                                    // Aqui você pode abrir um diálogo ou redirecionar para uma nova tela
-                                    Get.toNamed(
-                                      '/add-checkpoints',
-                                      arguments: doc.id,
-                                    );
-                                  },
-                                ),
-                                // Ver percurso
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.map,
-                                    color: Colors.blue,
-                                  ),
-                                  tooltip: 'Ver percurso',
-                                  onPressed: () {
-                                    final data =
-                                        doc.data() as Map<String, dynamic>;
-                                    final percurso =
-                                        (data['percurso'] as List<dynamic>? ??
-                                                [])
-                                            .cast<Map<String, dynamic>>();
-                                    final checkpoints =
-                                        (data['checkpoints']
-                                                as Map<String, dynamic>? ??
-                                            {});
-                                    // Montar infoWindowText para cada checkpoint
-                                    // Exemplo de estrutura esperada: {postoId: {name: 'Posto A', ...}}
-                                    final Map<String, String> checkpointLabels =
-                                        {};
-                                    checkpoints.forEach((postoId, postoData) {
-                                      if (postoData is Map<String, dynamic> &&
-                                          postoData['name'] != null) {
-                                        checkpointLabels[postoId] =
-                                            postoData['name'].toString();
-                                      }
-                                    });
-                                    Get.toNamed(
-                                      '/route-map',
-                                      arguments: {
-                                        'eventId': doc.id,
-                                        'percurso': percurso,
-                                        'checkpoints': checkpoints,
-                                        'checkpointLabels': checkpointLabels,
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Editar evento
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.orange,
-                                  ),
-                                  tooltip: 'Editar evento',
-                                  onPressed: () {
-                                    showEditEventDialog(context, doc);
-                                  },
-                                ),
-                                // Eliminar evento (com confirmação)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  tooltip: 'Eliminar evento',
-                                  onPressed: () async {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder:
-                                          (ctx) => AlertDialog(
-                                            title: const Text('Confirmação'),
-                                            content: const Text(
-                                              'Deseja realmente eliminar este evento?',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      ctx,
-                                                      false,
-                                                    ),
-                                                child: const Text('Cancelar'),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      ctx,
-                                                      true,
-                                                    ),
-                                                child: const Text('Eliminar'),
-                                              ),
-                                            ],
-                                          ),
-                                    );
-                                    if (confirmed == true) {
-                                      await doc.reference.delete();
-                                    }
-                                  },
-                                ),
-                              ],
+                rows: docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final dataEvento = (data['data_event'] as Timestamp?)?.toDate();
+                  final dataTexto = dataEvento != null
+                      ? DateFormat('dd/MM/yyyy – HH:mm').format(dataEvento)
+                      : '';
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(dataTexto)),
+                      DataCell(Text(data['nome'] ?? '')),
+                      DataCell(Text(data['local'] ?? '')),
+                      DataCell(Text('${data['price'] ?? ''}')),
+                      DataCell(
+                        Row(
+                          children: [
+                            // Adicionar checkpoints
+                            IconButton(
+                              icon: const Icon(
+                                Icons.playlist_add,
+                                color: AppColors.secondaryDark,
+                              ),
+                              tooltip: 'Adicionar checkpoints',
+                              onPressed: () {
+                                Get.toNamed(
+                                  '/add-checkpoints',
+                                  arguments: doc.id,
+                                );
+                              },
                             ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                            // Ver percurso
+                            IconButton(
+                              icon: const Icon(
+                                Icons.map,
+                                color: AppColors.primary,
+                              ),
+                              tooltip: 'Ver percurso',
+                              onPressed: () {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final percurso = (data['percurso'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+                                final checkpoints = (data['checkpoints'] as Map<String, dynamic>? ?? {});
+                                final Map<String, String> checkpointLabels = {};
+                                checkpoints.forEach((postoId, postoData) {
+                                  if (postoData is Map<String, dynamic> && postoData['name'] != null) {
+                                    checkpointLabels[postoId] = postoData['name'].toString();
+                                  }
+                                });
+                                Get.toNamed(
+                                  '/route-map',
+                                  arguments: {
+                                    'eventId': doc.id,
+                                    'percurso': percurso,
+                                    'checkpoints': checkpoints,
+                                    'checkpointLabels': checkpointLabels,
+                                  },
+                                );
+                              },
+                            ),
+                            // Editar evento
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: AppColors.secondaryDark,
+                              ),
+                              tooltip: 'Editar evento',
+                              onPressed: () {
+                                showEditEventDialog(context, doc);
+                              },
+                            ),
+                            // Eliminar evento (com confirmação)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                              ),
+                              tooltip: 'Eliminar evento',
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Confirmação'),
+                                    content: const Text(
+                                      'Deseja realmente eliminar este evento?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Eliminar'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  await doc.reference.delete();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
             );
           },
@@ -195,8 +177,8 @@ class _EventsViewState extends State<EventsView> {
       floatingActionButton: FloatingActionButton(
         tooltip: 'Adicionar Evento',
         onPressed: _showAddEventDialog,
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: AppColors.secondaryDark,
+        child: const Icon(Icons.add, color: Colors.black),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
