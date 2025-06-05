@@ -181,7 +181,7 @@ class _AdminViewState extends State<AdminView> {
     'Dashboard',
     'Edições',
     'Eventos',
-    'Checkpoints',
+    'QR Codes',
     'Perguntas',
     'Jogos',
     'Atividades Finais',

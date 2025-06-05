@@ -55,7 +55,7 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
           _buildMenuItem(context, Icons.dashboard, 'Dashboard', 0, _collapsed),
           _buildMenuItem(context, Icons.layers, 'Edições', 1, _collapsed),
           _buildMenuItem(context, Icons.event, 'Eventos', 2, _collapsed),
-          _buildMenuItem(context, Icons.qr_code, 'Checkpoints', 3, _collapsed),
+          _buildMenuItem(context, Icons.qr_code, 'QR Codes', 3, _collapsed),
           _buildMenuItem(context, Icons.quiz, 'Perguntas', 4, _collapsed),
           _buildMenuItem(context, Icons.extension, 'Jogos', 5, _collapsed),
           _buildMenuItem(context, Icons.flag, 'Atividades Finais', 6, _collapsed),

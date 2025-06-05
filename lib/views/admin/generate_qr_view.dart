@@ -17,6 +17,8 @@ class GenerateQrView extends StatefulWidget {
 }
 
 class _GenerateQrViewState extends State<GenerateQrView> {
+  Map<String, String> _eventos = {};
+  String? _eventoSelecionado;
   String? _postoSelecionado;
   List<String> _postos = [];
   String _tipo = 'entrada';
@@ -26,25 +28,48 @@ class _GenerateQrViewState extends State<GenerateQrView> {
   @override
   void initState() {
     super.initState();
-    _carregarPostos();
+    _carregarEventos();
   }
 
-  void _carregarPostos() async {
+  void _carregarEventos() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('events').get();
+    final mapa = {
+      for (var doc in snapshot.docs) doc.id: doc['nome'] ?? 'Sem nome',
+    };
+    setState(() {
+      _eventos = Map<String, String>.from(mapa);
+    });
+  }
+
+  void _carregarPostos(String eventId) async {
     final doc =
         await FirebaseFirestore.instance
             .collection('events')
-            .doc('3kqVSO4rgvIamJo0Och3')
+            .doc(eventId)
             .get();
     final data = doc.data();
-    if (data == null || data['checkpoints'] == null) return;
-
+    if (data == null) return;
+    if (!data.containsKey('checkpoints')) return;
     final checkpoints = Map<String, dynamic>.from(data['checkpoints']);
+    final postos = checkpoints.keys.toList();
     setState(() {
-      _postos = checkpoints.keys.toList();
+      _postos = postos;
+      _postoSelecionado = null;
+      _qrData = null;
     });
   }
 
   void _generateQR() async {
+    if (_eventoSelecionado == null) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Selecione um evento')),
+      );
+      return;
+    }
+
     if (_postoSelecionado == null) {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -68,7 +93,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
     final doc =
         await FirebaseFirestore.instance
             .collection('events')
-            .doc('3kqVSO4rgvIamJo0Och3')
+            .doc(_eventoSelecionado!)
             .get();
     final data = doc.data();
     if (data == null || data['checkpoints'] == null) return;
@@ -83,6 +108,9 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       'posto_id': _postoSelecionado,
       'tipo': _tipo,
       'nome': postoData['name'] ?? '',
+      'codigo': postoData['codigo'] ?? '',
+      'lat': postoData['lat'] ?? '',
+      'lng': postoData['lng'] ?? '',
     };
 
     setState(() {
@@ -106,38 +134,119 @@ class _GenerateQrViewState extends State<GenerateQrView> {
         ),
       ),
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Gerar QR Code - Checkpoint'),
-          backgroundColor: AppColors.primary,
-          iconTheme: const IconThemeData(color: Colors.white),
-          titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20),
-        ),
-        body: Padding(
+        backgroundColor: AppColors.background,
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Selecionar Posto'),
+              Text(
+                'Gerar QR Code - Checkpoint',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Selecionar Evento',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+              ),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                value: _postoSelecionado,
-                items:
-                    _postos
-                        .map(
-                          (posto) => DropdownMenuItem(
-                            value: posto,
-                            child: Text(posto),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (value) => setState(() => _postoSelecionado = value),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Escolha um posto',
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 320),
+                child: DropdownButtonFormField<String>(
+                  value: _eventoSelecionado,
+                  style: const TextStyle(color: Colors.black),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey.shade300,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    labelStyle: const TextStyle(color: Colors.black),
+                    hintStyle: const TextStyle(color: Colors.black54),
+                  ),
+                  items:
+                      _eventos.entries
+                          .map(
+                            (entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _eventoSelecionado = value;
+                      if (value != null) {
+                        _carregarPostos(value);
+                      }
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Tipo de Checkpoint'),
+              Text(
+                'Selecionar Posto',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+              ),
+              const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 320),
+                child: DropdownButtonFormField<String>(
+                  value: _postoSelecionado,
+                  style: const TextStyle(color: Colors.black),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey.shade300,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    labelStyle: const TextStyle(color: Colors.black),
+                    hintStyle: const TextStyle(color: Colors.black54),
+                  ),
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.black54,
+                  ),
+                  items:
+                      _postos.map((posto) {
+                        return DropdownMenuItem(
+                          value: posto,
+                          child: Text(posto),
+                        );
+                      }).toList(),
+                  onChanged:
+                      _postos.isEmpty
+                          ? null
+                          : (value) =>
+                              setState(() => _postoSelecionado = value),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Tipo de Checkpoint',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
+              ),
               const SizedBox(height: 6),
               Row(
                 children:
@@ -149,17 +258,25 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                           onPressed: () => setState(() => _tipo = tipo),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                isSelected
-                                    ? (tipo == 'entrada'
-                                        ? AppColors.primary
-                                        : AppColors.primary)
-                                    : AppColors.secondaryDark.withAlpha(51),
-                            foregroundColor:
-                                isSelected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
+                                isSelected ? Colors.red : Colors.grey.shade300,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          child: Text(tipo.toUpperCase()),
+                          child: Text(
+                            tipo.toUpperCase(),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       );
                     }).toList(),
@@ -173,10 +290,19 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                   ElevatedButton.icon(
                     onPressed: _generateQR,
                     icon: const Icon(Icons.qr_code),
-                    label: const Text('Gerar QR'),
+                    label: Text(
+                      'Gerar QR',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryDark,
-                      foregroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   ElevatedButton.icon(
@@ -196,17 +322,11 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                                   ).create();
                               await imagePath.writeAsBytes(image);
 
-                              if (!mounted) return;
-
                               final uri = Uri.file(imagePath.path);
                               final launched = await launchUrl(uri);
 
-                              if (!mounted) return;
-
-                              if (!mounted) return;
-                              if (!launched) {
-                                final messenger = ScaffoldMessenger.of(context);
-                                messenger.showSnackBar(
+                              if (!launched && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
                                       'Não foi possível abrir o ficheiro',
@@ -216,10 +336,19 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                               }
                             },
                     icon: const Icon(Icons.share),
-                    label: const Text('Partilhar'),
+                    label: Text(
+                      'Partilhar',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ],

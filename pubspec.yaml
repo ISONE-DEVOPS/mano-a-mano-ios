@@ -88,6 +88,7 @@ flutter:
     - assets/images/ranking.png
     - assets/images/shell_banner.png
     - assets/images/shell_illustration.png
+    - assets/images/shell_logo.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
