@@ -25,15 +25,8 @@ class _EventsViewState extends State<EventsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: const Text(
-          'Gestão de Eventos',
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      // AppBar removido — top bar já vem do AdminView
+      backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: StreamBuilder<QuerySnapshot>(
@@ -121,7 +114,6 @@ class _EventsViewState extends State<EventsView> {
                         width: 1,
                       );
                       final cellDecoration = BoxDecoration(
-                        color: Theme.of(context).cardColor,
                         border: Border(bottom: borderSide),
                       );
                       const cellPadding = EdgeInsets.symmetric(
@@ -136,7 +128,8 @@ class _EventsViewState extends State<EventsView> {
                               padding: cellPadding,
                               child: Text(
                                 dataTexto,
-                                style: const TextStyle(color: Colors.black87),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
                               ),
                             ),
                           ),
@@ -146,7 +139,8 @@ class _EventsViewState extends State<EventsView> {
                               padding: cellPadding,
                               child: Text(
                                 data['nome'] ?? '',
-                                style: const TextStyle(color: Colors.black87),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
                               ),
                             ),
                           ),
@@ -156,7 +150,8 @@ class _EventsViewState extends State<EventsView> {
                               padding: cellPadding,
                               child: Text(
                                 data['local'] ?? '',
-                                style: const TextStyle(color: Colors.black87),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
                               ),
                             ),
                           ),
@@ -165,8 +160,11 @@ class _EventsViewState extends State<EventsView> {
                               decoration: cellDecoration,
                               padding: cellPadding,
                               child: Text(
-                                '${data['price'] ?? ''}',
-                                style: const TextStyle(color: Colors.black87),
+                                data['price'] != null
+                                    ? '${NumberFormat('#,##0', 'pt_CV').format(data['price'])} ECV'
+                                    : '',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
                               ),
                             ),
                           ),
@@ -303,7 +301,13 @@ class _EventsViewState extends State<EventsView> {
       context: context,
       builder:
           (_) => AlertDialog(
-            title: const Text('Novo Evento'),
+            backgroundColor: AppColors.surface,
+            title: Text(
+              'Novo Evento',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.black),
+            ),
             content: Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -312,7 +316,14 @@ class _EventsViewState extends State<EventsView> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Título'),
+                      decoration: const InputDecoration(
+                        labelText: 'Título',
+                        hintText: 'Título do evento',
+                        labelStyle: TextStyle(color: Colors.black),
+                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.black),
                       validator:
                           (v) =>
                               v == null || v.isEmpty
@@ -321,14 +332,28 @@ class _EventsViewState extends State<EventsView> {
                     ),
                     TextFormField(
                       controller: _localController,
-                      decoration: const InputDecoration(labelText: 'Local'),
+                      decoration: const InputDecoration(
+                        labelText: 'Local',
+                        hintText: 'Ex: Parque, ginásio...',
+                        labelStyle: TextStyle(color: Colors.black),
+                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.black),
                       validator:
                           (v) =>
                               v == null || v.isEmpty ? 'Informe o local' : null,
                     ),
                     TextFormField(
                       controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Preço'),
+                      decoration: const InputDecoration(
+                        labelText: 'Preço',
+                        hintText: 'Ex: 25.00',
+                        labelStyle: TextStyle(color: Colors.black),
+                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.black),
                       keyboardType: TextInputType.number,
                       validator:
                           (v) =>
@@ -337,7 +362,10 @@ class _EventsViewState extends State<EventsView> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Text('Data e Hora:'),
+                        const Text(
+                          'Data e Hora:',
+                          style: TextStyle(color: Colors.black),
+                        ),
                         TextButton(
                           onPressed: () async {
                             final date = await showDatePicker(
@@ -370,13 +398,17 @@ class _EventsViewState extends State<EventsView> {
                                 : DateFormat(
                                   'dd/MM/yyyy – HH:mm',
                                 ).format(_selectedDate!),
+                            style: const TextStyle(color: Colors.black),
                           ),
                         ),
                       ],
                     ),
                     Row(
                       children: [
-                        const Text('Ativo:'),
+                        const Text(
+                          'Ativo:',
+                          style: TextStyle(color: Colors.black),
+                        ),
                         Switch(
                           value: _status,
                           onChanged: (v) => setState(() => _status = v),
@@ -390,9 +422,16 @@ class _EventsViewState extends State<EventsView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: Colors.black87),
+                ),
               ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.black,
+                ),
                 onPressed: () async {
                   if (_formKey.currentState?.validate() != true ||
                       _selectedDate == null) {
@@ -451,7 +490,11 @@ class _EventsViewState extends State<EventsView> {
                             controller: nameController,
                             decoration: const InputDecoration(
                               labelText: 'Título',
+                              hintText: 'Título do evento',
+                              labelStyle: TextStyle(color: Colors.black87),
                             ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
                             validator:
                                 (v) =>
                                     v == null || v.isEmpty
@@ -462,7 +505,11 @@ class _EventsViewState extends State<EventsView> {
                             controller: localController,
                             decoration: const InputDecoration(
                               labelText: 'Local',
+                              hintText: 'Ex: Parque, ginásio...',
+                              labelStyle: TextStyle(color: Colors.black87),
                             ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
                             validator:
                                 (v) =>
                                     v == null || v.isEmpty
@@ -473,7 +520,11 @@ class _EventsViewState extends State<EventsView> {
                             controller: priceController,
                             decoration: const InputDecoration(
                               labelText: 'Preço',
+                              hintText: 'Ex: 25.00',
+                              labelStyle: TextStyle(color: Colors.black87),
                             ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
                             keyboardType: TextInputType.number,
                             validator:
                                 (v) =>
