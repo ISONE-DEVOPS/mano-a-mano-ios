@@ -25,7 +25,7 @@ class _EventsViewState extends State<EventsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         title: const Text(
@@ -53,122 +53,236 @@ class _EventsViewState extends State<EventsView> {
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor: WidgetStateProperty.all(AppColors.secondaryDark.withAlpha(50)),
+                headingRowColor: WidgetStateProperty.all(
+                  AppColors.secondaryDark.withAlpha(50),
+                ),
                 sortAscending: _sortAsc,
                 sortColumnIndex: _sortColumnIndex,
                 columns: [
-                  const DataColumn(label: Text('DATA')),
-                  const DataColumn(label: Text('TÍTULO')),
-                  const DataColumn(label: Text('LOCAL')),
-                  const DataColumn(label: Text('PREÇO')),
-                  const DataColumn(label: Text('AÇÕES / PERCURSO')),
-                ],
-                rows: docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final dataEvento = (data['data_event'] as Timestamp?)?.toDate();
-                  final dataTexto = dataEvento != null
-                      ? DateFormat('dd/MM/yyyy – HH:mm').format(dataEvento)
-                      : '';
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(dataTexto)),
-                      DataCell(Text(data['nome'] ?? '')),
-                      DataCell(Text(data['local'] ?? '')),
-                      DataCell(Text('${data['price'] ?? ''}')),
-                      DataCell(
-                        Row(
-                          children: [
-                            // Adicionar checkpoints
-                            IconButton(
-                              icon: const Icon(
-                                Icons.playlist_add,
-                                color: AppColors.secondaryDark,
-                              ),
-                              tooltip: 'Adicionar checkpoints',
-                              onPressed: () {
-                                Get.toNamed(
-                                  '/add-checkpoints',
-                                  arguments: doc.id,
-                                );
-                              },
-                            ),
-                            // Ver percurso
-                            IconButton(
-                              icon: const Icon(
-                                Icons.map,
-                                color: AppColors.primary,
-                              ),
-                              tooltip: 'Ver percurso',
-                              onPressed: () {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final percurso = (data['percurso'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-                                final checkpoints = (data['checkpoints'] as Map<String, dynamic>? ?? {});
-                                final Map<String, String> checkpointLabels = {};
-                                checkpoints.forEach((postoId, postoData) {
-                                  if (postoData is Map<String, dynamic> && postoData['name'] != null) {
-                                    checkpointLabels[postoId] = postoData['name'].toString();
-                                  }
-                                });
-                                Get.toNamed(
-                                  '/route-map',
-                                  arguments: {
-                                    'eventId': doc.id,
-                                    'percurso': percurso,
-                                    'checkpoints': checkpoints,
-                                    'checkpointLabels': checkpointLabels,
-                                  },
-                                );
-                              },
-                            ),
-                            // Editar evento
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit,
-                                color: AppColors.secondaryDark,
-                              ),
-                              tooltip: 'Editar evento',
-                              onPressed: () {
-                                showEditEventDialog(context, doc);
-                              },
-                            ),
-                            // Eliminar evento (com confirmação)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.red,
-                              ),
-                              tooltip: 'Eliminar evento',
-                              onPressed: () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Confirmação'),
-                                    content: const Text(
-                                      'Deseja realmente eliminar este evento?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx, false),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.pop(ctx, true),
-                                        child: const Text('Eliminar'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed == true) {
-                                  await doc.reference.delete();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                  DataColumn(
+                    label: Text(
+                      'DATA',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                    ],
-                  );
-                }).toList(),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'TÍTULO',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'LOCAL',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'PREÇO',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'AÇÕES / PERCURSO',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+                rows:
+                    docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final dataEvento =
+                          (data['data_event'] as Timestamp?)?.toDate();
+                      final dataTexto =
+                          dataEvento != null
+                              ? DateFormat(
+                                'dd/MM/yyyy – HH:mm',
+                              ).format(dataEvento)
+                              : '';
+                      final borderSide = BorderSide(
+                        color: Colors.grey.shade300,
+                        width: 1,
+                      );
+                      final cellDecoration = BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: Border(bottom: borderSide),
+                      );
+                      const cellPadding = EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 12,
+                      );
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                dataTexto,
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                data['nome'] ?? '',
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                data['local'] ?? '',
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                '${data['price'] ?? ''}',
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              children: [
+                                // Adicionar checkpoints
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.playlist_add,
+                                    color: AppColors.secondaryDark,
+                                  ),
+                                  tooltip: 'Adicionar checkpoints',
+                                  onPressed: () {
+                                    Get.toNamed(
+                                      '/add-checkpoints',
+                                      arguments: doc.id,
+                                    );
+                                  },
+                                ),
+                                // Ver percurso
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.map,
+                                    color: AppColors.primary,
+                                  ),
+                                  tooltip: 'Ver percurso',
+                                  onPressed: () {
+                                    final data =
+                                        doc.data() as Map<String, dynamic>;
+                                    final percurso =
+                                        (data['percurso'] as List<dynamic>? ??
+                                                [])
+                                            .cast<Map<String, dynamic>>();
+                                    final checkpoints =
+                                        (data['checkpoints']
+                                                as Map<String, dynamic>? ??
+                                            {});
+                                    final Map<String, String> checkpointLabels =
+                                        {};
+                                    checkpoints.forEach((postoId, postoData) {
+                                      if (postoData is Map<String, dynamic> &&
+                                          postoData['name'] != null) {
+                                        checkpointLabels[postoId] =
+                                            postoData['name'].toString();
+                                      }
+                                    });
+                                    Get.toNamed(
+                                      '/route-map',
+                                      arguments: {
+                                        'eventId': doc.id,
+                                        'percurso': percurso,
+                                        'checkpoints': checkpoints,
+                                        'checkpointLabels': checkpointLabels,
+                                      },
+                                    );
+                                  },
+                                ),
+                                // Editar evento
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: AppColors.secondaryDark,
+                                  ),
+                                  tooltip: 'Editar evento',
+                                  onPressed: () {
+                                    showEditEventDialog(context, doc);
+                                  },
+                                ),
+                                // Eliminar evento (com confirmação)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  tooltip: 'Eliminar evento',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder:
+                                          (ctx) => AlertDialog(
+                                            title: const Text('Confirmação'),
+                                            content: const Text(
+                                              'Deseja realmente eliminar este evento?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      ctx,
+                                                      false,
+                                                    ),
+                                                child: const Text('Cancelar'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      ctx,
+                                                      true,
+                                                    ),
+                                                child: const Text('Eliminar'),
+                                              ),
+                                            ],
+                                          ),
+                                    );
+                                    if (confirmed == true) {
+                                      await doc.reference.delete();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
               ),
             );
           },

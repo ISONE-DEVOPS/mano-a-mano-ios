@@ -1,13 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firebase_service.dart';
-import '../profile/profile_view.dart';
 import '../payment/payment_view.dart';
+import 'user_summary_view.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -29,7 +29,7 @@ class _RegisterViewState extends State<RegisterView> {
   final _teamNameController = TextEditingController();
   final _firebaseService = FirebaseService();
 
-  final List<String> _shirtSizes = ['P', 'M', 'G', 'GG', 'XG'];
+  final List<String> _shirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
   String? _selectedShirtSize;
 
   List<Map<String, TextEditingController>> passageirosControllers = [];
@@ -44,10 +44,41 @@ class _RegisterViewState extends State<RegisterView> {
   String? _selectedEventId;
 
   void _register() async {
+    debugPrint('▶️ Método _register() iniciado');
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() => _error = 'As senhas não coincidem');
       return;
     }
+
+    if (_nameController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _emergencyContactController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty ||
+        _confirmPasswordController.text.trim().isEmpty ||
+        _licensePlateController.text.trim().isEmpty ||
+        _carBrandController.text.trim().isEmpty ||
+        _carModelController.text.trim().isEmpty ||
+        _teamNameController.text.trim().isEmpty ||
+        _selectedShirtSize == null ||
+        _selectedEventId == null) {
+      setState(
+        () => _error = 'Por favor preencha todos os campos obrigatórios.',
+      );
+      return;
+    }
+
+    // Validação dos campos dos passageiros
+    for (final passageiro in passageirosControllers) {
+      if (passageiro['nome']!.text.trim().isEmpty ||
+          passageiro['telefone']!.text.trim().isEmpty ||
+          passageiro['tshirt']!.text.trim().isEmpty) {
+        setState(() => _error = 'Preencha todos os dados dos passageiros.');
+        return;
+      }
+    }
+
+    debugPrint('✔️ Validações concluídas, iniciando criação de conta');
 
     setState(() {
       _loading = true;
@@ -55,10 +86,39 @@ class _RegisterViewState extends State<RegisterView> {
     });
 
     try {
-      final uid = await _firebaseService.signUp(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
+      String uid;
+      try {
+        uid = await _firebaseService.signUp(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        debugPrint('✅ signUp retornou UID: $uid');
+      } catch (e) {
+        debugPrint('❌ Erro durante signUp: $e');
+        setState(() => _error = 'Erro ao criar utilizador: ${e.toString()}');
+        return;
+      }
+
+      // Garante autenticação do currentUser no FirebaseAuth
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
+
+      // Aguarda propagação do currentUser no FirebaseAuth
+      await Future.delayed(const Duration(milliseconds: 300));
+      final confirmedUser = FirebaseAuth.instance.currentUser;
+      debugPrint('✅ UID após delay: ${confirmedUser?.uid}');
+
+      debugPrint('UID autenticado no momento do registo: $uid');
+
+      // Verificação UID antes de salvar dados
+      if (uid.isEmpty) {
+        setState(
+          () => _error = 'Erro: UID inválido. Utilizador não autenticado.',
+        );
+        return;
+      }
 
       final passageiros =
           passageirosControllers
@@ -71,6 +131,20 @@ class _RegisterViewState extends State<RegisterView> {
               )
               .toList();
 
+      // Após salvar carro, verifica valor do evento
+      final eventDoc =
+          await FirebaseFirestore.instance
+              .collection('events')
+              .doc(_selectedEventId)
+              .get();
+      if (!eventDoc.exists) {
+        setState(() => _error = 'Evento selecionado inválido.');
+        return;
+      }
+      final Map<String, dynamic> data = eventDoc.data()!;
+      final nomeEvento = data['nome'] ?? 'Sem nome';
+      final price = double.tryParse('${data['price']}') ?? 0;
+
       // Salva dados pessoais do utilizador na coleção 'users'
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'nome': _nameController.text.trim(),
@@ -79,11 +153,25 @@ class _RegisterViewState extends State<RegisterView> {
         'emergencia': _emergencyContactController.text.trim(),
         'tshirt': _selectedShirtSize ?? '',
         'role': 'user',
-        'eventoId': _selectedEventId,
+        'eventoId': 'events/$_selectedEventId',
+        'eventoNome': nomeEvento,
+        'ativo': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        // 'ultimoLogin' removido do set() inicial
       });
+      debugPrint('✅ Documento do utilizador criado em /users/$uid');
+      // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'ultimoLogin': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ ultimoLogin atualizado com sucesso');
+      } catch (e) {
+        debugPrint('❌ Falha ao atualizar ultimoLogin: $e');
+      }
 
-      // Salva somente os dados do carro na coleção 'cars'
-      await _firebaseService.saveCarData(uid!, {
+      // Dados do carro a serem gravados
+      final carData = {
         'ownerId': uid,
         'matricula': _licensePlateController.text.trim(),
         'marca': _carBrandController.text.trim(),
@@ -92,26 +180,46 @@ class _RegisterViewState extends State<RegisterView> {
         'passageiros': passageiros,
         'pontuacao_total': 0,
         'checkpoints': {},
-      });
+      };
+      debugPrint('Dados do carro que serão gravados: $carData');
+
+      // DEPURAÇÃO: log do usuário autenticado e do UID usado para salvar no /cars
+      final authenticatedUser = FirebaseAuth.instance.currentUser;
+      debugPrint('FirebaseAuth.currentUser?.uid = ${authenticatedUser?.uid}');
+      debugPrint('UID usado para salvar no /cars = $uid');
+
+      // Salva somente os dados do carro na coleção 'cars'
+      try {
+        await _firebaseService.saveCarData(uid, carData);
+        debugPrint('✅ Documento do carro criado em /cars/$uid');
+      } catch (e) {
+        debugPrint('❌ Falha ao salvar carro: $e');
+        setState(
+          () => _error = 'Erro ao salvar dados do veículo: ${e.toString()}',
+        );
+        return;
+      }
 
       // Salvar consentimento nos termos
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('acceptedTerms', true);
 
-      // Após salvar carro, verifica valor do evento
-      final eventDoc =
-          await FirebaseFirestore.instance
-              .collection('events')
-              .doc(_selectedEventId)
-              .get();
-      final Map<String, dynamic> data = eventDoc.data() ?? {};
-      final price = double.tryParse('${data['price']}') ?? 0;
       if (price > 0) {
         // Navega para pagamento
         Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
       } else {
         // Sem valor, já termina registro
-        Get.offAll(() => const ProfileView());
+        Get.offAll(
+          () => UserSummaryView(
+            nome: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            telefone: _phoneController.text.trim(),
+            emergencia: _emergencyContactController.text.trim(),
+            equipa: _teamNameController.text.trim(),
+            tShirt: _selectedShirtSize ?? '',
+            eventoNome: nomeEvento,
+          ),
+        );
       }
     } on FirebaseAuthException catch (authError) {
       // Tratar erro de e-mail já cadastrado
@@ -123,10 +231,15 @@ class _RegisterViewState extends State<RegisterView> {
       } else {
         setState(() => _error = authError.message ?? 'Erro de autenticação.');
       }
-    } catch (e) {
-      setState(() => _error = 'Erro ao criar conta: $e');
+    } catch (e, stackTrace) {
+      final mensagemErro =
+          e.toString().isEmpty ? 'Erro desconhecido' : e.toString();
+      debugPrint('❌ Erro capturado no register: $mensagemErro');
+      debugPrint('🪵 Stack trace: $stackTrace');
+      setState(() => _error = 'Erro ao criar conta: $mensagemErro');
     } finally {
       setState(() => _loading = false);
+      // Removido o animateToPage para evitar loop ao retornar à etapa com erro
     }
   }
 
@@ -137,36 +250,51 @@ class _RegisterViewState extends State<RegisterView> {
     TextInputType? keyboardType,
     bool obscureText = false,
     String? hintText,
+    bool isRequired = false,
+    bool isError = false,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isError ? Colors.red : Colors.grey.shade300),
         color: Colors.white,
       ),
       margin: const EdgeInsets.symmetric(vertical: 5),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.fromLTRB(4, 12, 8, 4),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
         style: Theme.of(context).textTheme.bodyMedium,
+        textAlign: TextAlign.center,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           icon: Icon(icon, color: Theme.of(context).colorScheme.primary),
-          labelText: label,
+          labelText: isRequired ? '$label *' : label,
           hintText: hintText,
           hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
           labelStyle: Theme.of(context).textTheme.labelLarge,
           border: InputBorder.none,
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          constraints: const BoxConstraints(maxHeight: 48),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          constraints: const BoxConstraints(minHeight: 56),
         ),
       ),
     );
   }
 
   Widget _buildStepCondutor() {
+    bool nameError = _error != null && _nameController.text.trim().isEmpty;
+    bool phoneError = _error != null && _phoneController.text.trim().isEmpty;
+    bool emergencyError =
+        _error != null && _emergencyContactController.text.trim().isEmpty;
+    bool emailError = _error != null && _emailController.text.trim().isEmpty;
+    bool passError = _error != null && _passwordController.text.trim().isEmpty;
+    bool confirmPassError =
+        _error != null && _confirmPasswordController.text.trim().isEmpty;
+    bool shirtError = _error != null && _selectedShirtSize == null;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,6 +304,8 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Nome do condutor',
             controller: _nameController,
             hintText: 'Ex: João Silva',
+            isRequired: true,
+            isError: nameError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -184,6 +314,8 @@ class _RegisterViewState extends State<RegisterView> {
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             hintText: 'Ex: 912345678',
+            isRequired: true,
+            isError: phoneError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -192,6 +324,8 @@ class _RegisterViewState extends State<RegisterView> {
             controller: _emergencyContactController,
             keyboardType: TextInputType.phone,
             hintText: 'Ex: 9911111',
+            isRequired: true,
+            isError: emergencyError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -200,6 +334,8 @@ class _RegisterViewState extends State<RegisterView> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             hintText: 'exemplo@email.com',
+            isRequired: true,
+            isError: emailError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -208,6 +344,8 @@ class _RegisterViewState extends State<RegisterView> {
             controller: _passwordController,
             obscureText: true,
             hintText: 'Mínimo 6 caracteres',
+            isRequired: true,
+            isError: passError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -216,47 +354,114 @@ class _RegisterViewState extends State<RegisterView> {
             controller: _confirmPasswordController,
             obscureText: true,
             hintText: 'Repita a senha',
+            isRequired: true,
+            isError: confirmPassError,
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedShirtSize,
-            items:
-                _shirtSizes.map((size) {
-                  return DropdownMenuItem(
-                    value: size,
-                    child: Text(
-                      size,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  );
-                }).toList(),
-            onChanged: (val) => setState(() => _selectedShirtSize = val),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              icon: Icon(
-                Icons.checkroom,
-                color: Theme.of(context).scaffoldBackgroundColor,
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: shirtError ? Colors.red : Colors.grey.shade300,
               ),
-              labelText: 'Tamanho da t-shirt',
-              labelStyle: Theme.of(context).textTheme.labelLarge,
+              color: Colors.white,
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButtonFormField<String>(
+              value: _selectedShirtSize,
+              items:
+                  _shirtSizes.map((size) {
+                    return DropdownMenuItem(
+                      value: size,
+                      child: Text(
+                        size,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    );
+                  }).toList(),
+              onChanged: (val) => setState(() => _selectedShirtSize = val),
+              decoration: InputDecoration(
+                icon: Icon(
+                  Icons.checkroom,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                labelText: 'Tamanho da t-shirt *',
+                labelStyle: Theme.of(context).textTheme.labelLarge,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                constraints: const BoxConstraints(minHeight: 56),
+              ),
             ),
           ),
           const SizedBox(height: 24),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                border: Border.all(color: Colors.amber.shade700, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Por favor preencha todos os campos obrigatórios antes de avançar.',
+                      style: TextStyle(
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _error = null;
-                    _currentStep = 1;
-                    _pageController.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  });
-                },
-                child: const Text('Próximo'),
+              SizedBox(
+                width: 200,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed:
+                      _loading
+                          ? null
+                          : () {
+                            if (_nameController.text.trim().isEmpty ||
+                                _phoneController.text.trim().isEmpty ||
+                                _emergencyContactController.text
+                                    .trim()
+                                    .isEmpty ||
+                                _emailController.text.trim().isEmpty ||
+                                _passwordController.text.trim().isEmpty ||
+                                _confirmPasswordController.text
+                                    .trim()
+                                    .isEmpty ||
+                                _selectedShirtSize == null) {
+                              setState(() {
+                                _error =
+                                    'Por favor preencha todos os campos obrigatórios.';
+                              });
+                              return;
+                            }
+                            setState(() {
+                              _error = null;
+                              _currentStep = 1;
+                            });
+                            FocusScope.of(context).unfocus();
+                            _pageController.jumpToPage(_currentStep);
+                          },
+                  child: const Text(
+                    'Próximo',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),
@@ -275,6 +480,12 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Widget _buildStepCarro() {
+    bool licensePlateError =
+        _error != null && _licensePlateController.text.trim().isEmpty;
+    bool brandError = _error != null && _carBrandController.text.trim().isEmpty;
+    bool modelError = _error != null && _carModelController.text.trim().isEmpty;
+    bool teamNameError =
+        _error != null && _teamNameController.text.trim().isEmpty;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,6 +495,27 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Matrícula',
             controller: _licensePlateController,
             hintText: 'Ex: AB-12-CD',
+            isRequired: true,
+            isError: licensePlateError,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(8),
+              TextInputFormatter.withFunction((oldValue, newValue) {
+                final digitsOnly =
+                    newValue.text
+                        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                        .toUpperCase();
+                final buffer = StringBuffer();
+                for (int i = 0; i < digitsOnly.length; i++) {
+                  buffer.write(digitsOnly[i]);
+                  if ((i + 1) % 2 == 0 && i < 5) buffer.write('-');
+                }
+                final newText = buffer.toString();
+                return TextEditingValue(
+                  text: newText,
+                  selection: TextSelection.collapsed(offset: newText.length),
+                );
+              }),
+            ],
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -291,6 +523,8 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Marca',
             controller: _carBrandController,
             hintText: 'Ex: Toyota',
+            isRequired: true,
+            isError: brandError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -298,6 +532,8 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Modelo',
             controller: _carModelController,
             hintText: 'Ex: Corolla',
+            isRequired: true,
+            isError: modelError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -305,33 +541,49 @@ class _RegisterViewState extends State<RegisterView> {
             label: 'Nome da Equipa',
             controller: _teamNameController,
             hintText: 'Ex: Os Rápidos',
+            isRequired: true,
+            isError: teamNameError,
           ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _error = null;
-                    _currentStep = 0;
-                    _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  });
-                },
+                onPressed:
+                    _loading
+                        ? null
+                        : () {
+                          setState(() {
+                            _error = null;
+                            _currentStep -= 1;
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          });
+                        },
                 child: const Text('Voltar'),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _error = null;
-                    _currentStep = 2;
-                  });
-                  _pageController.jumpToPage(2);
-                },
-                child: const Text('Próximo'),
+              SizedBox(
+                width: 200,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed:
+                      _loading
+                          ? null
+                          : () {
+                            setState(() {
+                              _error = null;
+                              _currentStep = 2;
+                            });
+                            FocusScope.of(context).unfocus();
+                            _pageController.jumpToPage(2);
+                          },
+                  child: const Text(
+                    'Próximo',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),
@@ -350,6 +602,8 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Widget _buildStepPassageiros() {
+    // Verificação para garantir que haja pelo menos um passageiro antes de avançar
+    // (a lógica do botão "Próximo" já será reforçada abaixo)
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +638,16 @@ class _RegisterViewState extends State<RegisterView> {
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(
+                              color:
+                                  (_error != null &&
+                                          passageirosControllers[i]['nome']!
+                                              .text
+                                              .trim()
+                                              .isEmpty)
+                                      ? Colors.red
+                                      : Colors.grey.shade300,
+                            ),
                             color: Colors.white,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -393,7 +656,7 @@ class _RegisterViewState extends State<RegisterView> {
                             style: Theme.of(context).textTheme.bodyMedium,
                             decoration: InputDecoration(
                               prefixIcon: const Icon(Icons.person),
-                              labelText: 'Nome',
+                              labelText: 'Nome *',
                               hintText: 'Ex: Maria Oliveira',
                               hintStyle:
                                   Theme.of(
@@ -411,7 +674,16 @@ class _RegisterViewState extends State<RegisterView> {
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(
+                              color:
+                                  (_error != null &&
+                                          passageirosControllers[i]['telefone']!
+                                              .text
+                                              .trim()
+                                              .isEmpty)
+                                      ? Colors.red
+                                      : Colors.grey.shade300,
+                            ),
                             color: Colors.white,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -421,7 +693,7 @@ class _RegisterViewState extends State<RegisterView> {
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
                               prefixIcon: const Icon(Icons.phone),
-                              labelText: 'Telefone',
+                              labelText: 'Telefone *',
                               hintText: 'Ex: 912345678',
                               hintStyle:
                                   Theme.of(
@@ -439,7 +711,16 @@ class _RegisterViewState extends State<RegisterView> {
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(
+                              color:
+                                  (_error != null &&
+                                          passageirosControllers[i]['tshirt']!
+                                              .text
+                                              .trim()
+                                              .isEmpty)
+                                      ? Colors.red
+                                      : Colors.grey.shade300,
+                            ),
                             color: Colors.white,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -475,7 +756,7 @@ class _RegisterViewState extends State<RegisterView> {
                                 Icons.checkroom,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
-                              labelText: 'Tamanho da t-shirt',
+                              labelText: 'Tamanho da t-shirt *',
                               labelStyle:
                                   Theme.of(context).textTheme.labelLarge,
                             ),
@@ -484,11 +765,14 @@ class _RegisterViewState extends State<RegisterView> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {
-                              setState(() {
-                                passageirosControllers.removeAt(i);
-                              });
-                            },
+                            onPressed:
+                                _loading
+                                    ? null
+                                    : () {
+                                      setState(() {
+                                        passageirosControllers.removeAt(i);
+                                      });
+                                    },
                             child: const Text('Remover passageiro'),
                           ),
                         ),
@@ -498,15 +782,18 @@ class _RegisterViewState extends State<RegisterView> {
                 ),
               if (passageirosControllers.length < 4)
                 ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      passageirosControllers.add({
-                        'nome': TextEditingController(),
-                        'telefone': TextEditingController(),
-                        'tshirt': TextEditingController(),
-                      });
-                    });
-                  },
+                  onPressed:
+                      _loading
+                          ? null
+                          : () {
+                            setState(() {
+                              passageirosControllers.add({
+                                'nome': TextEditingController(),
+                                'telefone': TextEditingController(),
+                                'tshirt': TextEditingController(),
+                              });
+                            });
+                          },
                   icon: const Icon(Icons.add),
                   label: const Text('Adicionar Passageiro'),
                 ),
@@ -525,27 +812,58 @@ class _RegisterViewState extends State<RegisterView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _error = null;
-                    _currentStep = 1;
-                    _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  });
-                },
+                onPressed:
+                    _loading
+                        ? null
+                        : () {
+                          setState(() {
+                            _error = null;
+                            _currentStep -= 1;
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          });
+                        },
                 child: const Text('Voltar'),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _error = null;
-                    _currentStep = 3;
-                  });
-                  _pageController.jumpToPage(3);
-                },
-                child: const Text('Próximo'),
+              SizedBox(
+                width: 200,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed:
+                      _loading
+                          ? null
+                          : () {
+                            if (passageirosControllers.isEmpty) {
+                              setState(() {
+                                _error = 'Adicione pelo menos 1 passageiro.';
+                              });
+                              return;
+                            }
+                            for (final passageiro in passageirosControllers) {
+                              if (passageiro['nome']!.text.trim().isEmpty ||
+                                  passageiro['telefone']!.text.trim().isEmpty ||
+                                  passageiro['tshirt']!.text.trim().isEmpty) {
+                                setState(() {
+                                  _error =
+                                      'Preencha todos os dados dos passageiros.';
+                                });
+                                return;
+                              }
+                            }
+                            setState(() {
+                              _error = null;
+                              _currentStep = 3;
+                            });
+                            FocusScope.of(context).unfocus();
+                            _pageController.jumpToPage(3);
+                          },
+                  child: const Text(
+                    'Próximo',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),
@@ -555,6 +873,7 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Widget _buildStepEvento() {
+    bool eventError = _error != null && _selectedEventId == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -565,43 +884,40 @@ class _RegisterViewState extends State<RegisterView> {
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('events')
-                  .where('status', isEqualTo: true)
-                  .orderBy('data_event')
-                  .snapshots(),
+        FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance.collection('events').get(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final docs = snapshot.data!.docs;
-            if (docs.isEmpty) {
-              return const Center(child: Text('Nenhum evento ativo'));
-            }
+            final items =
+                snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final nome = data['nome'] ?? 'Evento sem nome';
+                  return DropdownMenuItem<String>(
+                    value: doc.id,
+                    child: Text(nome),
+                  );
+                }).toList();
             return DropdownButtonFormField<String>(
               isExpanded: true,
+              value: _selectedEventId,
               hint: Text(
                 'Selecione um evento',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              value: _selectedEventId,
-              items:
-                  docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return DropdownMenuItem(
-                      value: doc.id,
-                      child: Text(
-                        data['nome'] ?? data['Nome'] ?? 'Sem nome',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    );
-                  }).toList(),
-              onChanged: (val) => setState(() => _selectedEventId = val),
+              items: items,
+              onChanged:
+                  _loading
+                      ? null
+                      : (val) => setState(() => _selectedEventId = val),
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                labelText: 'Evento',
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: eventError ? Colors.red : Colors.grey.shade300,
+                  ),
+                ),
+                labelText: 'Evento *',
                 labelStyle: Theme.of(context).textTheme.labelLarge,
               ),
             );
@@ -611,7 +927,10 @@ class _RegisterViewState extends State<RegisterView> {
         // CheckboxListTile for terms and privacy
         CheckboxListTile(
           value: _acceptedTerms,
-          onChanged: (value) => setState(() => _acceptedTerms = value ?? false),
+          onChanged:
+              _loading
+                  ? null
+                  : (value) => setState(() => _acceptedTerms = value ?? false),
           activeColor: Theme.of(context).colorScheme.primary,
           title: RichText(
             text: TextSpan(
@@ -654,37 +973,48 @@ class _RegisterViewState extends State<RegisterView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             OutlinedButton(
-              onPressed: () {
-                setState(() {
-                  _error = null;
-                  _currentStep = 2;
-                  _pageController.previousPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                });
-              },
+              onPressed:
+                  _loading
+                      ? null
+                      : () {
+                        setState(() {
+                          _error = null;
+                          _currentStep -= 1;
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        });
+                      },
               child: const Text('Voltar'),
             ),
-            ElevatedButton(
-              onPressed:
-                  (_loading || _selectedEventId == null || !_acceptedTerms)
-                      ? null
-                      : _register,
-              child:
-                  _loading
-                      ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+            SizedBox(
+              width: 200,
+              height: 48,
+              child: ElevatedButton(
+                onPressed:
+                    (_loading || _selectedEventId == null || !_acceptedTerms)
+                        ? null
+                        : _register,
+                child:
+                    _loading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text(
+                          'Registrar',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                      )
-                      : const Text('Registrar'),
+              ),
             ),
           ],
         ),
+        // Error display for _register
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(
@@ -715,33 +1045,37 @@ class _RegisterViewState extends State<RegisterView> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: kIsWeb
-            ? Center(
-                child: SizedBox(
-                  width: 500,
-                  child: _buildRegisterBody(context),
+        child: Center(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isMobile ? double.infinity : 600,
+                  ),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.95,
+                    child: _buildRegisterBody(context),
+                  ),
                 ),
-              )
-            : _buildRegisterBody(context),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildRegisterBody(BuildContext context) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_back,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const Spacer(),
               Image.asset(
                 'assets/images/Logo_Shell_KM.png',
                 width: 40,
@@ -759,9 +1093,7 @@ class _RegisterViewState extends State<RegisterView> {
               Center(
                 child: Text(
                   'Criar uma conta',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.headlineMedium?.copyWith(
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
@@ -770,30 +1102,28 @@ class _RegisterViewState extends State<RegisterView> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Já tem uma conta?',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withAlpha(179),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.toNamed('/login'),
-                    child: Text(
-                      'Entrar',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              // Row(
+              //   mainAxisAlignment: MainAxisAlignment.center,
+              //   children: [
+              //     Text(
+              //       'Já tem uma conta?',
+              //       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              //         color: Theme.of(
+              //           context,
+              //         ).colorScheme.primary.withAlpha(179),
+              //       ),
+              //     ),
+              //     TextButton(
+              //       onPressed: () => Get.toNamed('/login'),
+              //       child: Text(
+              //         'Entrar',
+              //         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              //           color: Theme.of(context).colorScheme.primary,
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
             ],
           ),
         ),

@@ -1,248 +1,306 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
-class DashboardAdminView extends StatefulWidget {
+class DashboardAdminView extends StatelessWidget {
   const DashboardAdminView({super.key});
 
   @override
-  State<DashboardAdminView> createState() => _DashboardAdminViewState();
-}
-
-class _DashboardAdminViewState extends State<DashboardAdminView> {
-  double _opacity = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _opacity = 1);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return Scaffold(
-      appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
-      backgroundColor: AppColors.background,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Center(
-                  child: Image.asset(
-                    'assets/images/Logo_Shell_KM.png',
-                    height: 80,
-                    fit: BoxFit.contain,
-                  ),
+                _buildStatCard(
+                  Icons.groups,
+                  'Equipas',
+                  FirebaseFirestore.instance.collection('equipas'),
                 ),
-                const SizedBox(height: 24),
-                FutureBuilder<DocumentSnapshot>(
-                  future:
-                      FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(FirebaseAuth.instance.currentUser?.uid)
-                          .get(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const SizedBox(height: 24);
-                    }
-                    final data = snapshot.data!.data() as Map<String, dynamic>?;
-                    final nome = data?['nome'] ?? 'Administrador';
-                    return Text(
-                      'Olá, $nome 👋',
-                      style: TextStyle(
-                        color: AppColors.secondaryDark,
-                        fontSize: screenWidth < 400 ? 16 : 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  },
+                _buildStatCard(
+                  Icons.local_gas_station,
+                  'Checkpoints',
+                  FirebaseFirestore.instance.collection('checkpoints'),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Aqui está um resumo da atividade recente.',
-                  style: TextStyle(
-                    color: AppColors.textSecondary.withAlpha(153),
-                    fontSize: screenWidth < 400 ? 12 : 14,
-                  ),
+                _buildStatCard(
+                  Icons.emoji_events,
+                  'Pontuações',
+                  FirebaseFirestore.instance.collection('ranking'),
                 ),
-                const SizedBox(height: 16),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/scan-score'),
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Registrar Pontuação'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondaryDark,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Ranking dos Carros',
-                  style: TextStyle(
-                    color: AppColors.secondaryDark,
-                    fontSize: screenWidth < 400 ? 14 : 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.textSecondary.withAlpha(61),
-                ),
-                const SizedBox(height: 16),
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 600),
-                  opacity: _opacity,
-                  child: Center(
-                    child: SizedBox(
-                      height: 300,
-                      width: screenWidth < 600 ? screenWidth - 32 : 600,
-                      child: _buildBarChart(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Pontuações Recentes',
-                  style: TextStyle(
-                    color: AppColors.secondaryDark,
-                    fontSize: screenWidth < 400 ? 14 : 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.textSecondary.withAlpha(61),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/pontuacoes'),
-                    icon: const Icon(Icons.list_alt),
-                    label: const Text('Ver Pontuações Registradas'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondaryDark,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
               ],
             ),
-          ),
+            const SizedBox(height: 32),
+            const Text(
+              '🏆 Top 3 Equipas',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('ranking')
+                      .orderBy('pontuacao', descending: true)
+                      .limit(3)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const CircularProgressIndicator();
+                final docs = snapshot.data!.docs;
+                return Row(
+                  children:
+                      docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Expanded(
+                          child: Card(
+                            color: AppColors.secondary,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    data['nome'] ?? 'Equipa',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${data['pontuacao']} pts',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              '📊 Ranking Geral',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('ranking')
+                      .orderBy('pontuacao', descending: true)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const CircularProgressIndicator();
+                final docs = snapshot.data!.docs;
+                return DataTable(
+                  dataRowColor: WidgetStateProperty.all(Colors.black12),
+                  columns: const [
+                    DataColumn(
+                      label: Text(
+                        'Equipa',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Pontuação',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Checkpoints',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ),
+                  ],
+                  rows:
+                      docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Text(
+                                data['nome'] ?? '',
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                '${data['pontuacao']}',
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                '${data['checkpointCount']}',
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              '📝 Equipas Inscritas',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance.collection('equipas').snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const CircularProgressIndicator();
+                final docs = snapshot.data!.docs;
+                return FutureBuilder<List<DataRow>>(
+                  future: _buildEquipasRows(docs),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const CircularProgressIndicator();
+                    }
+                    return DataTable(
+                      dataRowColor: WidgetStateProperty.all(Colors.black12),
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Nome da Equipa',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Condutor',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Marca do Carro',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                      ],
+                      rows: snapshot.data!,
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBarChart() {
-    return FutureBuilder<QuerySnapshot>(
-      future:
-          FirebaseFirestore.instance
-              .collection('cars')
-              .orderBy('pontuacao_total', descending: true)
-              .limit(3)
-              .get(),
+  Widget _buildStatCard(IconData icon, String label, CollectionReference ref) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: ref.snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data!.docs;
-        final bars =
-            docs.mapIndexed((i, doc) {
-              final pontos = (doc['pontuacao_total'] ?? 0) as int;
-              final isFirst = i == 0;
-              return BarChartGroupData(
-                x: i,
-                barRods: [
-                  BarChartRodData(
-                    toY: pontos.toDouble(),
-                    width: isFirst ? 26 : 20,
-                    color: isFirst ? AppColors.secondary : AppColors.secondary,
-                    borderRadius: BorderRadius.circular(4),
+        final count = snapshot.data?.docs.length ?? 0;
+        return Expanded(
+          child: Card(
+            elevation: 2,
+            color: Colors.red,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(icon, size: 32, color: Colors.blue),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
-                showingTooltipIndicators: [0],
-              );
-            }).toList();
-
-        final labels =
-            docs
-                .map(
-                  (doc) => (doc['matricula'] ?? '---').toString().toUpperCase(),
-                )
-                .toList();
-
-        return BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceEvenly,
-            barTouchData: BarTouchData(
-              enabled: true,
-              touchTooltipData: BarTouchTooltipData(
-                tooltipMargin: 12,
-                direction: TooltipDirection.top,
-                getTooltipItem: (group, _, __, ___) {
-                  final doc = docs[group.x.toInt()];
-                  final matricula = doc['matricula'] ?? '---';
-                  final pontos = doc['pontuacao_total'] ?? 0;
-                  final equipa = doc['nome_equipa'] ?? doc['modelo'] ?? '';
-                  return BarTooltipItem(
-                    '$matricula\n$equipa\n$pontos pontos',
-                    TextStyle(color: AppColors.textPrimary),
-                  );
-                },
               ),
             ),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    final index = value.toInt();
-                    if (index < 0 || index >= labels.length) {
-                      return const SizedBox.shrink();
-                    }
-                    return Text(
-                      labels[index],
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    );
-                  },
-                ),
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            barGroups: bars,
-            gridData: FlGridData(show: false),
           ),
         );
       },
     );
   }
+}
+
+Future<List<DataRow>> _buildEquipasRows(
+  List<QueryDocumentSnapshot> docs,
+) async {
+  List<DataRow> rows = [];
+
+  for (final doc in docs) {
+    final data = doc.data() as Map<String, dynamic>;
+    final nome = data['nome'] ?? '';
+    final veiculoId = data['veiculoId'];
+
+    String marca = '';
+    String condutor = '';
+
+    if (veiculoId != null) {
+      final veiculoDoc =
+          await FirebaseFirestore.instance
+              .collection('veiculos')
+              .doc(veiculoId)
+              .get();
+      final veiculoData = veiculoDoc.data();
+      marca = veiculoData?['marca'] ?? '';
+      final condutorId = veiculoData?['condutorId'];
+      if (condutorId != null) {
+        final condutorDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(condutorId)
+                .get();
+        final condutorData = condutorDoc.data();
+        condutor = condutorData?['nome'] ?? '';
+      }
+    }
+
+    rows.add(
+      DataRow(
+        cells: [
+          DataCell(Text(nome, style: const TextStyle(color: Colors.black))),
+          DataCell(Text(condutor, style: const TextStyle(color: Colors.black))),
+          DataCell(Text(marca, style: const TextStyle(color: Colors.black))),
+        ],
+      ),
+    );
+  }
+
+  return rows;
 }

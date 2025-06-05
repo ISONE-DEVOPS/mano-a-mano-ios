@@ -3,11 +3,11 @@ import 'package:get/get.dart';
 import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
-import '../views/dashboard/home_view.dart';
 import '../views/profile/profile_view.dart';
 import '../views/checkin/checkin_view.dart';
 import '../views/main/main_view.dart';
 import '../views/admin/admin_view.dart';
+import '../views/admin/edition_view.dart';
 import '../views/payment/payment_view.dart';
 import '../views/map/route_map_view.dart';
 import '../views/map/event_route_view.dart';
@@ -31,6 +31,9 @@ import '../views/resultados/resultados_finais_view.dart';
 import '../views/profile/team_profile_view.dart';
 import '../views/admin/scan_and_score_view.dart';
 import '../views/admin/pontuacoes_view.dart';
+import '../views/admin/manage_users_view.dart';
+import '../views/admin/generate_qr_view.dart';
+import '../views/admin/perguntas_view.dart';
 
 class AppPages {
   static const initial = '/';
@@ -41,11 +44,12 @@ class AppPages {
     GetPage(name: '/splash', page: () => const IntroSplashView()),
     GetPage(name: '/login', page: () => const LoginView()),
     GetPage(name: '/register', page: () => const RegisterView()),
-    GetPage(name: '/home', page: () => const HomeView()),
+    // GetPage(name: '/home', page: () => const HomeView()),
     GetPage(name: '/profile', page: () => const ProfileView()),
     GetPage(name: '/checkin', page: () => const CheckinView()),
     GetPage(name: '/main', page: () => const MainView()),
     GetPage(name: '/admin', page: () => const AdminView()),
+    GetPage(name: '/editions', page: () => const EditionView()),
     GetPage(
       name: '/payment',
       page: () {
@@ -96,11 +100,20 @@ class AppPages {
       page: () => const TeamCustomizationView(),
     ),
     GetPage(name: '/ranking', page: () => const RankingView()),
-    GetPage(name: '/pontuacao-detalhada', page: () => const PontuacaoDetalhadaView()),
+    GetPage(
+      name: '/pontuacao-detalhada',
+      page: () => const PontuacaoDetalhadaView(),
+    ),
     GetPage(name: '/conchas', page: () => const ConchasView()),
-    GetPage(name: '/resultados-finais', page: () => const ResultadosFinaisView()),
+    GetPage(
+      name: '/resultados-finais',
+      page: () => const ResultadosFinaisView(),
+    ),
     GetPage(name: '/team-profile', page: () => const TeamProfileView()),
     GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
     GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
+    GetPage(name: '/manage-users', page: () => ManageUsersView()),
+    GetPage(name: '/generate-qr', page: () => const GenerateQrView()),
+    GetPage(name: '/perguntas', page: () => const PerguntasView()),
   ];
 }

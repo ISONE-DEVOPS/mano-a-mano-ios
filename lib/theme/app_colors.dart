@@ -9,21 +9,34 @@ class AppColors {
   static const Color accent = Color(0xFFED8A00); // Sunrise 300
 
   // Fundo e superfícies
-  static const Color background = Color(0xFFFFFFFF); // Shell White
-  static const Color surface = Color(0xFFF5F5F5); // Shell Grey 50
-  static const Color surfaceSecondary = Color(0xFFE0E0E0); // Shell Grey 100
+  static const Color background = Color(0xFFFFFBE6); // Amarelo bem clarinho
+  static const Color surface = Color(0xFFFFFBE6); // Amarelo bem clarinho
+  static const Color surfaceSecondary = Color(0xFFFFFBE6); // Amarelo bem clarinho
 
-  // Texto
-  static const Color textPrimary = Color(0xFF292929); // Shell Grey 900
-  static const Color textSecondary = Color(0xFF4A4A4A); // Shell Grey 700
+  // Texto (usado sobre fundo e surface amarelo claro)
+  static const Color textPrimary = Color(0xFF000000); // Preto total
+  static const Color textSecondary = Color(0xFF333333); // Cinza escuro para contraste
 
   // Campos de input
   static const Color inputBackground = Color(0xFFF5F5F5); // Shell Grey 50
-  static const Color inputText = Color(0xFF292929); // Texto primário
+  static const Color inputText = Color(0xFF000000); // Texto primário
   static const Color inputBorder = Color(0xFFDDDDDD); // cinza claro para borda
 
   // Outros
   static const Color error = Color(0xFFD32F2F); // vermelho de erro
   static const Color success = Color(0xFF4CAF50); // verde de sucesso
   static const Color warning = Color(0xFFFFA000); // amarelo de aviso
+
+  // Estilo padrão para ElevatedButton (exemplo de uso)
+  static ButtonStyle elevatedButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: secondary,
+    foregroundColor: textPrimary,
+    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+  );
+
+  static ButtonStyle cancelButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: primary,
+    foregroundColor: Colors.white,
+    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+  );
 }

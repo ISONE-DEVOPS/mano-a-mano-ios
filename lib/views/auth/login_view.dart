@@ -69,6 +69,7 @@ class _LoginViewState extends State<LoginView> {
     if (user != null) {
       // Buscar perfil do usuário para verificar o role
       final userData = await _firebaseService.getUserData(user.uid);
+      await _firebaseService.updateUltimoLogin(user.uid);
       final role = userData?['role'] ?? 'user';
       if (role == 'admin') {
         Get.offAllNamed('/admin');
@@ -97,7 +98,10 @@ class _LoginViewState extends State<LoginView> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Bem-vindo(a)!', style: textTheme.titleLarge?.copyWith(color: AppColors.primary)),
+          Text(
+            'Bem-vindo(a)!',
+            style: textTheme.titleLarge?.copyWith(color: AppColors.primary),
+          ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -117,10 +121,7 @@ class _LoginViewState extends State<LoginView> {
                   const SizedBox(width: 8),
                   Text(
                     _error!,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: AppColors.primary, fontSize: 16),
                   ),
                 ],
               ),
@@ -137,8 +138,7 @@ class _LoginViewState extends State<LoginView> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: 'Digite seu email',
-                    hintStyle:
-                        Theme.of(context).inputDecorationTheme.hintStyle,
+                    hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
                     prefixIcon: Icon(
                       Icons.email_outlined,
                       color: colorScheme.onSurface,
@@ -157,8 +157,7 @@ class _LoginViewState extends State<LoginView> {
                   obscureText: !_showPassword,
                   decoration: InputDecoration(
                     hintText: 'Digite sua senha',
-                    hintStyle:
-                        Theme.of(context).inputDecorationTheme.hintStyle,
+                    hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
                     prefixIcon: Icon(
                       Icons.lock_outline,
                       color: colorScheme.onSurface,
@@ -170,15 +169,11 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _showPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
+                        _showPassword ? Icons.visibility : Icons.visibility_off,
                         color: colorScheme.onSurface,
                       ),
                       onPressed:
-                          () => setState(
-                            () => _showPassword = !_showPassword,
-                          ),
+                          () => setState(() => _showPassword = !_showPassword),
                     ),
                   ),
                   style: textTheme.bodyLarge,
@@ -215,9 +210,7 @@ class _LoginViewState extends State<LoginView> {
                     Expanded(
                       child: RichText(
                         text: TextSpan(
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontSize: 13,
-                          ),
+                          style: textTheme.bodyMedium?.copyWith(fontSize: 13),
                           children: [
                             const TextSpan(text: 'Aceito os '),
                             TextSpan(
@@ -260,13 +253,14 @@ class _LoginViewState extends State<LoginView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    child: _loading
-                        ? CircularProgressIndicator(
-                            color: Colors.black,
-                          )
-                        : Text('Entrar', style: textTheme.bodyLarge),
+                    child:
+                        _loading
+                            ? CircularProgressIndicator(color: Colors.black)
+                            : Text('Entrar', style: textTheme.bodyLarge),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -298,7 +292,9 @@ class _LoginViewState extends State<LoginView> {
             width: 420,
             child: Card(
               elevation: 8,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(32),
                 child: _buildLoginForm(context),
@@ -310,9 +306,7 @@ class _LoginViewState extends State<LoginView> {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _buildLoginForm(context),
-      ),
+      body: SafeArea(child: _buildLoginForm(context)),
     );
   }
 }

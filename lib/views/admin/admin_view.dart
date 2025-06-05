@@ -1,18 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'manage_users_view.dart';
+import 'events_view.dart';
+import 'dashboard_admin_view.dart';
+import 'edition_view.dart';
 import 'generate_qr_view.dart';
 import 'perguntas_view.dart';
-import 'users_admin_view.dart';
-import 'gallery_view.dart';
-import 'events_view.dart';
-import 'profile_view.dart';
-import 'dashboard_admin_view.dart';
-import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
-import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'challenge_view.dart';
-import 'ranking_detailed_view.dart';
 import 'final_activities_view.dart';
+import 'ranking_detailed_view.dart';
+import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
+import 'package:mano_mano_dashboard/widgets/shared/custom_navigation_rail.dart';
+import 'package:mano_mano_dashboard/widgets/shared/custom_top_bar.dart';
 
 void showAddEventDialog(BuildContext context) {
   final formKey = GlobalKey<FormState>();
@@ -165,30 +166,28 @@ class _AdminViewState extends State<AdminView> {
 
   final List<Widget> _pages = [
     const DashboardAdminView(),
+    const EditionView(),
     const EventsView(),
-    const PerguntasView(),
     const GenerateQrView(),
+    const PerguntasView(),
     ChallengeView(),
-    const RankingDetailedView(),
     FinalActivitiesView(),
-    const GalleryView(),
-    const UsersAdminView(),
-    ProfileView(),
-    const SizedBox(), // Placeholder para Logout
+    const RankingDetailedView(),
+    Placeholder(), // Percurso (temporário)
+    ManageUsersView(),
   ];
 
   final List<String> _menuTitles = [
     'Dashboard',
+    'Edições',
     'Eventos',
-    'Perguntas',
     'Checkpoints',
-    'Desafios',
-    'Ranking Detalhado',
+    'Perguntas',
+    'Jogos',
     'Atividades Finais',
-    'Galeria',
+    'Ranking Detalhado',
+    'Percurso',
     'Utilizadores',
-    'Perfil',
-    'Logout',
   ];
 
   @override
@@ -198,78 +197,24 @@ class _AdminViewState extends State<AdminView> {
       child: Scaffold(
         body: Row(
           children: [
-            NavigationRail(
+            CustomNavigationRail(
               selectedIndex: _selectedIndex,
-              onDestinationSelected:
-                  (index) => setState(() => _selectedIndex = index),
-              labelType: NavigationRailLabelType.all,
-              backgroundColor: AppColors.primary,
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.bar_chart),
-                  label: Text('Dashboard'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.event),
-                  label: Text('Eventos'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.quiz),
-                  label: Text('Perguntas'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.qr_code),
-                  label: Text('Checkpoints'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(
-                    Icons.extension,
-                  ), // ícone mais representativo para desafios
-                  label: Text('Desafios'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.emoji_events), // ícone de pódio para ranking
-                  label: Text('Ranking Detalhado'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(
-                    Icons.sports_soccer,
-                  ), // ícone esportivo para finais
-                  label: Text('Atividades Finais'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.photo_library),
-                  label: Text('Galeria'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.people),
-                  label: Text('Utilizadores'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.person),
-                  label: Text('Perfil'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.logout),
-                  label: Text('Logout'),
-                ),
-              ],
+              onItemSelected: (index) {
+                if (index == 10) {
+                  FirebaseAuth.instance.signOut();
+                  Navigator.of(context).pushReplacementNamed('/login');
+                  return;
+                }
+                setState(() => _selectedIndex = index);
+              },
             ),
             Expanded(
               child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    color: AppColors.primary,
-                    width: double.infinity,
-                    child: Text(
-                      _menuTitles[_selectedIndex],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  CustomTopBar(
+                    title: _menuTitles[_selectedIndex],
+                    onScanPressed:
+                        () => Navigator.pushNamed(context, '/scan-score'),
                   ),
                   Expanded(child: _pages[_selectedIndex]),
                 ],
@@ -277,16 +222,6 @@ class _AdminViewState extends State<AdminView> {
             ),
           ],
         ),
-        floatingActionButton:
-            _selectedIndex == 2
-                ? FloatingActionButton(
-                  tooltip: 'Adicionar Evento',
-                  backgroundColor: AppColors.secondaryDark,
-                  child: const Icon(Icons.add, color: Colors.black),
-                  onPressed: () => showAddEventDialog(context),
-                )
-                : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }

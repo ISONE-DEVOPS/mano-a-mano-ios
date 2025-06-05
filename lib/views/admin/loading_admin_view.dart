@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
-class LoadingAdminView extends StatelessWidget {
+class LoadingAdminView extends StatefulWidget {
   const LoadingAdminView({super.key});
+
+  @override
+  State<LoadingAdminView> createState() => _LoadingAdminViewState();
+}
+
+class _LoadingAdminViewState extends State<LoadingAdminView> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/register');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +34,7 @@ class LoadingAdminView extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             Text(
-              'Carregando Painel Shell ao KM...',
+              'Carregando a App Shell ao KM...',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
@@ -37,7 +52,7 @@ class LoadingAdminView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Por favor, aguarde enquanto iniciamos o ambiente administrativo.',
+              'Por favor, aguarde enquanto iniciamos sistema.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary.withAlpha(179),
               ),

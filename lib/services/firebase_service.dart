@@ -22,15 +22,21 @@ class FirebaseService {
   }
 
   // Cadastrar novo usuário com email e senha
-  Future<String?> signUp(String email, String password) async {
+  Future<String> signUp(String email, String password) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
-      return userCredential.user?.uid;
+      final user = userCredential.user;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-null',
+          message: 'Erro ao criar utilizador: user retornado é null',
+        );
+      }
+      return user.uid;
     } catch (e) {
-      // Logging error with developer.log
       developer.log('Sign up error: $e', name: 'FirebaseService');
-      return null;
+      rethrow;
     }
   }
 
@@ -83,6 +89,16 @@ class FirebaseService {
       return query.docs.isNotEmpty;
     } catch (e) {
       return false;
+    }
+  }
+
+  Future<void> updateUltimoLogin(String uid) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'ultimoLogin': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      developer.log('Erro ao atualizar ultimoLogin: $e', name: 'FirebaseService');
     }
   }
 }
