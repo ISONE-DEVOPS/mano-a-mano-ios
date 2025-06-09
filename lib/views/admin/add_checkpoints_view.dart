@@ -22,6 +22,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   bool _usarGeo = false;
 
   void _addCheckpoint() {
+    if (!_formKey.currentState!.validate()) return;
     if (_postoController.text.isNotEmpty && _nomeController.text.isNotEmpty) {
       setState(() {
         _checkpoints.add({
@@ -55,28 +56,22 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
     final ref = FirebaseFirestore.instance
         .collection('events')
-        .doc(widget.eventId);
-    final Map<String, dynamic> checkpointsMap = {
-      for (var item in _checkpoints)
-        item['posto']: {
-          'name': item['name'],
-          'codigo': item['codigo'],
-          'lat': item['lat'],
-          'lng': item['lng'],
-          'origem': item['origem'],
-        },
-    };
+        .doc(widget.eventId)
+        .collection('checkpoints');
 
-    final List<Map<String, dynamic>> percursoList = [
-      for (var item in _checkpoints)
-        {'posto': item['posto'], 'lat': item['lat'], 'lng': item['lng']},
-    ];
+    final batch = FirebaseFirestore.instance.batch();
+    for (var item in _checkpoints) {
+      final docRef = ref.doc(item['posto']);
+      batch.set(docRef, {
+        'nome': item['name'],
+        'descricao': '',
+        'ordem': item['codigo'],
+        'localizacao': GeoPoint(item['lat'], item['lng']),
+        'origem': item['origem'],
+      });
+    }
+    await batch.commit();
 
-    await ref.update({
-      'checkpoints_totais': _checkpoints.length,
-      'checkpoints': checkpointsMap,
-      'percurso': percursoList,
-    });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Checkpoints salvos com sucesso.')),
@@ -86,143 +81,221 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        title: const Text('Adicionar Checkpoints'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Inserir coordenadas:'),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Manual'),
-                  selected: !_usarGeo,
-                  onSelected: (v) => setState(() => _usarGeo = false),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Geolocalização'),
-                  selected: _usarGeo,
-                  onSelected: (v) async {
-                    setState(() => _usarGeo = true);
-                    final position = await Geolocator.getCurrentPosition();
-                    _latController.text = position.latitude.toString();
-                    _lngController.text = position.longitude.toString();
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Form(
-              key: _formKey,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nomeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome do Checkpoint',
+                Row(
+                  children: [
+                    const Text(
+                      'Adicionar Checkpoints',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (!_usarGeo) ...[
-                    Expanded(
-                      child: TextFormField(
-                        controller: _latController,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _lngController,
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
-                  IconButton(
-                    onPressed: _addCheckpoint,
-                    icon: const Icon(Icons.add_circle, color: AppColors.secondaryDark),
-                    tooltip: 'Adicionar',
-                  ),
-                ],
-              ),
+                ),
+                const Divider(),
+                ..._buildCheckpointForm(context),
+              ],
             ),
-            const SizedBox(height: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildCheckpointForm(BuildContext context) {
+    return [
+      Row(
+        children: [
+          const Text('Inserir coordenadas:'),
+          const SizedBox(width: 8),
+          ChoiceChip(
+            label: const Text('Manual'),
+            selected: !_usarGeo,
+            onSelected: (v) => setState(() => _usarGeo = false),
+          ),
+          const SizedBox(width: 8),
+          ChoiceChip(
+            label: const Text('Geolocalização'),
+            selected: _usarGeo,
+            onSelected: (v) async {
+              setState(() => _usarGeo = true);
+              final position = await Geolocator.getCurrentPosition();
+              _latController.text = position.latitude.toString();
+              _lngController.text = position.longitude.toString();
+            },
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Form(
+        key: _formKey,
+        child: Row(
+          children: [
             Expanded(
-              child: ListView.separated(
-                itemCount: _checkpoints.length,
-                separatorBuilder: (_, __) => const Divider(),
-                itemBuilder: (_, index) {
-                  final item = _checkpoints[index];
-                  return ListTile(
-                    title: Text(
-                      'P${item['codigo']} - ${item['name']} (${item['origem'] == 'geolocalizacao' ? 'Geo' : 'Manual'})',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: AppColors.secondaryDark),
-                          onPressed: () {
-                            final item = _checkpoints[index];
-                            setState(() {
-                              _postoController.text = item['posto'];
-                              _nomeController.text = item['name'];
-                              _latController.text = item['lat'].toString();
-                              _lngController.text = item['lng'].toString();
-                              _usarGeo = item['origem'] == 'geolocalizacao';
-                              _checkpoints.removeAt(index);
-                            });
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: AppColors.primaryDark),
-                          onPressed: () {
-                            final removido = _checkpoints[index];
-                            setState(() => _checkpoints.removeAt(index));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Checkpoint "${removido['posto']}" removido.',
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
+              child: TextFormField(
+                controller: _postoController,
+                decoration: const InputDecoration(
+                  labelText: 'Código do Posto (Ex: cidadeela)',
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty
+                            ? 'Campo obrigatório'
+                            : null,
               ),
             ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondaryDark,
-                foregroundColor: Colors.black,
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                controller: _nomeController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do Checkpoint',
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty
+                            ? 'Campo obrigatório'
+                            : null,
               ),
-              icon: const Icon(Icons.save),
-              label: const Text('Salvar Checkpoints'),
-              onPressed: _saveCheckpoints,
+            ),
+            const SizedBox(width: 8),
+            if (!_usarGeo) ...[
+              Expanded(
+                child: TextFormField(
+                  controller: _latController,
+                  decoration: const InputDecoration(labelText: 'Latitude'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (!_usarGeo && (value == null || value.isEmpty)) {
+                      return 'Campo obrigatório';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: _lngController,
+                  decoration: const InputDecoration(labelText: 'Longitude'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (!_usarGeo && (value == null || value.isEmpty)) {
+                      return 'Campo obrigatório';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+            IconButton(
+              onPressed: _addCheckpoint,
+              icon: const Icon(
+                Icons.add_circle,
+                color: AppColors.secondaryDark,
+              ),
+              tooltip: 'Adicionar',
             ),
           ],
         ),
       ),
-    );
+      const SizedBox(height: 16),
+      SizedBox(
+        height: 300,
+        child: ListView.separated(
+          itemCount: _checkpoints.length,
+          separatorBuilder: (context, _) => const Divider(),
+          itemBuilder: (_, index) {
+            final item = _checkpoints[index];
+            return ListTile(
+              title: Row(
+                children: [
+                  Expanded(child: Text('P${item['codigo']} - ${item['name']}')),
+                  const SizedBox(width: 8),
+                  Chip(
+                    label: Text(
+                      item['origem'] == 'geolocalizacao' ? 'Geo' : 'Manual',
+                    ),
+                    backgroundColor:
+                        item['origem'] == 'geolocalizacao'
+                            ? AppColors.secondary.withAlpha((255 * 0.2).round())
+                            : AppColors.primary.withAlpha((255 * 0.2).round()),
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit,
+                      color: AppColors.secondaryDark,
+                    ),
+                    onPressed: () {
+                      final item = _checkpoints[index];
+                      setState(() {
+                        _postoController.text = item['posto'];
+                        _nomeController.text = item['name'];
+                        _latController.text = item['lat'].toString();
+                        _lngController.text = item['lng'].toString();
+                        _usarGeo = item['origem'] == 'geolocalizacao';
+                        _checkpoints.removeAt(index);
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete,
+                      color: AppColors.primaryDark,
+                    ),
+                    onPressed: () {
+                      final removido = _checkpoints[index];
+                      setState(() => _checkpoints.removeAt(index));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Checkpoint "${removido['posto']}" removido.',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 16),
+      ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.secondaryDark,
+          foregroundColor: Colors.black,
+        ),
+        icon: const Icon(Icons.save, color: Colors.white),
+        label: const Text(
+          'Salvar Checkpoints',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        onPressed: _saveCheckpoints,
+      ),
+    ];
   }
 }

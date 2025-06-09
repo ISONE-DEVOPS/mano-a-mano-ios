@@ -58,10 +58,22 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
           _buildMenuItem(context, Icons.qr_code, 'QR Codes', 3, _collapsed),
           _buildMenuItem(context, Icons.quiz, 'Perguntas', 4, _collapsed),
           _buildMenuItem(context, Icons.extension, 'Jogos', 5, _collapsed),
-          _buildMenuItem(context, Icons.flag, 'Atividades Finais', 6, _collapsed),
-          _buildMenuItem(context, Icons.bar_chart, 'Ranking Detalhado', 7, _collapsed),
+          _buildMenuItem(
+            context,
+            Icons.flag,
+            'Atividades Finais',
+            6,
+            _collapsed,
+          ),
+          _buildMenuItem(
+            context,
+            Icons.bar_chart,
+            'Ranking Detalhado',
+            7,
+            _collapsed,
+          ),
           _buildMenuItem(context, Icons.alt_route, 'Percurso', 8, _collapsed),
-          _buildMenuItem(context, Icons.people, 'Utilizadores', 9, _collapsed),
+          _buildMenuItem(context, Icons.people, 'Participantes', 9, _collapsed),
         ],
       ),
     );
@@ -85,15 +97,29 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
           horizontal: collapsed ? 0 : 16,
           vertical: 12,
         ),
-        color:
-            isSelected
-                ? AppColors.secondary.withValues(alpha: 25)
-                : Colors.transparent,
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? AppColors.secondary.withAlpha(25)
+                  : Colors.transparent,
+          border:
+              isSelected
+                  ? Border(
+                    left: BorderSide(color: AppColors.secondary, width: 4),
+                  )
+                  : null,
+        ),
         child: Row(
           mainAxisAlignment:
               collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: [
-            Icon(icon, color: isSelected ? AppColors.secondary : Colors.grey),
+            Tooltip(
+              message: label,
+              child: Icon(
+                icon,
+                color: isSelected ? AppColors.secondary : Colors.grey,
+              ),
+            ),
             if (!collapsed) ...[
               const SizedBox(width: 12),
               Text(

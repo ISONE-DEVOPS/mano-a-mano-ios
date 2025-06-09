@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mano_mano_dashboard"
+    namespace = "cv.pagali.shellaokm"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -33,10 +33,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        /**
+         * CONFIGURAÇÃO DE ASSINATURA PARA BUILD DE PRODUÇÃO
+         * Substitua os valores de storeFile / storePassword / keyAlias / keyPassword
+         * pelos dados reais do seu keystore.
+         */
+        create("release") {
+            storeFile = file("../keystore/keystore.jks")
+            storePassword = "ManoAMano2025"
+            keyAlias = "shellaokm_release"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Configure signingConfig para builds de produção
-            // signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

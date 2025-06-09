@@ -23,7 +23,7 @@ class FinalActivitiesView extends StatelessWidget {
         child: Obx(
           () => ListView.separated(
             itemCount: controller.activities.length,
-            separatorBuilder: (_, __) => Divider(color: AppColors.textSecondary.withAlpha(61)),
+            separatorBuilder: (context, _) => Divider(color: AppColors.textSecondary.withAlpha(61)),
             itemBuilder: (context, index) {
               final activity = controller.activities[index];
               final isSelected = controller.selectedActivity.value == activity;

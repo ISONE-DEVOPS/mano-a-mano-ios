@@ -2,13 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'manage_users_view.dart';
+import 'participantes_view.dart';
 import 'events_view.dart';
 import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
 import 'generate_qr_view.dart';
 import 'perguntas_view.dart';
-import 'challenge_view.dart';
+import 'jogos_create_view.dart';
 import 'final_activities_view.dart';
 import 'ranking_detailed_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
@@ -170,11 +170,11 @@ class _AdminViewState extends State<AdminView> {
     const EventsView(),
     const GenerateQrView(),
     const PerguntasView(),
-    ChallengeView(),
+    JogosCreateView(),
     FinalActivitiesView(),
     const RankingDetailedView(),
     Placeholder(), // Percurso (temporário)
-    ManageUsersView(),
+    const ParticipantesView(),
   ];
 
   final List<String> _menuTitles = [
@@ -187,7 +187,7 @@ class _AdminViewState extends State<AdminView> {
     'Atividades Finais',
     'Ranking Detalhado',
     'Percurso',
-    'Utilizadores',
+    'Participantes',
   ];
 
   @override

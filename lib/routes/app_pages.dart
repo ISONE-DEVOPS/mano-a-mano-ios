@@ -31,9 +31,10 @@ import '../views/resultados/resultados_finais_view.dart';
 import '../views/profile/team_profile_view.dart';
 import '../views/admin/scan_and_score_view.dart';
 import '../views/admin/pontuacoes_view.dart';
-import '../views/admin/manage_users_view.dart';
+import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
 import '../views/admin/perguntas_view.dart';
+import '../views/admin/jogos_create_view.dart';
 
 class AppPages {
   static const initial = '/';
@@ -112,8 +113,9 @@ class AppPages {
     GetPage(name: '/team-profile', page: () => const TeamProfileView()),
     GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
     GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
-    GetPage(name: '/manage-users', page: () => ManageUsersView()),
+    GetPage(name: '/participantes', page: () => const ParticipantesView()),
     GetPage(name: '/generate-qr', page: () => const GenerateQrView()),
     GetPage(name: '/perguntas', page: () => const PerguntasView()),
+    GetPage(name: '/jogos', page: () => const JogosCreateView()),
   ];
 }

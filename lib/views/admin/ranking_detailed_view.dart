@@ -30,7 +30,7 @@ class RankingDetailedView extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: rankings.length,
-        separatorBuilder: (_, __) => const Divider(),
+        separatorBuilder: (context, _) => const Divider(),
         itemBuilder: (context, index) {
           final item = rankings[index];
           return ListTile(
