@@ -35,6 +35,7 @@ import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
 import '../views/admin/perguntas_view.dart';
 import '../views/admin/jogos_create_view.dart';
+import '../views/admin/checkpoints_list_dialog.dart';
 
 class AppPages {
   static const initial = '/';
@@ -117,5 +118,12 @@ class AppPages {
     GetPage(name: '/generate-qr', page: () => const GenerateQrView()),
     GetPage(name: '/perguntas', page: () => const PerguntasView()),
     GetPage(name: '/jogos', page: () => const JogosCreateView()),
+    GetPage(
+      name: '/checkpoints-list',
+      page: () {
+        final eventId = Get.arguments as String;
+        return CheckpointsListDialog(eventId: eventId);
+      },
+    ),
   ];
 }

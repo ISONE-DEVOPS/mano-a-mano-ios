@@ -24,6 +24,14 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   void _addCheckpoint() {
     if (!_formKey.currentState!.validate()) return;
     if (_postoController.text.isNotEmpty && _nomeController.text.isNotEmpty) {
+      final lat = double.tryParse(_latController.text.trim());
+      final lng = double.tryParse(_lngController.text.trim());
+      if (!_usarGeo && (lat == null || lng == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Latitude ou Longitude inválida')),
+        );
+        return;
+      }
       setState(() {
         _checkpoints.add({
           'posto': _postoController.text.trim(),
@@ -35,8 +43,8 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                       .reduce((a, b) => a > b ? a : b)
                   : 0) +
               1,
-          'lat': double.tryParse(_latController.text.trim()) ?? 0.0,
-          'lng': double.tryParse(_lngController.text.trim()) ?? 0.0,
+          'lat': lat ?? 0.0,
+          'lng': lng ?? 0.0,
           'origem': _usarGeo ? 'geolocalizacao' : 'manual',
         });
         _postoController.clear();
@@ -71,6 +79,25 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
       });
     }
     await batch.commit();
+
+    final checkpointData = _checkpoints.map((c) => {
+      'posto': c['posto'],
+      'nome': c['name'],
+      'codigo': c['codigo'],
+      'lat': c['lat'],
+      'lng': c['lng'],
+      'origem': c['origem'],
+    }).toList();
+
+    await FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .update({'checkpoints': checkpointData});
+
+    await FirebaseFirestore.instance
+        .collection('events')
+        .doc(widget.eventId)
+        .update({'checkpointsCount': _checkpoints.length});
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -295,6 +322,48 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         onPressed: _saveCheckpoints,
+      ),
+      const SizedBox(height: 24),
+      const Text(
+        'Checkpoints já gravados',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        height: 300,
+        child: StreamBuilder<QuerySnapshot>(
+          stream:
+              FirebaseFirestore.instance
+                  .collection('events')
+                  .doc(widget.eventId)
+                  .collection('checkpoints')
+                  .orderBy('ordem')
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final docs = snapshot.data!.docs;
+            if (docs.isEmpty) {
+              return const Center(
+                child: Text('Nenhum checkpoint inserido ainda.'),
+              );
+            }
+            return ListView.separated(
+              itemCount: docs.length,
+              separatorBuilder: (context, index) => const Divider(),
+              itemBuilder: (context, index) {
+                final data = docs[index].data()! as Map<String, dynamic>;
+                return ListTile(
+                  title: Text(
+                    '${data['nome']} (${data['codigo'] ?? data['ordem'] ?? ''})',
+                  ),
+                  subtitle: Text('Origem: ${data['origem']}'),
+                );
+              },
+            );
+          },
+        ),
       ),
     ];
   }

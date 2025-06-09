@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
+import 'package:mano_mano_dashboard/views/admin/checkpoints_list_dialog.dart';
 
 class EventsView extends StatefulWidget {
   const EventsView({super.key});
@@ -182,6 +183,20 @@ class _EventsViewState extends State<EventsView> {
                                     Get.toNamed(
                                       '/add-checkpoints',
                                       arguments: doc.id,
+                                    );
+                                  },
+                                ),
+                                // Ver checkpoints
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.list_alt,
+                                    color: AppColors.secondary,
+                                  ),
+                                  tooltip: 'Ver checkpoints',
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => CheckpointsListDialog(eventId: doc.id),
                                     );
                                   },
                                 ),
