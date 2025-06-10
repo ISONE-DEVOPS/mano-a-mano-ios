@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
+import 'package:mano_mano_dashboard/views/admin/events_view.dart';
 
 class EditionView extends StatefulWidget {
   const EditionView({super.key});
@@ -313,6 +314,7 @@ class _EditionViewState extends State<EditionView> {
                                     ),
                                     DataCell(
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
                                             icon: const Icon(
@@ -454,6 +456,21 @@ class _EditionViewState extends State<EditionView> {
                                                   ),
                                                 );
                                               }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.event,
+                                              color: Colors.orange,
+                                            ),
+                                            tooltip: 'Gerenciar Eventos',
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => EventsView(edicaoId: doc.id),
+                                                ),
+                                              );
                                             },
                                           ),
                                         ],

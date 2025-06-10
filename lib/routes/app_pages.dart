@@ -121,8 +121,11 @@ class AppPages {
     GetPage(
       name: '/checkpoints-list',
       page: () {
-        final eventId = Get.arguments as String;
-        return CheckpointsListDialog(eventId: eventId);
+        final args = Get.arguments as Map<String, dynamic>;
+        return CheckpointsListDialog(
+          edicaoId: args['edicaoId'] as String,
+          eventId: args['eventId'] as String,
+        );
       },
     ),
   ];

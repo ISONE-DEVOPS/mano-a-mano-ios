@@ -6,7 +6,8 @@ import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'package:mano_mano_dashboard/views/admin/checkpoints_list_dialog.dart';
 
 class EventsView extends StatefulWidget {
-  const EventsView({super.key});
+  const EventsView({super.key, required this.edicaoId});
+  final String edicaoId;
 
   @override
   State<EventsView> createState() => _EventsViewState();
@@ -26,20 +27,27 @@ class _EventsViewState extends State<EventsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar removido — top bar já vem do AdminView
+      appBar: AppBar(
+        title: const Text('Eventos'),
+        backgroundColor: AppColors.secondaryDark,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
       backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('events')
-                  .where('status', isEqualTo: true)
-                  .orderBy('data_event', descending: !_sortAsc)
-                  .snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('editions')
+              .doc(widget.edicaoId)
+              .collection('events')
+              .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text('Nenhum evento encontrado'));
             }
 
             final docs = snapshot.data!.docs;
@@ -196,7 +204,10 @@ class _EventsViewState extends State<EventsView> {
                                   onPressed: () {
                                     showDialog(
                                       context: context,
-                                      builder: (_) => CheckpointsListDialog(eventId: doc.id),
+                                      builder: (_) => CheckpointsListDialog(
+                                        edicaoId: widget.edicaoId,
+                                        eventId: doc.id,
+                                      ),
                                     );
                                   },
                                 ),
@@ -452,7 +463,11 @@ class _EventsViewState extends State<EventsView> {
                       _selectedDate == null) {
                     return;
                   }
-                  await FirebaseFirestore.instance.collection('events').add({
+                  await FirebaseFirestore.instance
+                      .collection('editions')
+                      .doc(widget.edicaoId)
+                      .collection('events')
+                      .add({
                     'nome': _nameController.text.trim(),
                     'local': _localController.text.trim(),
                     'price': double.tryParse(_priceController.text.trim()) ?? 0,

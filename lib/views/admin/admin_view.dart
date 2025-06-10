@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'participantes_view.dart';
-import 'events_view.dart';
 import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
 import 'generate_qr_view.dart';
@@ -167,7 +166,6 @@ class _AdminViewState extends State<AdminView> {
   final List<Widget> _pages = [
     const DashboardAdminView(),
     const EditionView(),
-    const EventsView(),
     const GenerateQrView(),
     const PerguntasView(),
     JogosCreateView(),
@@ -180,7 +178,6 @@ class _AdminViewState extends State<AdminView> {
   final List<String> _menuTitles = [
     'Dashboard',
     'Edições',
-    'Eventos',
     'QR Codes',
     'Perguntas',
     'Jogos',
