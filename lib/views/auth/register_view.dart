@@ -23,7 +23,6 @@ class _RegisterViewState extends State<RegisterView> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _licensePlateController = TextEditingController();
-  final _carBrandController = TextEditingController();
   final _carModelController = TextEditingController();
   final _emergencyContactController = TextEditingController();
   final _teamNameController = TextEditingController();
@@ -57,7 +56,6 @@ class _RegisterViewState extends State<RegisterView> {
         _passwordController.text.trim().isEmpty ||
         _confirmPasswordController.text.trim().isEmpty ||
         _licensePlateController.text.trim().isEmpty ||
-        _carBrandController.text.trim().isEmpty ||
         _carModelController.text.trim().isEmpty ||
         _teamNameController.text.trim().isEmpty ||
         _selectedShirtSize == null ||
@@ -134,6 +132,8 @@ class _RegisterViewState extends State<RegisterView> {
       // Após salvar carro, verifica valor do evento
       final eventDoc =
           await FirebaseFirestore.instance
+              .collection('editions')
+              .doc('shell_2025')
               .collection('events')
               .doc(_selectedEventId)
               .get();
@@ -145,36 +145,16 @@ class _RegisterViewState extends State<RegisterView> {
       final nomeEvento = data['nome'] ?? 'Sem nome';
       final price = double.tryParse('${data['price']}') ?? 0;
 
-      // Salva dados pessoais do utilizador na coleção 'users'
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'nome': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'telefone': _phoneController.text.trim(),
-        'emergencia': _emergencyContactController.text.trim(),
-        'tshirt': _selectedShirtSize ?? '',
-        'role': 'user',
-        'eventoId': 'events/$_selectedEventId',
-        'eventoNome': nomeEvento,
-        'ativo': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        // 'ultimoLogin' removido do set() inicial
-      });
-      debugPrint('✅ Documento do utilizador criado em /users/$uid');
-      // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(uid).update({
-          'ultimoLogin': FieldValue.serverTimestamp(),
-        });
-        debugPrint('✅ ultimoLogin atualizado com sucesso');
-      } catch (e) {
-        debugPrint('❌ Falha ao atualizar ultimoLogin: $e');
-      }
+      // Gerar novos IDs para veiculo e equipa
+      final veiculoId =
+          FirebaseFirestore.instance.collection('veiculos').doc().id;
+      final equipaId =
+          FirebaseFirestore.instance.collection('equipas').doc().id;
 
-      // Dados do carro a serem gravados
+      // Dados do carro a serem gravados (agora com veiculoId)
       final carData = {
         'ownerId': uid,
         'matricula': _licensePlateController.text.trim(),
-        'marca': _carBrandController.text.trim(),
         'modelo': _carModelController.text.trim(),
         'nome_equipa': _teamNameController.text.trim(),
         'passageiros': passageiros,
@@ -183,21 +163,68 @@ class _RegisterViewState extends State<RegisterView> {
       };
       debugPrint('Dados do carro que serão gravados: $carData');
 
-      // DEPURAÇÃO: log do usuário autenticado e do UID usado para salvar no /cars
-      final authenticatedUser = FirebaseAuth.instance.currentUser;
-      debugPrint('FirebaseAuth.currentUser?.uid = ${authenticatedUser?.uid}');
-      debugPrint('UID usado para salvar no /cars = $uid');
-
-      // Salva somente os dados do carro na coleção 'cars'
+      // Salvar carro em veiculos/veiculoId
       try {
-        await _firebaseService.saveCarData(uid, carData);
-        debugPrint('✅ Documento do carro criado em /cars/$uid');
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .set(carData);
+        debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
       } catch (e) {
         debugPrint('❌ Falha ao salvar carro: $e');
         setState(
           () => _error = 'Erro ao salvar dados do veículo: ${e.toString()}',
         );
         return;
+      }
+
+      // Criar documento da equipa em equipas/equipaId
+      try {
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .set({
+              'nome': _teamNameController.text.trim(),
+              'hino': '',
+              'bandeiraUrl': '',
+              'pontuacaoTotal': 0,
+              'ranking': 0,
+              'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+            });
+        debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
+      } catch (e) {
+        debugPrint('❌ Falha ao criar equipa: $e');
+        setState(() => _error = 'Erro ao criar equipa: ${e.toString()}');
+        return;
+      }
+
+      // Salva dados pessoais do utilizador na coleção 'users', agora com veiculoId, equipaId, checkpointsVisitados
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'nome': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'telefone': _phoneController.text.trim(),
+        'emergencia': _emergencyContactController.text.trim(),
+        'tshirt': _selectedShirtSize ?? '',
+        'role': 'user',
+        'eventoId': 'editions/shell_2025/events/$_selectedEventId',
+        'eventoNome': nomeEvento,
+        'ativo': true,
+        'veiculoId': veiculoId,
+        'equipaId': equipaId,
+        'checkpointsVisitados': [],
+        'createdAt': FieldValue.serverTimestamp(),
+        // 'ultimoLogin' removido do set() inicial
+      });
+      debugPrint('✅ Documento do utilizador criado em /users/$uid');
+
+      // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'ultimoLogin': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ ultimoLogin atualizado com sucesso');
+      } catch (e) {
+        debugPrint('❌ Falha ao atualizar ultimoLogin: $e');
       }
 
       // Salvar consentimento nos termos
@@ -225,8 +252,7 @@ class _RegisterViewState extends State<RegisterView> {
       // Tratar erro de e-mail já cadastrado
       if (authError.code == 'email-already-in-use') {
         setState(
-          () =>
-              _error = 'Este e-mail já está cadastrado. Por favor faça login.',
+          () => _error = 'Este e-mail já está registado. Por favor faça login.',
         );
       } else {
         setState(() => _error = authError.message ?? 'Erro de autenticação.');
@@ -482,7 +508,6 @@ class _RegisterViewState extends State<RegisterView> {
   Widget _buildStepCarro() {
     bool licensePlateError =
         _error != null && _licensePlateController.text.trim().isEmpty;
-    bool brandError = _error != null && _carBrandController.text.trim().isEmpty;
     bool modelError = _error != null && _carModelController.text.trim().isEmpty;
     bool teamNameError =
         _error != null && _teamNameController.text.trim().isEmpty;
@@ -516,15 +541,6 @@ class _RegisterViewState extends State<RegisterView> {
                 );
               }),
             ],
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.directions_car_filled,
-            label: 'Marca',
-            controller: _carBrandController,
-            hintText: 'Ex: Toyota',
-            isRequired: true,
-            isError: brandError,
           ),
           const SizedBox(height: 16),
           _inputCard(
@@ -885,7 +901,12 @@ class _RegisterViewState extends State<RegisterView> {
         ),
         const SizedBox(height: 16),
         FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance.collection('events').get(),
+          future:
+              FirebaseFirestore.instance
+                  .collection('editions')
+                  .doc('shell_2025')
+                  .collection('events')
+                  .get(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());

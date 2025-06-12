@@ -10,18 +10,24 @@ import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_backend_theme.dart' as backend;
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  Get.put(AuthService());
-  runApp(
-    Listener(
-      onPointerSignal: (event) {
-        if (event.kind.toString() == 'PointerDeviceKind.trackpad') return;
-      },
-      child: const ManoManoDashboard(),
-    ),
-  );
+
+  Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  ).then((_) {
+    Get.put(AuthService());
+    Future.microtask(() {
+      runApp(
+        Listener(
+          onPointerSignal: (event) {
+            if (event.kind.toString() == 'PointerDeviceKind.trackpad') return;
+          },
+          child: const ManoManoDashboard(),
+        ),
+      );
+    });
+  });
 }
 
 class MyCustomScrollBehavior extends MaterialScrollBehavior {

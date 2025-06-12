@@ -162,6 +162,7 @@ class AdminView extends StatefulWidget {
 
 class _AdminViewState extends State<AdminView> {
   int _selectedIndex = 0;
+  bool _isCollapsed = false;
 
   final List<Widget> _pages = [
     const DashboardAdminView(),
@@ -191,34 +192,69 @@ class _AdminViewState extends State<AdminView> {
   Widget build(BuildContext context) {
     return Theme(
       data: AppBackendTheme.dark,
-      child: Scaffold(
-        body: Row(
-          children: [
-            CustomNavigationRail(
-              selectedIndex: _selectedIndex,
-              onItemSelected: (index) {
-                if (index == 10) {
-                  FirebaseAuth.instance.signOut();
-                  Navigator.of(context).pushReplacementNamed('/login');
-                  return;
-                }
-                setState(() => _selectedIndex = index);
-              },
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  CustomTopBar(
-                    title: _menuTitles[_selectedIndex],
-                    onScanPressed:
-                        () => Navigator.pushNamed(context, '/scan-score'),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 800;
+          return Scaffold(
+            drawer: isMobile
+                ? Drawer(
+                    child: ListView.builder(
+                      itemCount: _menuTitles.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(_menuTitles[index]),
+                          onTap: () {
+                            setState(() => _selectedIndex = index);
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  )
+                : null,
+            body: Row(
+              children: [
+                if (!isMobile)
+                  CustomNavigationRail(
+                    selectedIndex: _selectedIndex,
+                    isCollapsed: _isCollapsed,
+                    onItemSelected: (index) {
+                      if (index == 10) {
+                        FirebaseAuth.instance.signOut();
+                        Navigator.of(context).pushReplacementNamed('/login');
+                        return;
+                      }
+                      setState(() => _selectedIndex = index);
+                    },
                   ),
-                  Expanded(child: _pages[_selectedIndex]),
-                ],
-              ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (!isMobile)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left),
+                            onPressed: () {
+                              setState(() {
+                                _isCollapsed = !_isCollapsed;
+                              });
+                            },
+                          ),
+                        ),
+                      CustomTopBar(
+                        title: _menuTitles[_selectedIndex],
+                        onScanPressed:
+                            () => Navigator.pushNamed(context, '/scan-score'),
+                      ),
+                      Expanded(child: _pages[_selectedIndex]),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -14,25 +14,33 @@ class DashboardAdminView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatCard(
-                  Icons.groups,
-                  'Equipas',
-                  FirebaseFirestore.instance.collection('equipas'),
-                ),
-                _buildStatCard(
-                  Icons.local_gas_station,
-                  'Checkpoints',
-                  FirebaseFirestore.instance.collection('checkpoints'),
-                ),
-                _buildStatCard(
-                  Icons.emoji_events,
-                  'Pontuações',
-                  FirebaseFirestore.instance.collection('ranking'),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isSmall = constraints.maxWidth < 600;
+                final children = [
+                  _buildStatCard(
+                    Icons.groups,
+                    'Equipas',
+                    FirebaseFirestore.instance.collection('equipas'),
+                  ),
+                  _buildStatCard(
+                    Icons.local_gas_station,
+                    'Checkpoints',
+                    FirebaseFirestore.instance.collection('checkpoints'),
+                  ),
+                  _buildStatCard(
+                    Icons.emoji_events,
+                    'Pontuações',
+                    FirebaseFirestore.instance.collection('ranking'),
+                  ),
+                ];
+                return isSmall
+                    ? Column(children: children)
+                    : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: children,
+                    );
+              },
             ),
             const SizedBox(height: 32),
             const Text(
@@ -109,54 +117,57 @@ class DashboardAdminView extends StatelessWidget {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const CircularProgressIndicator();
                 final docs = snapshot.data!.docs;
-                return DataTable(
-                  dataRowColor: WidgetStateProperty.all(Colors.black12),
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        'Equipa',
-                        style: TextStyle(color: Colors.black),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    dataRowColor: WidgetStateProperty.all(Colors.black12),
+                    columns: const [
+                      DataColumn(
+                        label: Text(
+                          'Equipa',
+                          style: TextStyle(color: Colors.black),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Pontuação',
-                        style: TextStyle(color: Colors.black),
+                      DataColumn(
+                        label: Text(
+                          'Pontuação',
+                          style: TextStyle(color: Colors.black),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Checkpoints',
-                        style: TextStyle(color: Colors.black),
+                      DataColumn(
+                        label: Text(
+                          'Checkpoints',
+                          style: TextStyle(color: Colors.black),
+                        ),
                       ),
-                    ),
-                  ],
-                  rows:
-                      docs.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                data['nome'] ?? '',
-                                style: const TextStyle(color: Colors.black),
+                    ],
+                    rows:
+                        docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return DataRow(
+                            cells: [
+                              DataCell(
+                                Text(
+                                  data['nome'] ?? '',
+                                  style: const TextStyle(color: Colors.black),
+                                ),
                               ),
-                            ),
-                            DataCell(
-                              Text(
-                                '${data['pontuacao']}',
-                                style: const TextStyle(color: Colors.black),
+                              DataCell(
+                                Text(
+                                  '${data['pontuacao']}',
+                                  style: const TextStyle(color: Colors.black),
+                                ),
                               ),
-                            ),
-                            DataCell(
-                              Text(
-                                '${data['checkpointCount']}',
-                                style: const TextStyle(color: Colors.black),
+                              DataCell(
+                                Text(
+                                  '${data['checkpointCount']}',
+                                  style: const TextStyle(color: Colors.black),
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                            ],
+                          );
+                        }).toList(),
+                  ),
                 );
               },
             ),
@@ -182,29 +193,32 @@ class DashboardAdminView extends StatelessWidget {
                     if (!snapshot.hasData) {
                       return const CircularProgressIndicator();
                     }
-                    return DataTable(
-                      dataRowColor: WidgetStateProperty.all(Colors.black12),
-                      columns: const [
-                        DataColumn(
-                          label: Text(
-                            'Nome da Equipa',
-                            style: TextStyle(color: Colors.black),
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        dataRowColor: WidgetStateProperty.all(Colors.black12),
+                        columns: const [
+                          DataColumn(
+                            label: Text(
+                              'Nome da Equipa',
+                              style: TextStyle(color: Colors.black),
+                            ),
                           ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Condutor',
-                            style: TextStyle(color: Colors.black),
+                          DataColumn(
+                            label: Text(
+                              'Condutor',
+                              style: TextStyle(color: Colors.black),
+                            ),
                           ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Marca do Carro',
-                            style: TextStyle(color: Colors.black),
+                          DataColumn(
+                            label: Text(
+                              'Marca do Carro',
+                              style: TextStyle(color: Colors.black),
+                            ),
                           ),
-                        ),
-                      ],
-                      rows: snapshot.data!,
+                        ],
+                        rows: snapshot.data!,
+                      ),
                     );
                   },
                 );

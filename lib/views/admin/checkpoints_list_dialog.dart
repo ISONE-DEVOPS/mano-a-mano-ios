@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CheckpointsListDialog extends StatelessWidget {
   final String edicaoId;
   final String eventId;
 
-  const CheckpointsListDialog({super.key, required this.edicaoId, required this.eventId});
+  const CheckpointsListDialog({
+    super.key,
+    required this.edicaoId,
+    required this.eventId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +56,19 @@ class CheckpointsListDialog extends StatelessWidget {
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
                         try {
-                          final data = docs[index].data()! as Map<String, dynamic>;
+                          final data =
+                              docs[index].data()! as Map<String, dynamic>;
                           final localizacao = data['localizacao'];
-                          final coordenadas = localizacao is GeoPoint
-                              ? '${localizacao.latitude.toStringAsFixed(5)}, ${localizacao.longitude.toStringAsFixed(5)}'
-                              : 'não definida';
+                          GeoPoint? ponto;
+                          String coordenadas = 'não definida';
+                          String? mapsUrl;
+                          if (localizacao is GeoPoint) {
+                            ponto = localizacao;
+                            coordenadas =
+                                '${ponto.latitude.toStringAsFixed(5)}, ${ponto.longitude.toStringAsFixed(5)}';
+                            mapsUrl =
+                                'https://www.google.com/maps/search/?api=1&query=${ponto.latitude},${ponto.longitude}';
+                          }
                           return Card(
                             elevation: 2,
                             margin: const EdgeInsets.symmetric(vertical: 4),
@@ -78,19 +91,218 @@ class CheckpointsListDialog extends StatelessWidget {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (mapsUrl != null)
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.map,
+                                        color: Colors.green,
+                                      ),
+                                      tooltip: 'Abrir no Google Maps',
+                                      onPressed:
+                                          () => launchUrl(Uri.parse(mapsUrl!)),
+                                    ),
                                   IconButton(
                                     icon: const Icon(
                                       Icons.edit,
                                       color: Colors.blueGrey,
                                     ),
                                     tooltip: 'Editar',
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Funcionalidade de edição em desenvolvimento.',
-                                          ),
-                                        ),
+                                    onPressed: () async {
+                                      final formKey = GlobalKey<FormState>();
+                                      // Preenche os campos iniciais com os valores atuais
+                                      String nome = data['nome'] ?? '';
+                                      String codigo = data['codigo'] ?? '';
+                                      String origem = data['origem'] ?? '';
+                                      GeoPoint? localizacaoGeo =
+                                          data['localizacao'] is GeoPoint
+                                              ? data['localizacao']
+                                              : null;
+                                      String latitude =
+                                          localizacaoGeo != null
+                                              ? localizacaoGeo.latitude
+                                                  .toString()
+                                              : '';
+                                      String longitude =
+                                          localizacaoGeo != null
+                                              ? localizacaoGeo.longitude
+                                                  .toString()
+                                              : '';
+                                      await showDialog(
+                                        context: context,
+                                        builder: (ctx) {
+                                          return AlertDialog(
+                                            title: const Text(
+                                              'Editar Checkpoint',
+                                            ),
+                                            content: Form(
+                                              key: formKey,
+                                              child: SingleChildScrollView(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    TextFormField(
+                                                      initialValue: nome,
+                                                      decoration:
+                                                          const InputDecoration(
+                                                            labelText: 'Nome',
+                                                          ),
+                                                      validator:
+                                                          (value) =>
+                                                              value == null ||
+                                                                      value
+                                                                          .isEmpty
+                                                                  ? 'Informe o nome'
+                                                                  : null,
+                                                      onChanged:
+                                                          (value) =>
+                                                              nome = value,
+                                                    ),
+                                                    TextFormField(
+                                                      initialValue: codigo,
+                                                      decoration:
+                                                          const InputDecoration(
+                                                            labelText: 'Código',
+                                                          ),
+                                                      onChanged:
+                                                          (value) =>
+                                                              codigo = value,
+                                                    ),
+                                                    TextFormField(
+                                                      initialValue: origem,
+                                                      decoration:
+                                                          const InputDecoration(
+                                                            labelText: 'Origem',
+                                                          ),
+                                                      onChanged:
+                                                          (value) =>
+                                                              origem = value,
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: TextFormField(
+                                                            initialValue:
+                                                                latitude,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                                  labelText:
+                                                                      'Latitude',
+                                                                ),
+                                                            keyboardType:
+                                                                TextInputType.numberWithOptions(
+                                                                  decimal: true,
+                                                                ),
+                                                            onChanged:
+                                                                (value) =>
+                                                                    latitude =
+                                                                        value,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Expanded(
+                                                          child: TextFormField(
+                                                            initialValue:
+                                                                longitude,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                                  labelText:
+                                                                      'Longitude',
+                                                                ),
+                                                            keyboardType:
+                                                                TextInputType.numberWithOptions(
+                                                                  decimal: true,
+                                                                ),
+                                                            onChanged:
+                                                                (value) =>
+                                                                    longitude =
+                                                                        value,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed:
+                                                    () =>
+                                                        Navigator.of(ctx).pop(),
+                                                child: const Text('Cancelar'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () async {
+                                                  if (formKey.currentState!
+                                                      .validate()) {
+                                                    try {
+                                                      Map<String, dynamic>
+                                                      updateData = {
+                                                        'nome': nome,
+                                                        'codigo': codigo,
+                                                        'origem': origem,
+                                                      };
+                                                      if (latitude.isNotEmpty &&
+                                                          longitude
+                                                              .isNotEmpty) {
+                                                        final lat =
+                                                            double.tryParse(
+                                                              latitude,
+                                                            );
+                                                        final lng =
+                                                            double.tryParse(
+                                                              longitude,
+                                                            );
+                                                        if (lat != null &&
+                                                            lng != null) {
+                                                          updateData['localizacao'] =
+                                                              GeoPoint(
+                                                                lat,
+                                                                lng,
+                                                              );
+                                                        }
+                                                      }
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection(
+                                                            'editions',
+                                                          )
+                                                          .doc(edicaoId)
+                                                          .collection('events')
+                                                          .doc(eventId)
+                                                          .collection(
+                                                            'checkpoints',
+                                                          )
+                                                          .doc(docs[index].id)
+                                                          .update(updateData);
+                                                      if (!context.mounted) {
+                                                        return;
+                                                      }
+                                                      Navigator.of(ctx).pop();
+                                                    } catch (e) {
+                                                      if (!context.mounted) {
+                                                        return;
+                                                      }
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            'Erro ao atualizar: $e',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                                child: const Text('Salvar'),
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       );
                                     },
                                   ),
@@ -103,26 +315,33 @@ class CheckpointsListDialog extends StatelessWidget {
                                     onPressed: () async {
                                       final confirmed = await showDialog<bool>(
                                         context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text(
-                                            'Eliminar Checkpoint',
-                                          ),
-                                          content: const Text(
-                                            'Tem certeza que deseja eliminar este checkpoint?',
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, false),
-                                              child: const Text('Cancelar'),
+                                        builder:
+                                            (ctx) => AlertDialog(
+                                              title: const Text(
+                                                'Eliminar Checkpoint',
+                                              ),
+                                              content: const Text(
+                                                'Tem certeza que deseja eliminar este checkpoint?',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        ctx,
+                                                        false,
+                                                      ),
+                                                  child: const Text('Cancelar'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        ctx,
+                                                        true,
+                                                      ),
+                                                  child: const Text('Eliminar'),
+                                                ),
+                                              ],
                                             ),
-                                            ElevatedButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, true),
-                                              child: const Text('Eliminar'),
-                                            ),
-                                          ],
-                                        ),
                                       );
                                       if (confirmed == true) {
                                         await FirebaseFirestore.instance

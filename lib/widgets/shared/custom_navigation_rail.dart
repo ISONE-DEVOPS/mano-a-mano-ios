@@ -4,11 +4,13 @@ import 'package:mano_mano_dashboard/theme/app_colors.dart';
 class CustomNavigationRail extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
+  final bool isCollapsed;
 
   const CustomNavigationRail({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    required this.isCollapsed,
   });
 
   @override
@@ -16,65 +18,84 @@ class CustomNavigationRail extends StatefulWidget {
 }
 
 class _CustomNavigationRailState extends State<CustomNavigationRail> {
-  bool _collapsed = false;
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: _collapsed ? 72 : 220,
-      color: Colors.grey[100],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
-            child: Center(
-              child: Column(
-                children: [
-                  if (!_collapsed)
-                    Image.asset(
-                      'assets/images/logo_shell_km.png',
-                      height: 50,
-                      fit: BoxFit.contain,
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      _collapsed ? Icons.chevron_right : Icons.chevron_left,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _collapsed = !_collapsed;
-                      });
-                    },
-                    tooltip: _collapsed ? 'Expandir menu' : 'Colapsar menu',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isCollapsed = widget.isCollapsed;
+        return Container(
+          width: isCollapsed ? 72 : 220,
+          color: Colors.grey[100],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 8,
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      if (!isCollapsed)
+                        Image.asset(
+                          'assets/images/logo_shell_km.png',
+                          height: 50,
+                          fit: BoxFit.contain,
+                        ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              _buildMenuItem(
+                context,
+                Icons.dashboard,
+                'Dashboard',
+                0,
+                isCollapsed,
+              ),
+              _buildMenuItem(context, Icons.layers, 'Edições', 1, isCollapsed),
+              _buildMenuItem(
+                context,
+                Icons.qr_code,
+                'QR Codes',
+                2,
+                isCollapsed,
+              ),
+              _buildMenuItem(context, Icons.quiz, 'Perguntas', 3, isCollapsed),
+              _buildMenuItem(context, Icons.extension, 'Jogos', 4, isCollapsed),
+              _buildMenuItem(
+                context,
+                Icons.flag,
+                'Atividades Finais',
+                5,
+                isCollapsed,
+              ),
+              _buildMenuItem(
+                context,
+                Icons.bar_chart,
+                'Ranking Detalhado',
+                6,
+                isCollapsed,
+              ),
+              _buildMenuItem(
+                context,
+                Icons.alt_route,
+                'Percurso',
+                7,
+                isCollapsed,
+              ),
+              _buildMenuItem(
+                context,
+                Icons.people,
+                'Participantes',
+                8,
+                isCollapsed,
+              ),
+            ],
           ),
-          _buildMenuItem(context, Icons.dashboard, 'Dashboard', 0, _collapsed),
-          _buildMenuItem(context, Icons.layers, 'Edições', 1, _collapsed),
-          _buildMenuItem(context, Icons.qr_code, 'QR Codes', 2, _collapsed),
-          _buildMenuItem(context, Icons.quiz, 'Perguntas', 3, _collapsed),
-          _buildMenuItem(context, Icons.extension, 'Jogos', 4, _collapsed),
-          _buildMenuItem(
-            context,
-            Icons.flag,
-            'Atividades Finais',
-            5,
-            _collapsed,
-          ),
-          _buildMenuItem(
-            context,
-            Icons.bar_chart,
-            'Ranking Detalhado',
-            6,
-            _collapsed,
-          ),
-          _buildMenuItem(context, Icons.alt_route, 'Percurso', 7, _collapsed),
-          _buildMenuItem(context, Icons.people, 'Participantes', 8, _collapsed),
-        ],
-      ),
+        );
+      },
     );
   }
 

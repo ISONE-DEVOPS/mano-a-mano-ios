@@ -86,7 +86,20 @@ class AppPages {
     GetPage(name: '/forgot-password', page: () => const ForgotPasswordView()),
     GetPage(
       name: '/add-checkpoints',
-      page: () => AddCheckpointsView(eventId: Get.arguments),
+      page: () {
+        final args = Get.arguments;
+        try {
+          if (args == null || args is! Map<String, dynamic>) throw Exception();
+          return AddCheckpointsView(
+            editionId: args['editionId'] as String,
+            eventId: args['eventId'] as String,
+          );
+        } catch (_) {
+          return const Scaffold(
+            body: Center(child: Text('Argumentos inválidos ou ausentes para AddCheckpointsView')),
+          );
+        }
+      },
     ),
     GetPage(name: '/terms', page: () => const TermsScreen()),
     GetPage(name: '/privacy', page: () => const PrivacyPolicyScreen()),

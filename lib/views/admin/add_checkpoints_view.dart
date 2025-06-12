@@ -4,8 +4,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class AddCheckpointsView extends StatefulWidget {
+  final String editionId;
   final String eventId;
-  const AddCheckpointsView({super.key, required this.eventId});
+  const AddCheckpointsView({super.key, required this.editionId, required this.eventId});
 
   @override
   State<AddCheckpointsView> createState() => _AddCheckpointsViewState();
@@ -63,13 +64,15 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
     );
 
     final ref = FirebaseFirestore.instance
+        .collection('editions')
+        .doc(widget.editionId)
         .collection('events')
         .doc(widget.eventId)
         .collection('checkpoints');
 
     final batch = FirebaseFirestore.instance.batch();
     for (var item in _checkpoints) {
-      final docRef = ref.doc(item['posto']);
+      final docRef = ref.doc();
       batch.set(docRef, {
         'nome': item['name'],
         'descricao': '',
@@ -78,32 +81,25 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
         'origem': item['origem'],
       });
     }
-    await batch.commit();
-
-    final checkpointData = _checkpoints.map((c) => {
-      'posto': c['posto'],
-      'nome': c['name'],
-      'codigo': c['codigo'],
-      'lat': c['lat'],
-      'lng': c['lng'],
-      'origem': c['origem'],
-    }).toList();
-
-    await FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId)
-        .update({'checkpoints': checkpointData});
-
-    await FirebaseFirestore.instance
-        .collection('events')
-        .doc(widget.eventId)
-        .update({'checkpointsCount': _checkpoints.length});
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checkpoints salvos com sucesso.')),
-    );
-    Navigator.pop(context);
+    try {
+      await batch.commit();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_checkpoints.length} checkpoint(s) salvo(s) com sucesso.',
+          ),
+        ),
+      );
+      setState(() => _checkpoints.clear());
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao salvar checkpoints: $e')));
+      return;
+    }
   }
 
   @override
