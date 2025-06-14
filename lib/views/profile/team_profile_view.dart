@@ -7,46 +7,46 @@ class TeamProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil da Equipa'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: const Padding(
+        padding: EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Informações da Equipa',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.group),
-              title: const Text('Nome da Equipa'),
-              subtitle: const Text('Os Velozes'),
+              leading: Icon(Icons.group),
+              title: Text('Nome da Equipa'),
+              subtitle: Text('Os Velozes'),
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Condutor'),
-              subtitle: const Text('João Silva'),
+              leading: Icon(Icons.person),
+              title: Text('Condutor'),
+              subtitle: Text('João Silva'),
             ),
             ListTile(
-              leading: const Icon(Icons.directions_car),
-              title: const Text('Viatura'),
-              subtitle: const Text('Toyota Hilux - CV12345'),
+              leading: Icon(Icons.directions_car),
+              title: Text('Viatura'),
+              subtitle: Text('Toyota Hilux - CV12345'),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            SizedBox(height: 24),
+            Text(
               'Passageiros',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 12),
-            const ListTile(
+            SizedBox(height: 12),
+            ListTile(
               leading: Icon(Icons.person_outline),
               title: Text('Maria Andrade'),
             ),
-            const ListTile(
+            ListTile(
               leading: Icon(Icons.person_outline),
               title: Text('Carlos Monteiro'),
             ),
-            const ListTile(
+            ListTile(
               leading: Icon(Icons.person_outline),
               title: Text('Ana Sousa'),
             ),

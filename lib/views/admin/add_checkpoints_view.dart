@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
+import 'package:get/get.dart';
 
 class AddCheckpointsView extends StatefulWidget {
-  final String editionId;
-  final String eventId;
-  const AddCheckpointsView({super.key, required this.editionId, required this.eventId});
+  const AddCheckpointsView({super.key});
 
   @override
   State<AddCheckpointsView> createState() => _AddCheckpointsViewState();
 }
 
 class _AddCheckpointsViewState extends State<AddCheckpointsView> {
+  late String edicaoId;
+  late String eventId;
+
   final _formKey = GlobalKey<FormState>();
   final List<Map<String, dynamic>> _checkpoints = [];
   final _postoController = TextEditingController();
@@ -21,6 +23,28 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   final _lngController = TextEditingController();
 
   bool _usarGeo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    if (args == null ||
+        args is! Map ||
+        !args.containsKey('edicaoId') ||
+        !args.containsKey('eventId')) {
+      Future.microtask(() {
+        if (!mounted) return;
+        Get.snackbar(
+          'Erro',
+          'Argumentos inválidos ou ausentes para AddCheckpointsView',
+        );
+        Navigator.pop(context);
+      });
+      return;
+    }
+    edicaoId = args['edicaoId'];
+    eventId = args['eventId'];
+  }
 
   void _addCheckpoint() {
     if (!_formKey.currentState!.validate()) return;
@@ -65,9 +89,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
     final ref = FirebaseFirestore.instance
         .collection('editions')
-        .doc(widget.editionId)
+        .doc(edicaoId)
         .collection('events')
-        .doc(widget.eventId)
+        .doc(eventId)
         .collection('checkpoints');
 
     final batch = FirebaseFirestore.instance.batch();
@@ -122,6 +146,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
                     const Spacer(),
@@ -145,7 +170,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
     return [
       Row(
         children: [
-          const Text('Inserir coordenadas:'),
+          const Text(
+            'Inserir coordenadas:',
+            style: TextStyle(color: Colors.black),
+          ),
           const SizedBox(width: 8),
           ChoiceChip(
             label: const Text('Manual'),
@@ -247,10 +275,13 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           itemBuilder: (_, index) {
             final item = _checkpoints[index];
             return ListTile(
-              title: Row(
+              title: Text(
+                'P${item['codigo']} - ${item['name']}',
+                style: const TextStyle(color: Colors.black),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(child: Text('P${item['codigo']} - ${item['name']}')),
-                  const SizedBox(width: 8),
                   Chip(
                     label: Text(
                       item['origem'] == 'geolocalizacao' ? 'Geo' : 'Manual',
@@ -260,11 +291,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                             ? AppColors.secondary.withAlpha((255 * 0.2).round())
                             : AppColors.primary.withAlpha((255 * 0.2).round()),
                   ),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(
                       Icons.edit,
@@ -322,7 +349,11 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
       const SizedBox(height: 24),
       const Text(
         'Checkpoints já gravados',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
       ),
       const SizedBox(height: 8),
       SizedBox(
@@ -331,7 +362,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           stream:
               FirebaseFirestore.instance
                   .collection('events')
-                  .doc(widget.eventId)
+                  .doc(eventId)
                   .collection('checkpoints')
                   .orderBy('ordem')
                   .snapshots(),
@@ -342,7 +373,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
             final docs = snapshot.data!.docs;
             if (docs.isEmpty) {
               return const Center(
-                child: Text('Nenhum checkpoint inserido ainda.'),
+                child: Text(
+                  'Nenhum checkpoint inserido ainda.',
+                  style: TextStyle(color: Colors.black),
+                ),
               );
             }
             return ListView.separated(
@@ -353,8 +387,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                 return ListTile(
                   title: Text(
                     '${data['nome']} (${data['codigo'] ?? data['ordem'] ?? ''})',
+                    style: const TextStyle(color: Colors.black),
                   ),
-                  subtitle: Text('Origem: ${data['origem']}'),
+                  subtitle: Text(
+                    'Origem: ${data['origem']}',
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 );
               },
             );

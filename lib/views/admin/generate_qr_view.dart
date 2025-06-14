@@ -156,7 +156,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
               ),
               const SizedBox(height: 6),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 320),
                 child: DropdownButtonFormField<String>(
                   value: _eventoSelecionado,
                   style: const TextStyle(color: Colors.black),
@@ -202,14 +202,14 @@ class _GenerateQrViewState extends State<GenerateQrView> {
               ),
               const SizedBox(height: 6),
               ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 320),
                 child: DropdownButtonFormField<String>(
                   value: _postoSelecionado,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.grey.shade300,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 14,
                     ),
@@ -260,7 +260,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                             backgroundColor:
                                 isSelected ? Colors.red : Colors.grey.shade300,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 12,
                             ),
@@ -299,7 +299,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryDark,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
                       ),
@@ -345,7 +345,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
                       ),

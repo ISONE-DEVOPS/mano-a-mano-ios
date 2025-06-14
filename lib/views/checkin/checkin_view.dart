@@ -156,7 +156,7 @@ class _CheckinViewState extends State<CheckinView> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavBar(currentIndex: 2),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
     );
   }
 

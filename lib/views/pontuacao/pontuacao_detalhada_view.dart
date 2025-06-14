@@ -31,9 +31,9 @@ class PontuacaoDetalhadaView extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(vertical: 6),
                     child: ListTile(
                       title: Text('Posto ${index + 1}'),
-                      subtitle: Column(
+                      subtitle: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text('Resposta 1: Correta (10 pontos)'),
                           Text('Resposta 2: Incorreta (0 pontos)'),
                           Text('Mini-jogo: 15 pontos'),

@@ -117,11 +117,11 @@ class _LoginViewState extends State<LoginView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, color: AppColors.primary),
+                  const Icon(Icons.error_outline, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Text(
                     _error!,
-                    style: TextStyle(color: AppColors.primary, fontSize: 16),
+                    style: const TextStyle(color: AppColors.primary, fontSize: 16),
                   ),
                 ],
               ),
@@ -259,7 +259,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child:
                         _loading
-                            ? CircularProgressIndicator(color: Colors.black)
+                            ? const CircularProgressIndicator(color: Colors.black)
                             : Text('Entrar', style: textTheme.bodyLarge),
                   ),
                 ),

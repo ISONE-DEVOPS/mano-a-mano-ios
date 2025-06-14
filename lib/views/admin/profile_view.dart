@@ -24,12 +24,12 @@ class ProfileView extends StatelessWidget {
             CircleAvatar(
               radius: 40,
               backgroundColor: AppColors.secondaryDark.withAlpha(51),
-              child: Icon(Icons.person, size: 50, color: AppColors.primary),
+              child: const Icon(Icons.person, size: 50, color: AppColors.primary),
             ),
             const SizedBox(height: 20),
             Text(
               user?.email ?? 'Usuário sem email',
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -43,8 +43,8 @@ class ProfileView extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
-                icon: Icon(Icons.logout, color: Colors.white),
-                label: Text(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: const Text(
                   'Sair da Conta',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),

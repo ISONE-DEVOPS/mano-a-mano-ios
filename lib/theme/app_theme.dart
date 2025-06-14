@@ -57,10 +57,10 @@ class AppBackendTheme {
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: const Color(0xFF121212),
       fontFamily: 'Roboto',
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
-        surface: const Color(0xFF1E1E1E),
+        surface: Color(0xFF1E1E1E),
         // background removed (deprecated, surface is sufficient)
         //error: AppColors.error,
         onPrimary: Colors.white,
@@ -103,7 +103,7 @@ class AppTheme {
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
       fontFamily: 'Roboto',
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.background,
@@ -118,7 +118,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         bodyLarge: TextStyle(color: AppColors.text, fontSize: 16),
         bodyMedium: TextStyle(color: AppColors.text, fontSize: 14),
         titleLarge: TextStyle(
@@ -153,9 +153,9 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
-        labelStyle: TextStyle(color: AppColors.text),
+        labelStyle: const TextStyle(color: AppColors.text),
         hintStyle: TextStyle(color: Colors.grey.shade600),
       ),
     );

@@ -135,7 +135,7 @@ class _PerguntasViewState extends State<PerguntasView> {
                     ),
                     const SizedBox(height: 16),
                     ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: 320),
+                      constraints: const BoxConstraints(maxWidth: 320),
                       child: DropdownButtonFormField<String>(
                         value: _eventoSelecionado,
                         decoration: InputDecoration(
@@ -146,14 +146,14 @@ class _PerguntasViewState extends State<PerguntasView> {
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
                           ),
-                          labelStyle: TextStyle(color: Colors.black),
+                          labelStyle: const TextStyle(color: Colors.black),
                         ),
-                        style: TextStyle(color: Colors.black),
-                        icon: Icon(
+                        style: const TextStyle(color: Colors.black),
+                        icon: const Icon(
                           Icons.arrow_drop_down,
                           color: Colors.black54,
                         ),
@@ -180,7 +180,7 @@ class _PerguntasViewState extends State<PerguntasView> {
                     ),
                     const SizedBox(height: 20),
                     ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: 320),
+                      constraints: const BoxConstraints(maxWidth: 320),
                       child: DropdownButtonFormField<String>(
                         value:
                             _postoController.text.isNotEmpty
@@ -194,14 +194,14 @@ class _PerguntasViewState extends State<PerguntasView> {
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
                           ),
-                          labelStyle: TextStyle(color: Colors.black),
+                          labelStyle: const TextStyle(color: Colors.black),
                         ),
-                        style: TextStyle(color: Colors.black),
-                        icon: Icon(
+                        style: const TextStyle(color: Colors.black),
+                        icon: const Icon(
                           Icons.arrow_drop_down,
                           color: Colors.black54,
                         ),
@@ -231,9 +231,9 @@ class _PerguntasViewState extends State<PerguntasView> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        labelStyle: TextStyle(color: Colors.black),
+                        labelStyle: const TextStyle(color: Colors.black),
                       ),
-                      style: TextStyle(color: Colors.black),
+                      style: const TextStyle(color: Colors.black),
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -245,9 +245,9 @@ class _PerguntasViewState extends State<PerguntasView> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        labelStyle: TextStyle(color: Colors.black),
+                        labelStyle: const TextStyle(color: Colors.black),
                       ),
-                      style: TextStyle(color: Colors.black),
+                      style: const TextStyle(color: Colors.black),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -270,9 +270,9 @@ class _PerguntasViewState extends State<PerguntasView> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
                           ),
-                          style: TextStyle(color: Colors.black),
+                          style: const TextStyle(color: Colors.black),
                         ),
                         leading: Radio<int>(
                           value: i,
@@ -302,7 +302,7 @@ class _PerguntasViewState extends State<PerguntasView> {
               ),
             ),
             const SizedBox(height: 28),
-            Divider(thickness: 1.2),
+            const Divider(thickness: 1.2),
             const SizedBox(height: 12),
             Text(
               'Perguntas cadastradas',

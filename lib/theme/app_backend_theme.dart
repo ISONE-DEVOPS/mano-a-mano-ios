@@ -8,7 +8,7 @@ class AppBackendTheme {
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
       fontFamily: 'Roboto',
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
@@ -18,7 +18,7 @@ class AppBackendTheme {
         onSurface: AppColors.textPrimary,
         onError: Colors.white,
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 1,
@@ -51,7 +51,7 @@ class AppBackendTheme {
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.textPrimary,
       fontFamily: 'Roboto',
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surfaceSecondary,

@@ -50,7 +50,10 @@ class CheckpointsListDialog extends StatelessWidget {
                     }
                     final docs = snapshot.data!.docs;
                     if (docs.isEmpty) {
-                      return const Text('Nenhum checkpoint encontrado.');
+                      return const Text(
+                        'Nenhum checkpoint encontrado.',
+                        style: TextStyle(color: Colors.black),
+                      );
                     }
                     return ListView.builder(
                       itemCount: docs.length,
@@ -133,6 +136,9 @@ class CheckpointsListDialog extends StatelessWidget {
                                           return AlertDialog(
                                             title: const Text(
                                               'Editar Checkpoint',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                              ),
                                             ),
                                             content: Form(
                                               key: formKey,
@@ -143,60 +149,49 @@ class CheckpointsListDialog extends StatelessWidget {
                                                   children: [
                                                     TextFormField(
                                                       initialValue: nome,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                            labelText: 'Nome',
-                                                          ),
-                                                      validator:
-                                                          (value) =>
-                                                              value == null ||
-                                                                      value
-                                                                          .isEmpty
-                                                                  ? 'Informe o nome'
-                                                                  : null,
-                                                      onChanged:
-                                                          (value) =>
-                                                              nome = value,
+                                                      style: const TextStyle(color: Colors.black),
+                                                      decoration: const InputDecoration(
+                                                        labelText: 'Nome',
+                                                        labelStyle: TextStyle(color: Colors.black),
+                                                      ),
+                                                      validator: (value) =>
+                                                          value == null || value.isEmpty
+                                                              ? 'Informe o nome'
+                                                              : null,
+                                                      onChanged: (value) => nome = value,
                                                     ),
                                                     TextFormField(
                                                       initialValue: codigo,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                            labelText: 'Código',
-                                                          ),
-                                                      onChanged:
-                                                          (value) =>
-                                                              codigo = value,
+                                                      style: const TextStyle(color: Colors.black),
+                                                      decoration: const InputDecoration(
+                                                        labelText: 'Código',
+                                                        labelStyle: TextStyle(color: Colors.black),
+                                                      ),
+                                                      onChanged: (value) => codigo = value,
                                                     ),
                                                     TextFormField(
                                                       initialValue: origem,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                            labelText: 'Origem',
-                                                          ),
-                                                      onChanged:
-                                                          (value) =>
-                                                              origem = value,
+                                                      style: const TextStyle(color: Colors.black),
+                                                      decoration: const InputDecoration(
+                                                        labelText: 'Origem',
+                                                        labelStyle: TextStyle(color: Colors.black),
+                                                      ),
+                                                      onChanged: (value) => origem = value,
                                                     ),
                                                     Row(
                                                       children: [
                                                         Expanded(
                                                           child: TextFormField(
-                                                            initialValue:
-                                                                latitude,
-                                                            decoration:
-                                                                const InputDecoration(
-                                                                  labelText:
-                                                                      'Latitude',
-                                                                ),
-                                                            keyboardType:
-                                                                TextInputType.numberWithOptions(
-                                                                  decimal: true,
-                                                                ),
-                                                            onChanged:
-                                                                (value) =>
-                                                                    latitude =
-                                                                        value,
+                                                            initialValue: latitude,
+                                                            style: const TextStyle(color: Colors.black),
+                                                            decoration: const InputDecoration(
+                                                              labelText: 'Latitude',
+                                                              labelStyle: TextStyle(color: Colors.black),
+                                                            ),
+                                                            keyboardType: const TextInputType.numberWithOptions(
+                                                              decimal: true,
+                                                            ),
+                                                            onChanged: (value) => latitude = value,
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -204,21 +199,16 @@ class CheckpointsListDialog extends StatelessWidget {
                                                         ),
                                                         Expanded(
                                                           child: TextFormField(
-                                                            initialValue:
-                                                                longitude,
-                                                            decoration:
-                                                                const InputDecoration(
-                                                                  labelText:
-                                                                      'Longitude',
-                                                                ),
-                                                            keyboardType:
-                                                                TextInputType.numberWithOptions(
-                                                                  decimal: true,
-                                                                ),
-                                                            onChanged:
-                                                                (value) =>
-                                                                    longitude =
-                                                                        value,
+                                                            initialValue: longitude,
+                                                            style: const TextStyle(color: Colors.black),
+                                                            decoration: const InputDecoration(
+                                                              labelText: 'Longitude',
+                                                              labelStyle: TextStyle(color: Colors.black),
+                                                            ),
+                                                            keyboardType: const TextInputType.numberWithOptions(
+                                                              decimal: true,
+                                                            ),
+                                                            onChanged: (value) => longitude = value,
                                                           ),
                                                         ),
                                                       ],
@@ -232,7 +222,12 @@ class CheckpointsListDialog extends StatelessWidget {
                                                 onPressed:
                                                     () =>
                                                         Navigator.of(ctx).pop(),
-                                                child: const Text('Cancelar'),
+                                                child: const Text(
+                                                  'Cancelar',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
                                               ),
                                               ElevatedButton(
                                                 onPressed: () async {
@@ -292,13 +287,24 @@ class CheckpointsListDialog extends StatelessWidget {
                                                         SnackBar(
                                                           content: Text(
                                                             'Erro ao atualizar: $e',
+                                                            style:
+                                                                const TextStyle(
+                                                                  color:
+                                                                      Colors
+                                                                          .black,
+                                                                ),
                                                           ),
                                                         ),
                                                       );
                                                     }
                                                   }
                                                 },
-                                                child: const Text('Salvar'),
+                                                child: const Text(
+                                                  'Salvar',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           );
@@ -319,9 +325,15 @@ class CheckpointsListDialog extends StatelessWidget {
                                             (ctx) => AlertDialog(
                                               title: const Text(
                                                 'Eliminar Checkpoint',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                ),
                                               ),
                                               content: const Text(
                                                 'Tem certeza que deseja eliminar este checkpoint?',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                ),
                                               ),
                                               actions: [
                                                 TextButton(
@@ -330,7 +342,12 @@ class CheckpointsListDialog extends StatelessWidget {
                                                         ctx,
                                                         false,
                                                       ),
-                                                  child: const Text('Cancelar'),
+                                                  child: const Text(
+                                                    'Cancelar',
+                                                    style: TextStyle(
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
                                                 ),
                                                 ElevatedButton(
                                                   onPressed:
@@ -338,7 +355,12 @@ class CheckpointsListDialog extends StatelessWidget {
                                                         ctx,
                                                         true,
                                                       ),
-                                                  child: const Text('Eliminar'),
+                                                  child: const Text(
+                                                    'Eliminar',
+                                                    style: TextStyle(
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
                                                 ),
                                               ],
                                             ),
@@ -374,7 +396,10 @@ class CheckpointsListDialog extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Fechar'),
+                  child: const Text(
+                    'Fechar',
+                    style: TextStyle(color: Colors.black),
+                  ),
                 ),
               ),
             ],

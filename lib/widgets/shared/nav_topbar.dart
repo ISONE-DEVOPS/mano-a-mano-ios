@@ -36,7 +36,7 @@ class NavTopBar extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Text(
                     title!,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -49,7 +49,7 @@ class NavTopBar extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Sua localização',
                         style: TextStyle(fontSize: 14, color: Colors.white70),
                       ),
@@ -57,7 +57,7 @@ class NavTopBar extends StatelessWidget {
                         location.isNotEmpty
                             ? location
                             : 'Localização indisponível',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -66,7 +66,7 @@ class NavTopBar extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Data: $dataHoje',
-                        style: TextStyle(fontSize: 16, color: Colors.white70),
+                        style: const TextStyle(fontSize: 16, color: Colors.white70),
                       ),
                     ],
                   ),

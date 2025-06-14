@@ -32,7 +32,7 @@ class ConchasView extends StatelessWidget {
                     child: ListTile(
                       leading: const Icon(Icons.local_gas_station),
                       title: Text('Posto ${index + 1}'),
-                      subtitle: Text('Pista recebida: "Segue para o próximo destino..."'),
+                      subtitle: const Text('Pista recebida: "Segue para o próximo destino..."'),
                       trailing: const Icon(Icons.arrow_forward_ios),
                     ),
                   );

@@ -17,7 +17,7 @@ class SuccessRegisterView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.verified, color: AppColors.primary, size: 80),
+              const Icon(Icons.verified, color: AppColors.primary, size: 80),
               const SizedBox(height: 24),
               Text(
                 'Olá $nome, registo concluído com sucesso!',

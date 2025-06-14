@@ -18,7 +18,7 @@ class _MainViewState extends State<MainView> {
 
   final List<Widget> _pages = [
     const HomeView(),
-    Center(child: Text('Map View (Em construção)')),
+    const Center(child: Text('Map View (Em construção)')),
     const CheckinView(),
     const ProfileView(),
   ];

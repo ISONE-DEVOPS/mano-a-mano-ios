@@ -124,7 +124,7 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
                   : Colors.transparent,
           border:
               isSelected
-                  ? Border(
+                  ? const Border(
                     left: BorderSide(color: AppColors.secondary, width: 4),
                   )
                   : null,

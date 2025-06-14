@@ -265,7 +265,7 @@ class _EventRouteViewState extends State<EventRouteView> {
                     ),
                   ],
                 ),
-        bottomNavigationBar: BottomNavBar(currentIndex: 1),
+        bottomNavigationBar: const BottomNavBar(currentIndex: 1),
       ),
     );
   }

@@ -272,14 +272,14 @@ class _RouteMapViewState extends State<RouteMapView> {
                           ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
+              const Padding(
+                padding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: const [
+                  children: [
                     Row(
                       children: [
                         Icon(Icons.location_on, color: Colors.green),

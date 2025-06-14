@@ -105,7 +105,7 @@ class _UserEventsViewState extends State<UserEventsView> {
         preferredSize: const Size.fromHeight(96),
         child: NavTopBar(location: _location, userName: _userName),
       ),
-      bottomNavigationBar: BottomNavBar(currentIndex: 1),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureEventos,
         builder: (ctx, snapshot) {

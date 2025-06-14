@@ -88,17 +88,12 @@ class AppPages {
       name: '/add-checkpoints',
       page: () {
         final args = Get.arguments;
-        try {
-          if (args == null || args is! Map<String, dynamic>) throw Exception();
-          return AddCheckpointsView(
-            editionId: args['editionId'] as String,
-            eventId: args['eventId'] as String,
-          );
-        } catch (_) {
+        if (args == null || args is! Map || !args.containsKey('edicaoId') || !args.containsKey('eventId')) {
           return const Scaffold(
             body: Center(child: Text('Argumentos inválidos ou ausentes para AddCheckpointsView')),
           );
         }
+        return const AddCheckpointsView();
       },
     ),
     GetPage(name: '/terms', page: () => const TermsScreen()),

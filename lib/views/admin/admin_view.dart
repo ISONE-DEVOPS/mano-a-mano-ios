@@ -169,10 +169,10 @@ class _AdminViewState extends State<AdminView> {
     const EditionView(),
     const GenerateQrView(),
     const PerguntasView(),
-    JogosCreateView(),
+    const JogosCreateView(),
     FinalActivitiesView(),
     const RankingDetailedView(),
-    Placeholder(), // Percurso (temporário)
+    const Placeholder(), // Percurso (temporário)
     const ParticipantesView(),
   ];
 
@@ -196,22 +196,23 @@ class _AdminViewState extends State<AdminView> {
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 800;
           return Scaffold(
-            drawer: isMobile
-                ? Drawer(
-                    child: ListView.builder(
-                      itemCount: _menuTitles.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: Text(_menuTitles[index]),
-                          onTap: () {
-                            setState(() => _selectedIndex = index);
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  )
-                : null,
+            drawer:
+                isMobile
+                    ? Drawer(
+                      child: ListView.builder(
+                        itemCount: _menuTitles.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(_menuTitles[index]),
+                            onTap: () {
+                              setState(() => _selectedIndex = index);
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                    )
+                    : null,
             body: Row(
               children: [
                 if (!isMobile)
@@ -234,7 +235,11 @@ class _AdminViewState extends State<AdminView> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: IconButton(
-                            icon: Icon(_isCollapsed ? Icons.chevron_right : Icons.chevron_left),
+                            icon: Icon(
+                              _isCollapsed
+                                  ? Icons.chevron_right
+                                  : Icons.chevron_left,
+                            ),
                             onPressed: () {
                               setState(() {
                                 _isCollapsed = !_isCollapsed;

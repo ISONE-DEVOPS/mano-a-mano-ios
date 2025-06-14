@@ -37,11 +37,12 @@ class _EventsViewState extends State<EventsView> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('editions')
-              .doc(widget.edicaoId)
-              .collection('events')
-              .snapshots(),
+          stream:
+              FirebaseFirestore.instance
+                  .collection('editions')
+                  .doc(widget.edicaoId)
+                  .collection('events')
+                  .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -190,7 +191,10 @@ class _EventsViewState extends State<EventsView> {
                                   onPressed: () {
                                     Get.toNamed(
                                       '/add-checkpoints',
-                                      arguments: doc.id,
+                                      arguments: {
+                                        'edicaoId': widget.edicaoId,
+                                        'eventId': doc.id,
+                                      },
                                     );
                                   },
                                 ),
@@ -204,10 +208,11 @@ class _EventsViewState extends State<EventsView> {
                                   onPressed: () {
                                     showDialog(
                                       context: context,
-                                      builder: (_) => CheckpointsListDialog(
-                                        edicaoId: widget.edicaoId,
-                                        eventId: doc.id,
-                                      ),
+                                      builder:
+                                          (_) => CheckpointsListDialog(
+                                            edicaoId: widget.edicaoId,
+                                            eventId: doc.id,
+                                          ),
                                     );
                                   },
                                 ),
@@ -468,14 +473,15 @@ class _EventsViewState extends State<EventsView> {
                       .doc(widget.edicaoId)
                       .collection('events')
                       .add({
-                    'nome': _nameController.text.trim(),
-                    'local': _localController.text.trim(),
-                    'price': double.tryParse(_priceController.text.trim()) ?? 0,
-                    'data_event': _selectedDate,
-                    'status': _status,
-                    'percurso': <Map<String, dynamic>>[],
-                    'checkpoints': <Map<String, dynamic>>[],
-                  });
+                        'nome': _nameController.text.trim(),
+                        'local': _localController.text.trim(),
+                        'price':
+                            double.tryParse(_priceController.text.trim()) ?? 0,
+                        'data_event': _selectedDate,
+                        'status': _status,
+                        'percurso': <Map<String, dynamic>>[],
+                        'checkpoints': <Map<String, dynamic>>[],
+                      });
                   if (!mounted) return;
                   Navigator.pop(context);
                   _nameController.clear();

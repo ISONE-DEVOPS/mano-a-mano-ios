@@ -90,10 +90,10 @@ class _EditionViewState extends State<EditionView> {
                     ).textTheme.labelMedium?.copyWith(color: Colors.black87),
                     filled: true,
                     fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
+                    enabledBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black12),
                     ),
-                    focusedBorder: OutlineInputBorder(
+                    focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black26),
                     ),
                   ),
@@ -112,10 +112,10 @@ class _EditionViewState extends State<EditionView> {
                     ).textTheme.labelMedium?.copyWith(color: Colors.black87),
                     filled: true,
                     fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
+                    enabledBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black12),
                     ),
-                    focusedBorder: OutlineInputBorder(
+                    focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black26),
                     ),
                   ),
@@ -134,10 +134,10 @@ class _EditionViewState extends State<EditionView> {
                     ).textTheme.labelMedium?.copyWith(color: Colors.black87),
                     filled: true,
                     fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
+                    enabledBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black12),
                     ),
-                    focusedBorder: OutlineInputBorder(
+                    focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black26),
                     ),
                   ),
@@ -156,10 +156,10 @@ class _EditionViewState extends State<EditionView> {
                     ).textTheme.labelMedium?.copyWith(color: Colors.black87),
                     filled: true,
                     fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
+                    enabledBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black12),
                     ),
-                    focusedBorder: OutlineInputBorder(
+                    focusedBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black26),
                     ),
                   ),

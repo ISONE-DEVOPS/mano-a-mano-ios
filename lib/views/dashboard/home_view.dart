@@ -220,7 +220,7 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: NavTopBar(
               location: 'Localização indisponível',
               userName: '',
@@ -344,7 +344,7 @@ class _HomeViewState extends State<HomeView> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (!snapshot.hasData || snapshot.data == false) {
-                      return Center(child: Text('Sem conexão com a internet'));
+                      return const Center(child: Text('Sem conexão com a internet'));
                     }
                     return StreamBuilder<QuerySnapshot>(
                       stream: firebaseService.getCarsStream(),
@@ -876,7 +876,7 @@ class _HomeViewState extends State<HomeView> {
                                                         )
                                                       : Container(
                                                           color: AppColors.background,
-                                                          child: Center(
+                                                          child: const Center(
                                                             child: Text(
                                                               'Percurso não disponível',
                                                               style: TextStyle(

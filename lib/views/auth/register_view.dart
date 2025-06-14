@@ -428,7 +428,7 @@ class _RegisterViewState extends State<RegisterView> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.amber.shade100,
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
                 border: Border.all(color: Colors.amber.shade700, width: 1.5),
               ),
               child: Row(

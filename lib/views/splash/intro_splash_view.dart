@@ -56,7 +56,7 @@ class _IntroSplashViewState extends State<IntroSplashView> {
               child: SmoothPageIndicator(
                 controller: controller,
                 count: 3,
-                effect: WormEffect(
+                effect: const WormEffect(
                   activeDotColor: AppColors.primary,
                   dotHeight: 10,
                   dotWidth: 10,
