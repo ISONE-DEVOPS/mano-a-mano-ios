@@ -116,28 +116,38 @@ class _UserEventsViewState extends State<UserEventsView> {
               final ed = edicoes[i];
               final eventos = ed['eventos'] as List<Map<String, dynamic>>;
               return ExpansionTile(
+                leading: const Icon(Icons.event_note),
+                backgroundColor: Colors.grey.shade100,
                 title: Text(ed['nome'] ?? ed['id']),
                 children:
                     eventos.map((evento) {
+                      final data = (evento['data'] as Timestamp).toDate();
+                      final isPast = data.isBefore(DateTime.now());
                       return ListTile(
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/event-details', arguments: evento);
+                        },
                         title: Text(evento['nome'] ?? 'Evento'),
-                        subtitle: Text(
-                          evento['data'] != null
-                              ? DateFormat(
-                                'dd/MM/yyyy HH:mm',
-                              ).format((evento['data'] as Timestamp).toDate())
-                              : '',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(DateFormat('dd/MM/yyyy HH:mm').format(data)),
+                            if (evento['local'] != null)
+                              Text('Local: ${evento['local']}'),
+                            if (evento['entidade'] != null)
+                              Text('Organizador: ${evento['entidade']}'),
+                          ],
                         ),
-                        trailing: TextButton.icon(
-                          onPressed: () {
-                            // ação futura para abrir detalhes
-                          },
-                          icon: const Icon(
-                            Icons.info_outline,
-                            color: Colors.blue,
-                          ),
-                          label: const Text('Detalhes'),
+                        trailing: Icon(
+                          evento['inscrito'] == true
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color:
+                              evento['inscrito'] == true
+                                  ? Colors.green
+                                  : Colors.grey,
                         ),
+                        tileColor: isPast ? Colors.grey.shade100 : null,
                       );
                     }).toList(),
               );

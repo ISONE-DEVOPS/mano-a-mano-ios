@@ -15,6 +15,7 @@ import '../views/map/route_map_view.dart';
 import '../views/admin/route_editor_view.dart';
 import '../views/events/user_events_view.dart';
 import '../views/auth/forgot_password_view.dart';
+import '../views/events/event_details_view.dart';
 import '../views/admin/add_checkpoints_view.dart';
 import '../views/terms/terms_screen.dart';
 import '../views/privacy/privacy_policy_screen.dart';
@@ -167,6 +168,7 @@ class AppPages {
       page: () => const ResultadosFinaisView(),
     ),
     GetPage(name: '/my-events', page: () => const UserEventsView()),
+    GetPage(name: '/event-details', page: () => const EventDetailsView()),
 
     // Configurações e Legais
     GetPage(name: '/terms', page: () => const TermsScreen()),
