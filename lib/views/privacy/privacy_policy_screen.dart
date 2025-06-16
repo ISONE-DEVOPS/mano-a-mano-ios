@@ -20,8 +20,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 '• Proteger os dados dos utilizadores com medidas de segurança adequadas;\n'
                 '• Não partilhar os dados com terceiros sem o consentimento prévio do participante;\n'
                 '• Permitir a eliminação dos dados após o evento, mediante solicitação formal.\n\n'
+                'Os utilizadores podem solicitar a eliminação da sua conta e dos seus dados diretamente na aplicação, acedendo à área de perfil e selecionando a opção "Eliminar Conta".\n\n'
                 'Para mais informações, entre em contacto com a organização através do email: info@manoamano.com.',
                 style: TextStyle(color: Colors.white70, fontSize: 15),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  icon: Icon(Icons.arrow_back, color: Colors.white70),
+                  label: Text(
+                    'Voltar ao Perfil',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
               ),
               const SizedBox(height: 30),
               Center(

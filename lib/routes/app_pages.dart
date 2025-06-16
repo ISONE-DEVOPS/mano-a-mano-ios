@@ -5,6 +5,7 @@ import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/profile/profile_view.dart';
+import '../views/profile/delete_account_view.dart';
 import '../views/checkin/checkin_view.dart';
 //import '../views/main/main_view.dart';
 import '../views/admin/admin_view.dart';
@@ -155,6 +156,7 @@ class AppPages {
 
     // Perfil e Equipa
     GetPage(name: '/profile', page: () => const ProfileView()),
+    GetPage(name: '/delete-account', page: () => const DeleteAccountView()),
     GetPage(
       name: '/team-customization',
       page: () => const TeamCustomizationView(),

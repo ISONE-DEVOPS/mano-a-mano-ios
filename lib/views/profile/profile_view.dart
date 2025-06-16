@@ -66,6 +66,40 @@ class ProfileView extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Perfil'),
             centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Sair',
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder:
+                        (ctx) => AlertDialog(
+                          title: const Text('Sair da conta'),
+                          content: const Text(
+                            'Tem certeza que deseja terminar a sessão?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Sair'),
+                            ),
+                          ],
+                        ),
+                  );
+                  if (confirm == true) {
+                    await FirebaseAuth.instance.signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushReplacementNamed('/login');
+                    }
+                  }
+                },
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -131,6 +165,20 @@ class ProfileView extends StatelessWidget {
                     child: Text('- $nome ($telefone, T-shirt: $tshirt)'),
                   );
                 }),
+                const SizedBox(height: 32),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushNamed('/delete-account');
+                    },
+                    icon: Icon(Icons.delete_forever),
+                    label: Text('Eliminar Conta'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -138,13 +186,16 @@ class ProfileView extends StatelessWidget {
             currentIndex: 4,
             onTap: (index) {
               if (index != 4) {
-                Navigator.pushReplacementNamed(context, [
-                  '/home',
-                  '/my-events',
-                  '/checkin',
-                  '/ranking',
-                  '/profile',
-                ][index]);
+                Navigator.pushReplacementNamed(
+                  context,
+                  [
+                    '/home',
+                    '/my-events',
+                    '/checkin',
+                    '/ranking',
+                    '/profile',
+                  ][index],
+                );
               }
             },
           ),

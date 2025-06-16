@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'package:get/get.dart';
 
@@ -211,9 +211,14 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
             selected: _usarGeo,
             onSelected: (v) async {
               setState(() => _usarGeo = true);
-              final position = await Geolocator.getCurrentPosition();
-              _latController.text = position.latitude.toString();
-              _lngController.text = position.longitude.toString();
+              final location = Location();
+              final hasPermission = await location.hasPermission();
+              if (hasPermission == PermissionStatus.denied) {
+                await location.requestPermission();
+              }
+              final currentLocation = await location.getLocation();
+              _latController.text = currentLocation.latitude?.toString() ?? '';
+              _lngController.text = currentLocation.longitude?.toString() ?? '';
             },
           ),
         ],

@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:location/location.dart';
+import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
@@ -102,54 +102,44 @@ class _HomeViewState extends State<HomeView> {
 
   void _determinePosition() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (!mounted) return;
-        setState(() {
-          _locationError = true;
-        });
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: Exception('Location services are disabled.'),
-            library: 'Location',
-            context: ErrorDescription('Determining position'),
-          ),
-        );
-        return;
-      }
+      final location = Location();
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.deniedForever ||
-            permission == LocationPermission.denied) {
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) {
           if (!mounted) return;
           setState(() {
             _locationError = true;
           });
-          FlutterError.reportError(
-            FlutterErrorDetails(
-              exception: Exception('Location permissions are denied.'),
-              library: 'Location',
-              context: ErrorDescription('Determining position'),
-            ),
-          );
           return;
         }
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      PermissionStatus permission = await location.hasPermission();
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+        if (permission == PermissionStatus.denied ||
+            permission == PermissionStatus.deniedForever) {
+          if (!mounted) return;
+          setState(() {
+            _locationError = true;
+          });
+          return;
+        }
+      }
+
+      final currentLocation = await location.getLocation();
       String locationName =
-          '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+          '${currentLocation.latitude?.toStringAsFixed(4)}, ${currentLocation.longitude?.toStringAsFixed(4)}';
 
       try {
         final placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+          currentLocation.latitude ?? 0,
+          currentLocation.longitude ?? 0,
         );
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
-          // Try locality, subAdministrativeArea, administrativeArea, country
           String? locality =
               place.locality ??
               place.subAdministrativeArea ??
@@ -167,6 +157,7 @@ class _HomeViewState extends State<HomeView> {
           }
         }
       } catch (e) {
+        locationName = 'Localização indisponível';
         FlutterError.reportError(
           FlutterErrorDetails(
             exception: e,
@@ -174,7 +165,6 @@ class _HomeViewState extends State<HomeView> {
             context: ErrorDescription('Obtaining location name'),
           ),
         );
-        locationName = 'Localização indisponível';
       }
 
       _logInfo('Local obtido: $locationName');
@@ -760,13 +750,16 @@ class _HomeViewState extends State<HomeView> {
         onTap: (index) {
           // Atualize conforme necessário
           if (index != _selectedIndex) {
-            Navigator.pushReplacementNamed(context, [
-              '/home',
-              '/my-events',
-              '/checkin',
-              '/ranking',
-              '/profile',
-            ][index]);
+            Navigator.pushReplacementNamed(
+              context,
+              [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index],
+            );
           }
         },
       ),

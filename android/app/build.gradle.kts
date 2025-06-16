@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "cv.pagali.shellaokm"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -28,7 +28,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -40,9 +40,10 @@ android {
          * pelos dados reais do seu keystore.
          */
         create("release") {
-            storeFile = file("../keystore/keystore.jks")
-            storePassword = "ManoAMano2025"
-            keyAlias = "shellaokm_release"
+            storeFile = rootProject.file("mano_mano_keystore.jks")
+            storePassword = "mano2025"
+            keyPassword = "mano2025"
+            keyAlias = "mano_mano"
         }
     }
 

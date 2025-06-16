@@ -123,31 +123,53 @@ class _UserEventsViewState extends State<UserEventsView> {
                     eventos.map((evento) {
                       final data = (evento['data'] as Timestamp).toDate();
                       final isPast = data.isBefore(DateTime.now());
-                      return ListTile(
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/event-details', arguments: evento);
-                        },
-                        title: Text(evento['nome'] ?? 'Evento'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        elevation: 1.5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
                           children: [
-                            Text(DateFormat('dd/MM/yyyy HH:mm').format(data)),
-                            if (evento['local'] != null)
-                              Text('Local: ${evento['local']}'),
-                            if (evento['entidade'] != null)
-                              Text('Organizador: ${evento['entidade']}'),
+                            ListTile(
+                              onTap: () {
+                                Navigator.of(context).pushNamed(
+                                  '/event-details',
+                                  arguments: evento,
+                                );
+                              },
+                              title: Text(evento['nome'] ?? 'Evento'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    DateFormat('dd/MM/yyyy HH:mm').format(data),
+                                  ),
+                                  if (evento['local'] != null)
+                                    Text('Local: ${evento['local']}'),
+                                  if (evento['entidade'] != null)
+                                    Text(
+                                      'Entidade Beneficiada: ${evento['entidade']}',
+                                    ),
+                                ],
+                              ),
+                              trailing: Icon(
+                                evento['inscrito'] == true
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                color:
+                                    evento['inscrito'] == true
+                                        ? Colors.green
+                                        : Colors.grey,
+                              ),
+                              tileColor: isPast ? Colors.grey.shade100 : null,
+                            ),
+                            const Divider(height: 1),
                           ],
                         ),
-                        trailing: Icon(
-                          evento['inscrito'] == true
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color:
-                              evento['inscrito'] == true
-                                  ? Colors.green
-                                  : Colors.grey,
-                        ),
-                        tileColor: isPast ? Colors.grey.shade100 : null,
                       );
                     }).toList(),
               );

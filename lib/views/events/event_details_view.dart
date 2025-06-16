@@ -36,7 +36,7 @@ class EventDetailsView extends StatelessWidget {
               Text('Data: ${DateFormat('dd/MM/yyyy HH:mm').format(data)}'),
             if (evento['local'] != null) Text('Local: ${evento['local']}'),
             if (evento['entidade'] != null)
-              Text('Organizador: ${evento['entidade']}'),
+              Text('Entidade Beneficiada: ${evento['entidade']}'),
             if (evento['descricao'] != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16.0),
