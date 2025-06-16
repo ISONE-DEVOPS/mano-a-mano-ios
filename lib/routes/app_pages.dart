@@ -56,24 +56,27 @@ class AppPages {
     GetPage(name: '/editions', page: () => const EditionView()),
     GetPage(
       name: '/add-checkpoints',
-      page: () => Builder(
-        builder: (_) {
-          final args = Get.arguments;
-          if (args == null ||
-              args is! Map ||
-              !args.containsKey('edicaoId') ||
-              !args.containsKey('eventId')) {
-            return const Scaffold(
-              body: Center(
-                child: Text(
-                  'Argumentos inválidos ou ausentes para AddCheckpointsView',
-                ),
-              ),
-            );
-          }
-          return const AddCheckpointsView();
-        },
-      ),
+      page:
+          () => Builder(
+            builder: (_) {
+              final args = Get.arguments;
+              if (args == null ||
+                  args is! Map ||
+                  !args.containsKey('edicaoId') ||
+                  !args.containsKey('eventId')) {
+                return Scaffold(
+                  body: SafeArea(
+                    child: Center(
+                      child: Text(
+                        'Argumentos inválidos ou ausentes para AddCheckpointsView',
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return const AddCheckpointsView();
+            },
+          ),
     ),
     GetPage(name: '/challenges', page: () => ChallengeView()),
     GetPage(name: '/ranking-detailed', page: () => const RankingDetailedView()),
@@ -95,7 +98,15 @@ class AppPages {
     GetPage(
       name: '/payment',
       page: () {
-        final args = Get.arguments as Map<String, dynamic>;
+        final args = Get.arguments;
+        if (args == null ||
+            args is! Map<String, dynamic> ||
+            !args.containsKey('eventId') ||
+            !args.containsKey('amount')) {
+          return const Scaffold(
+            body: Center(child: Text('Dados de pagamento inválidos')),
+          );
+        }
         return PaymentView(
           eventId: args['eventId'] as String,
           amount: args['amount'] as double,
@@ -118,7 +129,12 @@ class AppPages {
     GetPage(
       name: '/route-editor',
       page: () {
-        final eventId = Get.arguments as String;
+        final eventId = Get.arguments;
+        if (eventId == null || eventId is! String) {
+          return const Scaffold(
+            body: Center(child: Text('Evento não selecionado')),
+          );
+        }
         return RouteEditorView(eventId: eventId);
       },
     ),

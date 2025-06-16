@@ -1,6 +1,6 @@
-
-
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../widgets/shared/nav_bottom.dart';
 
 class RankingView extends StatelessWidget {
   const RankingView({super.key});
@@ -8,10 +8,7 @@ class RankingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ranking'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Ranking'), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -22,20 +19,69 @@ class RankingView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: 10, // Placeholder para número de equipas
-                itemBuilder: (context, index) {
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.amber,
-                        child: Text('${index + 1}'),
-                      ),
-                      title: Text('Equipa ${index + 1}'),
-                      subtitle: Text('Pontos: ${100 - index * 5}'),
-                    ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('ranking')
+                        .orderBy('pontuacao', descending: true)
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text('Nenhum dado de ranking disponível.'),
+                    );
+                  }
+                  final rankingDocs = snapshot.data!.docs;
+                  return ListView.builder(
+                    itemCount: rankingDocs.length,
+                    itemBuilder: (context, index) {
+                      final data =
+                          rankingDocs[index].data() as Map<String, dynamic>;
+                      return FutureBuilder<DocumentSnapshot?>(
+                        future:
+                            data['equipaId'] != null &&
+                                    data['equipaId'].toString().isNotEmpty
+                                ? FirebaseFirestore.instance
+                                    .collection('equipas')
+                                    .doc(data['equipaId'])
+                                    .get()
+                                : Future.value(null),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData ||
+                              snapshot.data?.data() == null) {
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.grey,
+                                child: Text('${index + 1}'),
+                              ),
+                              title: const Text('Equipa desconhecida'),
+                              subtitle: Text(
+                                'Pontos: ${data['pontuacao'] ?? 0}',
+                              ),
+                            );
+                          }
+                          final equipaData =
+                              snapshot.data?.data() as Map<String, dynamic>?;
+                          return Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.amber,
+                                child: Text('${index + 1}'),
+                              ),
+                              title: Text(equipaData?['nome'] ?? 'Equipa'),
+                              subtitle: Text(
+                                'Pontos: ${data['pontuacao'] ?? 0}',
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   );
                 },
               ),
@@ -43,6 +89,7 @@ class RankingView extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
     );
   }
 }

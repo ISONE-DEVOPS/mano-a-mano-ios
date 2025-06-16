@@ -3,6 +3,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../widgets/shared/nav_bottom.dart';
+import '../../widgets/shared/nav_topbar.dart';
+
+class InfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const InfoTile(this.label, this.value, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('$label: $value');
+  }
+}
 
 class ProfileView extends StatelessWidget {
   const ProfileView({super.key});
@@ -10,11 +23,21 @@ class ProfileView extends StatelessWidget {
   Future<Map<String, dynamic>> _getUserAndCarData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('Usuário não autenticado');
+
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final userData = userDoc.data() ?? {};
+
+    final carId = userData['veiculoId'];
+    if (carId == null) {
+      throw Exception('Veículo não encontrado para o usuário.');
+    }
+
     final carDoc =
-        await FirebaseFirestore.instance.collection('cars').doc(uid).get();
-    return {'user': userDoc.data() ?? {}, 'car': carDoc.data() ?? {}};
+        await FirebaseFirestore.instance.collection('cars').doc(carId).get();
+    final carData = carDoc.data() ?? {};
+
+    return {'user': userData, 'car': carData};
   }
 
   @override
@@ -38,20 +61,12 @@ class ProfileView extends StatelessWidget {
         final passageiros = carData['passageiros'] as List<dynamic>? ?? [];
 
         return Scaffold(
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF0E0E2C),
-            title: const Text('Perfil do Condutor'),
-            centerTitle: true,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  // Redirecionar para tela de edição (criar futuramente)
-                  Navigator.of(context).pushNamed('/edit-profile');
-                },
-              ),
-            ],
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(100),
+            child: NavTopBar(
+              userName: userData['nome'] ?? '',
+              location: 'Perfil',
+            ),
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -59,20 +74,29 @@ class ProfileView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
+                  'Perfil do Condutor',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
                   'Informações Pessoais',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text('👤 Nome: ${userData['nome'] ?? ''}'),
-                Text('📧 Email: ${userData['email'] ?? ''}'),
-                Text('📞 Telefone: ${userData['telefone'] ?? ''}'),
-                Text('🆘 Contato Emergência: ${userData['emergencia'] ?? ''}'),
-                Text('👕 T-shirt: ${userData['tshirt'] ?? ''}'),
+                InfoTile('👤 Nome', userData['nome'] ?? ''),
+                InfoTile('📧 Email', userData['email'] ?? ''),
+                InfoTile('📞 Telefone', userData['telefone'] ?? ''),
+                InfoTile('🆘 Contato Emergência', userData['emergencia'] ?? ''),
+                InfoTile('👕 T-shirt', userData['tshirt'] ?? ''),
                 const Divider(height: 32),
-                Text(
-                  'Carro: ${carData['modelo'] ?? ''} (${carData['matricula'] ?? ''})',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                const Text(
+                  'Informações do Veículo',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
+                InfoTile('🚗 Modelo', carData['modelo'] ?? ''),
+                InfoTile('📋 Matrícula', carData['matricula'] ?? ''),
+                InfoTile('🔰 Dístico', carData['distico'] ?? ''),
                 const Divider(height: 32),
                 const Text(
                   'QR Code do Condutor:',
@@ -82,9 +106,13 @@ class ProfileView extends StatelessWidget {
                 Center(
                   child: QrImageView(
                     data:
-                        'Nome: ${userData['nome'] ?? ''}\nMatrícula: ${carData['matricula'] ?? ''}\nEmail: ${userData['email'] ?? ''}\nTelefone: ${userData['telefone'] ?? ''}',
+                      'UID: ${FirebaseAuth.instance.currentUser?.uid ?? ''}\n'
+                      'Nome: ${userData['nome'] ?? ''}\n'
+                      'Matrícula: ${carData['matricula'] ?? ''}\n'
+                      'Email: ${userData['email'] ?? ''}\n'
+                      'Telefone: ${userData['telefone'] ?? ''}',
                     version: QrVersions.auto,
-                    size: 200.0,
+                    size: MediaQuery.of(context).size.width * 0.6,
                     backgroundColor: Colors.white,
                   ),
                 ),
@@ -95,18 +123,19 @@ class ProfileView extends StatelessWidget {
                 ),
                 if (passageiros.isEmpty)
                   const Text('Nenhum passageiro registrado.'),
-                ...passageiros.map(
-                  (p) => Padding(
+                ...passageiros.map((p) {
+                  final nome = p['nome'] ?? 'Sem nome';
+                  final telefone = p['telefone'] ?? 'Sem telefone';
+                  final tshirt = p['tshirt'] ?? '-';
+                  return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      '- ${p['nome']} (${p['telefone']}, T-shirt: ${p['tshirt']})',
-                    ),
-                  ),
-                ),
+                    child: Text('- $nome ($telefone, T-shirt: $tshirt)'),
+                  );
+                }),
               ],
             ),
           ),
-          bottomNavigationBar: const BottomNavBar(currentIndex: 3),
+          bottomNavigationBar: const BottomNavBar(currentIndex: 4),
         );
       },
     );

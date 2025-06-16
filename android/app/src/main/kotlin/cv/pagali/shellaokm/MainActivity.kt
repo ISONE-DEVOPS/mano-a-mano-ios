@@ -1,4 +1,4 @@
-package com.example.mano_mano_dashboard
+package cv.pagali.shellaokm
 
 import io.flutter.embedding.android.FlutterActivity
 

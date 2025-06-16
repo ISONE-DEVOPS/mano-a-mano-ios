@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:intl/intl.dart';
 import '../../widgets/shared/nav_topbar.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../theme/app_colors.dart';
@@ -31,10 +32,13 @@ class _UserEventsViewState extends State<UserEventsView> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
       final dadosUser = userDoc.data();
       setState(() {
-        _userName = dadosUser?['name'] ?? user.email ?? '';
+        _userName = dadosUser?['nome'] ?? user.email ?? '';
       });
     }
   }
@@ -42,7 +46,10 @@ class _UserEventsViewState extends State<UserEventsView> {
   Future<void> _loadLocation() async {
     try {
       Position pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low));
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+        ),
+      );
       List<Placemark> placemarks = await placemarkFromCoordinates(
         pos.latitude,
         pos.longitude,
@@ -51,9 +58,10 @@ class _UserEventsViewState extends State<UserEventsView> {
         final place = placemarks.first;
         setState(() {
           _location = [
-            if (place.subAdministrativeArea != null) place.subAdministrativeArea,
+            if (place.subAdministrativeArea != null)
+              place.subAdministrativeArea,
             if (place.locality != null) place.locality,
-            if (place.country != null) place.country
+            if (place.country != null) place.country,
           ].where((e) => e != null && e.isNotEmpty).join(', ');
         });
       }
@@ -82,9 +90,12 @@ class _UserEventsViewState extends State<UserEventsView> {
     // Suporte para múltiplos eventos
     List<dynamic> eventosInscritos = [];
     if (dadosUser['eventosInscritos'] != null) {
-      eventosInscritos = List<String>.from(dadosUser['eventosInscritos']);
+      eventosInscritos =
+          List<String>.from(
+            dadosUser['eventosInscritos'],
+          ).map((e) => e.toString().split('/').last).toList();
     } else if (dadosUser['eventoId'] != null) {
-      eventosInscritos = [dadosUser['eventoId']];
+      eventosInscritos = [dadosUser['eventoId'].toString().split('/').last];
     }
 
     if (eventosInscritos.isEmpty) return [];
@@ -131,22 +142,28 @@ class _UserEventsViewState extends State<UserEventsView> {
               final evento = eventos[i];
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: ListTile(
                   title: Text(evento['nome'] ?? 'Evento'),
                   subtitle: Text(
                     evento['data_event'] != null
-                        ? (evento['data_event'] as Timestamp)
-                            .toDate()
-                            .toString()
+                        ? DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format((evento['data_event'] as Timestamp).toDate())
                         : '',
                   ),
                   trailing: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(
-                        context,
-                      ).pushNamed('/route-map', arguments: evento['id']);
-                    },
+                    onPressed:
+                        evento['id'] != null
+                            ? () {
+                              Navigator.of(context).pushNamed(
+                                '/route-map',
+                                arguments: evento['id'],
+                              );
+                            }
+                            : null,
                     icon: const Icon(Icons.map),
                     label: const Text('Ver Percurso'),
                     style: ElevatedButton.styleFrom(
