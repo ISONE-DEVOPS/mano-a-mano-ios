@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mano_mano_dashboard/theme/app_colors.dart';
+//import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class DashboardAdminView extends StatelessWidget {
   const DashboardAdminView({super.key});
@@ -15,58 +15,86 @@ class DashboardAdminView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('equipas').snapshots(),
+              stream: FirebaseFirestore.instance.collection('equipas').snapshots(),
               builder: (context, equipasSnapshot) {
                 return StreamBuilder<QuerySnapshot>(
-                  stream:
-                      FirebaseFirestore.instance
-                          .collection('editions')
-                          .doc('shell_2025')
-                          .collection('events')
-                          .doc('shell_km_02')
-                          .collection('checkpoints')
-                          .snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('editions')
+                      .doc('shell_2025')
+                      .collection('events')
+                      .doc('shell_km_02')
+                      .collection('checkpoints')
+                      .snapshots(),
                   builder: (context, checkpointsSnapshot) {
                     return StreamBuilder<QuerySnapshot>(
-                      stream:
-                          FirebaseFirestore.instance
-                              .collection('users')
-                              .where('tipo', isEqualTo: 'user')
-                              .snapshots(),
+                      stream: FirebaseFirestore.instance.collection('users').snapshots(),
                       builder: (context, usersSnapshot) {
-                        final totalEquipas =
-                            equipasSnapshot.data?.docs.length ?? 0;
-                        final totalCheckpoints =
-                            checkpointsSnapshot.data?.docs.length ?? 0;
-                        final totalParticipantes =
-                            usersSnapshot.data?.docs.length ?? 0;
-                        return Card(
-                          elevation: 2,
-                          color: Colors.red,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStatIndicator(
-                                  Icons.groups,
-                                  'Total de Equipas',
-                                  totalEquipas,
+                        // Verificação de carregamento dos snapshots
+                        if (!equipasSnapshot.hasData ||
+                            !checkpointsSnapshot.hasData ||
+                            !usersSnapshot.hasData) {
+                          return const CircularProgressIndicator();
+                        }
+                        final equipasDocs = equipasSnapshot.data!.docs;
+                        final usersDocs = usersSnapshot.data!.docs;
+                        // Mapeia os users por uid para acesso rápido
+                        final Map<String, Map<String, dynamic>> usersMap = {
+                          for (var u in usersDocs) u.id: u.data() as Map<String, dynamic>
+                        };
+                        // Filtra equipas para excluir as que têm pelo menos um membro tipo 'admin'
+                        final filteredEquipas = equipasDocs.where((doc) {
+                          final membros = (doc['membros'] ?? []) as List<dynamic>;
+                          // Se algum membro é admin, exclui a equipa
+                          return !membros.any((uid) =>
+                              usersMap[uid]?['tipo'] == 'admin');
+                        }).toList();
+                        final totalEquipas = filteredEquipas.length;
+                        debugPrint(
+                          'Checkpoints carregados: ${checkpointsSnapshot.data?.docs.map((d) => d.id).toList()}',
+                        );
+                        final totalCheckpoints = checkpointsSnapshot.data?.docs.length ?? 0;
+                        final totalParticipantes = usersSnapshot.data?.docs.length ?? 0;
+                        // Adiciona a contagem de veículos
+                        return FutureBuilder<QuerySnapshot>(
+                          future: FirebaseFirestore.instance.collection('veiculos').get(),
+                          builder: (context, veiculosSnapshot) {
+                            if (!veiculosSnapshot.hasData) {
+                              return const CircularProgressIndicator();
+                            }
+                            final totalVeiculos = veiculosSnapshot.data!.docs.length;
+                            return Card(
+                              elevation: 2,
+                              color: Colors.red,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildStatIndicator(
+                                      Icons.groups,
+                                      'Total de Equipas',
+                                      totalEquipas,
+                                    ),
+                                    _buildStatIndicator(
+                                      Icons.local_gas_station,
+                                      'Total de Checkpoints',
+                                      totalCheckpoints,
+                                    ),
+                                    _buildStatIndicator(
+                                      Icons.person,
+                                      'Total de Participantes',
+                                      totalParticipantes,
+                                    ),
+                                    _buildStatIndicator(
+                                      Icons.directions_car,
+                                      'Total de Veículos',
+                                      totalVeiculos,
+                                    ),
+                                  ],
                                 ),
-                                _buildStatIndicator(
-                                  Icons.local_gas_station,
-                                  'Total de Checkpoints',
-                                  totalCheckpoints,
-                                ),
-                                _buildStatIndicator(
-                                  Icons.person,
-                                  'Total de Participantes',
-                                  totalParticipantes,
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         );
                       },
                     );
@@ -74,300 +102,202 @@ class DashboardAdminView extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 32),
-            const Text(
-              '🏆 Top 3 Equipas',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance
-                      .collection('ranking')
-                      .orderBy('pontuacao', descending: true)
-                      .limit(3)
-                      .snapshots(),
-              builder: (context, rankingSnapshot) {
-                if (!rankingSnapshot.hasData) {
-                  return const CircularProgressIndicator();
-                }
-                final rankingDocs = rankingSnapshot.data!.docs;
-                return FutureBuilder<List<Map<String, dynamic>>>(
-                  future: Future.wait(
-                    rankingDocs.map((doc) async {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final equipaId = data['equipaId'];
-                      String nomeEquipa = 'Equipa';
-                      if (equipaId != null) {
-                        final equipaDoc =
-                            await FirebaseFirestore.instance
-                                .collection('equipas')
-                                .doc(equipaId)
-                                .get();
-                        nomeEquipa = equipaDoc.data()?['nome'] ?? 'Equipa';
-                      }
-                      return {
-                        'nome': nomeEquipa,
-                        'pontuacao': data['pontuacao'] ?? 0,
-                      };
-                    }),
-                  ),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-                    final topEquipas = snapshot.data!;
-                    return Row(
-                      children:
-                          topEquipas.map((data) {
-                            return Expanded(
-                              child: Card(
-                                color: AppColors.secondary,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        data['nome'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '${data['pontuacao']} pts',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              '📊 Ranking Geral',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance
-                      .collection('ranking')
-                      .orderBy('pontuacao', descending: true)
-                      .snapshots(),
-              builder: (context, rankingSnapshot) {
-                if (!rankingSnapshot.hasData) {
-                  return const CircularProgressIndicator();
-                }
-                final rankingDocs = rankingSnapshot.data!.docs;
-                return FutureBuilder<List<Map<String, dynamic>>>(
-                  future: Future.wait(
-                    rankingDocs.map((doc) async {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final equipaId = data['equipaId'];
-                      String nomeEquipa = '';
-                      int checkpointCount = data['checkpointCount'] ?? 0;
-                      int pontuacao = data['pontuacao'] ?? 0;
-                      if (equipaId != null) {
-                        final equipaDoc =
-                            await FirebaseFirestore.instance
-                                .collection('equipas')
-                                .doc(equipaId)
-                                .get();
-                        nomeEquipa = equipaDoc.data()?['nome'] ?? '';
-                      }
-                      return {
-                        'nome': nomeEquipa,
-                        'pontuacao': pontuacao,
-                        'checkpointCount': checkpointCount,
-                      };
-                    }),
-                  ),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-                    final rankingData = snapshot.data!;
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        dataRowColor: WidgetStateProperty.all(Colors.black12),
-                        columns: const [
-                          DataColumn(
-                            label: Text(
-                              'Equipa',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Pontuação',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Checkpoints',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        ],
-                        rows:
-                            rankingData.map((data) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      data['nome'],
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      '${data['pontuacao']}',
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      '${data['checkpointCount']}',
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              '📝 Equipas Inscritas',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('equipas').snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const CircularProgressIndicator();
-                final equipasDocs = snapshot.data!.docs;
-                final dataSource = EquipasDataSource(equipasDocs);
-                return PaginatedDataTable(
-                  header: const Text(
-                    'Equipas Inscritas',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        'Nome da Equipa',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Condutor',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Modelo do Carro',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Matrícula',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                  columnSpacing: 12,
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        if (dataSource.previousPage != null) {
-                          dataSource.previousPage!();
-                        }
-                      },
-                      child: const Text(
-                        'Anterior',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (dataSource.nextPage != null) {
-                          dataSource.nextPage!();
-                        }
-                      },
-                      child: const Text(
-                        'Próximo',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                  source: dataSource,
-                  rowsPerPage: 5,
-                  showCheckboxColumn: false,
-                );
-              },
-            ),
+            // const Text(
+            //   '🏆 Top 3 Equipas',
+            //   style: TextStyle(
+            //     fontSize: 20,
+            //     fontWeight: FontWeight.bold,
+            //     color: Colors.black,
+            //   ),
+            // ),
+            // const SizedBox(height: 12),
+            // StreamBuilder<QuerySnapshot>(
+            //   stream:
+            //       FirebaseFirestore.instance
+            //           .collection('ranking')
+            //           .orderBy('pontuacao', descending: true)
+            //           .limit(3)
+            //           .snapshots(),
+            //   builder: (context, rankingSnapshot) {
+            //     if (!rankingSnapshot.hasData) {
+            //       return const CircularProgressIndicator();
+            //     }
+            //     final rankingDocs = rankingSnapshot.data!.docs;
+            //     return FutureBuilder<List<Map<String, dynamic>>>(
+            //       future: Future.wait(
+            //         rankingDocs.map((doc) async {
+            //           final data = doc.data() as Map<String, dynamic>;
+            //           final equipaId = data['equipaId'];
+            //           String nomeEquipa = 'Equipa';
+            //           if (equipaId != null) {
+            //             final equipaDoc =
+            //                 await FirebaseFirestore.instance
+            //                     .collection('equipas')
+            //                     .doc(equipaId)
+            //                     .get();
+            //             nomeEquipa = equipaDoc.data()?['nome'] ?? 'Equipa';
+            //           }
+            //           return {
+            //             'nome': nomeEquipa,
+            //             'pontuacao': data['pontuacao'] ?? 0,
+            //           };
+            //         }),
+            //       ),
+            //       builder: (context, snapshot) {
+            //         if (!snapshot.hasData) {
+            //           return const CircularProgressIndicator();
+            //         }
+            //         final topEquipas = snapshot.data!;
+            //         if (topEquipas.isEmpty) return const SizedBox.shrink();
+            //         return Row(
+            //           children:
+            //               topEquipas.map((data) {
+            //                 return Expanded(
+            //                   child: Card(
+            //                     color: AppColors.secondary,
+            //                     child: Padding(
+            //                       padding: const EdgeInsets.all(16),
+            //                       child: Column(
+            //                         children: [
+            //                           Text(
+            //                             data['nome'],
+            //                             style: const TextStyle(
+            //                               fontSize: 16,
+            //                               fontWeight: FontWeight.bold,
+            //                               color: Colors.black,
+            //                             ),
+            //                           ),
+            //                           const SizedBox(height: 8),
+            //                           Text(
+            //                             '${data['pontuacao']} pts',
+            //                             style: const TextStyle(
+            //                               fontSize: 14,
+            //                               color: Colors.black,
+            //                             ),
+            //                           ),
+            //                         ],
+            //                       ),
+            //                     ),
+            //                   ),
+            //                 );
+            //               }).toList(),
+            //         );
+            //       },
+            //     );
+            //   },
+            // ),
+            // const SizedBox(height: 32),
+            // const Text(
+            //   '📊 Ranking Geral',
+            //   style: TextStyle(
+            //     fontSize: 20,
+            //     fontWeight: FontWeight.bold,
+            //     color: Colors.black,
+            //   ),
+            // ),
+            // const SizedBox(height: 12),
+            // StreamBuilder<QuerySnapshot>(
+            //   stream:
+            //       FirebaseFirestore.instance
+            //           .collection('ranking')
+            //           .orderBy('pontuacao', descending: true)
+            //           .snapshots(),
+            //   builder: (context, rankingSnapshot) {
+            //     if (!rankingSnapshot.hasData) {
+            //       return const CircularProgressIndicator();
+            //     }
+            //     final rankingDocs = rankingSnapshot.data!.docs;
+            //     return FutureBuilder<List<Map<String, dynamic>>>(
+            //       future: Future.wait(
+            //         rankingDocs.map((doc) async {
+            //           final data = doc.data() as Map<String, dynamic>;
+            //           final equipaId = data['equipaId'];
+            //           String nomeEquipa = '';
+            //           int checkpointCount = data['checkpointCount'] ?? 0;
+            //           int pontuacao = data['pontuacao'] ?? 0;
+            //           if (equipaId != null) {
+            //             final equipaDoc =
+            //                 await FirebaseFirestore.instance
+            //                     .collection('equipas')
+            //                     .doc(equipaId)
+            //                     .get();
+            //             nomeEquipa = equipaDoc.data()?['nome'] ?? '';
+            //           }
+            //           return {
+            //             'nome': nomeEquipa,
+            //             'pontuacao': pontuacao,
+            //             'checkpointCount': checkpointCount,
+            //           };
+            //         }),
+            //       ),
+            //       builder: (context, snapshot) {
+            //         if (!snapshot.hasData) {
+            //           return const CircularProgressIndicator();
+            //         }
+            //         final rankingData = snapshot.data!;
+            //         if (rankingData.isEmpty) return const SizedBox.shrink();
+            //         return SingleChildScrollView(
+            //           scrollDirection: Axis.horizontal,
+            //           child: DataTable(
+            //             dataRowColor: WidgetStateProperty.all(Colors.black12),
+            //             columns: const [
+            //               DataColumn(
+            //                 label: Text(
+            //                   'Equipa',
+            //                   style: TextStyle(color: Colors.black),
+            //                 ),
+            //               ),
+            //               DataColumn(
+            //                 label: Text(
+            //                   'Pontuação',
+            //                   style: TextStyle(color: Colors.black),
+            //                 ),
+            //               ),
+            //               DataColumn(
+            //                 label: Text(
+            //                   'Checkpoints',
+            //                   style: TextStyle(color: Colors.black),
+            //                 ),
+            //               ),
+            //             ],
+            //             rows:
+            //                 rankingData.map((data) {
+            //                   return DataRow(
+            //                     cells: [
+            //                       DataCell(
+            //                         Text(
+            //                           data['nome'],
+            //                           style: const TextStyle(
+            //                             color: Colors.black,
+            //                           ),
+            //                         ),
+            //                       ),
+            //                       DataCell(
+            //                         Text(
+            //                           '${data['pontuacao']}',
+            //                           style: const TextStyle(
+            //                             color: Colors.black,
+            //                           ),
+            //                         ),
+            //                       ),
+            //                       DataCell(
+            //                         Text(
+            //                           '${data['checkpointCount']}',
+            //                           style: const TextStyle(
+            //                             color: Colors.black,
+            //                           ),
+            //                         ),
+            //                       ),
+            //                     ],
+            //                   );
+            //                 }).toList(),
+            //           ),
+            //         );
+            //       },
+            //     );
+            //   },
+            // ),
+            // const SizedBox(height: 32),
           ],
         ),
       ),

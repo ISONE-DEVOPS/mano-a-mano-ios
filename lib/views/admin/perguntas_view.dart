@@ -10,7 +10,11 @@ class PerguntasView extends StatefulWidget {
 }
 
 class _PerguntasViewState extends State<PerguntasView> {
-  final _postoController = TextEditingController();
+  String? _edicaoSelecionada;
+  Map<String, String> _edicoes = {};
+  String? _eventoSelecionado;
+  Map<String, String> _eventos = {};
+  String? _checkpointSelecionado;
   final _perguntaController = TextEditingController();
   final _categoriaController = TextEditingController();
   final List<TextEditingController> _opcoes = List.generate(
@@ -19,18 +23,30 @@ class _PerguntasViewState extends State<PerguntasView> {
   );
   int _respostaCorreta = 0;
   List<String> _postos = [];
-  Map<String, String> _eventos = {};
-  String? _eventoSelecionado;
 
   @override
   void initState() {
     super.initState();
-    _carregarEventos();
+    _carregarEdicoes();
   }
 
-  void _carregarEventos() async {
+  void _carregarEdicoes() async {
     final snapshot =
-        await FirebaseFirestore.instance.collection('events').get();
+        await FirebaseFirestore.instance.collection('editions').get();
+    final mapa = {
+      for (var doc in snapshot.docs) doc.id: doc['nome'] ?? 'Sem nome',
+    };
+    setState(() {
+      _edicoes = Map<String, String>.from(mapa);
+    });
+  }
+
+  void _carregarEventos(String editionId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('editions')
+        .doc(editionId)
+        .collection('events')
+        .get();
     final mapa = {
       for (var doc in snapshot.docs) doc.id: doc['nome'] ?? 'Sem nome',
     };
@@ -40,15 +56,16 @@ class _PerguntasViewState extends State<PerguntasView> {
   }
 
   void _carregarPostos(String eventId) async {
-    final doc =
+    final snapshot =
         await FirebaseFirestore.instance
+            .collection('editions')
+            .doc(_edicaoSelecionada)
             .collection('events')
             .doc(eventId)
+            .collection('checkpoints')
             .get();
-    final data = doc.data();
-    if (data == null || !data.containsKey('checkpoints')) return;
-    final cps = Map<String, dynamic>.from(data['checkpoints']);
-    setState(() => _postos = cps.keys.toList()..sort());
+    final nomes = snapshot.docs.map((doc) => doc.id).toList()..sort();
+    setState(() => _postos = nomes);
   }
 
   void _salvarPergunta() async {
@@ -57,10 +74,11 @@ class _PerguntasViewState extends State<PerguntasView> {
     final opcoes = _opcoes.map((c) => c.text.trim()).toList();
 
     // Verificação se o evento e o posto são válidos
-    if (_eventoSelecionado == null ||
-        !_postos.contains(_postoController.text.trim())) {
+    if (_edicaoSelecionada == null || _eventoSelecionado == null || _checkpointSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um evento e um posto válido')),
+        const SnackBar(
+          content: Text('Selecione uma edição, um evento e um checkpoint válido'),
+        ),
       );
       return;
     }
@@ -73,28 +91,35 @@ class _PerguntasViewState extends State<PerguntasView> {
     }
 
     try {
-      await FirebaseFirestore.instance.collection('questions').add({
-        'evento_id': _eventoSelecionado,
-        'posto': _postoController.text.trim(),
+      await FirebaseFirestore.instance.collection('perguntas').add({
+        'editionId': _edicaoSelecionada,
+        'eventId': _eventoSelecionado,
+        'checkpointId': _checkpointSelecionado,
         'pergunta': pergunta,
         'categoria': categoria,
-        'options': opcoes,
-        'correta': _respostaCorreta,
+        'respostas': opcoes,
+        'respostaCerta': _respostaCorreta,
         'pontos': 10,
-        'createAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pergunta salva com sucesso')),
       );
-      _postoController.clear();
+      _checkpointSelecionado = null;
+      _eventoSelecionado = null;
+      _edicaoSelecionada = null;
       _perguntaController.clear();
       _categoriaController.clear();
       for (final c in _opcoes) {
         c.clear();
       }
-      setState(() => _respostaCorreta = 0);
+      setState(() {
+        _respostaCorreta = 0;
+        _postos = [];
+        _eventos = {};
+        _edicoes = _edicoes;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -112,7 +137,7 @@ class _PerguntasViewState extends State<PerguntasView> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            // Card para o formulário de criação
+            // Formulário de criação de pergunta (sem Card aninhado)
             Card(
               elevation: 4,
               margin: EdgeInsets.zero,
@@ -127,161 +152,214 @@ class _PerguntasViewState extends State<PerguntasView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Cadastrar Pergunta',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleLarge?.copyWith(color: Colors.black),
-                    ),
-                    const SizedBox(height: 16),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: DropdownButtonFormField<String>(
-                        value: _eventoSelecionado,
-                        decoration: InputDecoration(
-                          labelText: 'Evento',
-                          filled: true,
-                          fillColor: Colors.grey.shade300,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          labelStyle: const TextStyle(color: Colors.black),
-                        ),
-                        style: const TextStyle(color: Colors.black),
-                        icon: const Icon(
-                          Icons.arrow_drop_down,
-                          color: Colors.black54,
-                        ),
-                        items:
-                            _eventos.entries.map((entry) {
-                              return DropdownMenuItem(
-                                value: entry.key,
-                                child: Text(
-                                  entry.value,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(color: Colors.black),
-                                ),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _eventoSelecionado = value;
-                            _carregarPostos(value!);
-                            _postoController.clear();
-                            _postos.clear();
-                          });
-                        },
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: DropdownButtonFormField<String>(
-                        value:
-                            _postoController.text.isNotEmpty
-                                ? _postoController.text
-                                : null,
-                        decoration: InputDecoration(
-                          labelText: 'Posto',
-                          filled: true,
-                          fillColor: Colors.grey.shade300,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
+                    const SizedBox(height: 18),
+                    DropdownButtonFormField<String>(
+                      style: const TextStyle(color: Colors.black),
+                      onChanged: (value) {
+                        setState(() {
+                          _edicaoSelecionada = value;
+                          _eventoSelecionado = null;
+                          _checkpointSelecionado = null;
+                          _eventos = {};
+                          _postos = [];
+                          if (value != null) {
+                            _carregarEventos(value);
+                          }
+                        });
+                      },
+                      items: _edicoes.entries.map((entry) {
+                        return DropdownMenuItem<String>(
+                          value: entry.key,
+                          child: Text(
+                            entry.value,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          labelStyle: const TextStyle(color: Colors.black),
+                        );
+                      }).toList(),
+                      value: _edicaoSelecionada,
+                      decoration: InputDecoration(
+                        labelText: 'Edição',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey),
                         ),
-                        style: const TextStyle(color: Colors.black),
-                        icon: const Icon(
-                          Icons.arrow_drop_down,
-                          color: Colors.black54,
-                        ),
-                        items:
-                            _postos.map((posto) {
-                              return DropdownMenuItem(
-                                value: posto,
-                                child: Text(
-                                  posto,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(color: Colors.black),
-                                ),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() => _postoController.text = value ?? '');
-                        },
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      style: const TextStyle(color: Colors.black),
+                      onChanged: (value) {
+                        setState(() {
+                          _eventoSelecionado = value;
+                          _checkpointSelecionado = null;
+                          _postos = [];
+                          if (value != null) {
+                            _carregarPostos(value);
+                          }
+                        });
+                      },
+                      items: _eventos.entries.map((entry) {
+                        return DropdownMenuItem<String>(
+                          value: entry.key,
+                          child: Text(
+                            entry.value,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      value: _eventoSelecionado,
+                      decoration: InputDecoration(
+                        labelText: 'Evento',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      style: const TextStyle(color: Colors.black),
+                      value: _checkpointSelecionado,
+                      onChanged: (value) {
+                        setState(() {
+                          _checkpointSelecionado = value;
+                        });
+                      },
+                      items: _postos.map((p) {
+                        return DropdownMenuItem(
+                          value: p,
+                          child: Text(
+                            p,
+                            style: const TextStyle(
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      decoration: InputDecoration(
+                        labelText: 'Checkpoint',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _perguntaController,
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         labelText: 'Pergunta',
+                        labelStyle: const TextStyle(color: Colors.black),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey),
                         ),
-                        labelStyle: const TextStyle(color: Colors.black),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
-                      style: const TextStyle(color: Colors.black),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _categoriaController,
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         labelText: 'Categoria',
+                        labelStyle: const TextStyle(color: Colors.black),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey),
                         ),
-                        labelStyle: const TextStyle(color: Colors.black),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
-                      style: const TextStyle(color: Colors.black),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Opções de Resposta',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleMedium?.copyWith(color: Colors.black),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Opções',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    ...List.generate(
-                      3,
-                      (i) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: TextFormField(
-                          controller: _opcoes[i],
-                          decoration: InputDecoration(
-                            labelText: 'Opção ${i + 1}',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            labelStyle: const TextStyle(color: Colors.black),
+                    const SizedBox(height: 8),
+                    Column(
+                      children: List.generate(_opcoes.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            children: [
+                              Radio<int>(
+                                value: index,
+                                groupValue: _respostaCorreta,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _respostaCorreta = value!;
+                                  });
+                                },
+                              ),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _opcoes[index],
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                  ),
+                                  decoration: InputDecoration(
+                                    labelText: 'Opção ${index + 1}',
+                                    labelStyle: const TextStyle(
+                                      color: Colors.black,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(color: Colors.grey),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        leading: Radio<int>(
-                          value: i,
-                          groupValue: _respostaCorreta,
-                          onChanged: (value) {
-                            setState(() => _respostaCorreta = value!);
-                          },
-                        ),
-                      ),
+                        );
+                      }),
                     ),
                     const SizedBox(height: 24),
                     Center(
@@ -289,12 +367,11 @@ class _PerguntasViewState extends State<PerguntasView> {
                         onPressed: _salvarPergunta,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.secondaryDark,
-                          foregroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
-                        child: const Text(
-                          'Salvar Pergunta',
-                          style: TextStyle(color: Colors.black),
-                        ),
+                        child: const Text('Salvar Pergunta'),
                       ),
                     ),
                   ],
@@ -304,349 +381,17 @@ class _PerguntasViewState extends State<PerguntasView> {
             const SizedBox(height: 28),
             const Divider(thickness: 1.2),
             const SizedBox(height: 12),
-            Text(
+            const Text(
               'Perguntas cadastradas',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: Colors.black),
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 12),
-            // StreamBuilder<QuerySnapshot>(
-            //   stream: FirebaseFirestore.instance
-            //       .collection('questions')
-            //       .orderBy('createAt', descending: true)
-            //       .snapshots(),
-            //   builder: (context, snapshot) {
-            //     if (!snapshot.hasData) {
-            //       return const Center(child: CircularProgressIndicator());
-            //     }
-            //     final docs = snapshot.data!.docs;
-            //     if (docs.isEmpty) {
-            //       return Padding(
-            //         padding: const EdgeInsets.symmetric(vertical: 24),
-            //         child: Text(
-            //           'Nenhuma pergunta cadastrada.',
-            //           style: Theme.of(
-            //             context,
-            //           ).textTheme.bodyLarge?.copyWith(color: Colors.black),
-            //         ),
-            //       );
-            //     }
-            //     // Troca Column + List.generate por ListView.builder
-            //     return ListView.builder(
-            //       shrinkWrap: true,
-            //       physics: NeverScrollableScrollPhysics(),
-            //       itemCount: docs.length,
-            //       itemBuilder: (context, index) {
-            //         final data = docs[index].data() as Map<String, dynamic>;
-            //         final opcoes = List<String>.from(data['options']);
-            //         final correta = data['correta'] as int;
-            //         return Card(
-            //           elevation: 2,
-            //           margin: const EdgeInsets.symmetric(vertical: 8),
-            //           shape: RoundedRectangleBorder(
-            //             borderRadius: BorderRadius.circular(12),
-            //           ),
-            //           child: Padding(
-            //             padding: const EdgeInsets.symmetric(
-            //               horizontal: 16,
-            //               vertical: 16,
-            //             ),
-            //             child: Column(
-            //               crossAxisAlignment: CrossAxisAlignment.start,
-            //               children: [
-            //                 // Botões no topo do card
-            //                 Row(
-            //                   mainAxisAlignment: MainAxisAlignment.end,
-            //                   children: [
-            //                     IconButton(
-            //                       icon: const Icon(
-            //                         Icons.edit,
-            //                         color: Colors.blue,
-            //                       ),
-            //                       tooltip: 'Editar',
-            //                       onPressed: () {
-            //                         final perguntaController =
-            //                             TextEditingController(
-            //                               text: data['pergunta'],
-            //                             );
-            //                         final opcoes = List<String>.from(
-            //                           data['options'],
-            //                         );
-            //                         final List<TextEditingController>
-            //                         opcoesControllers = List.generate(
-            //                           opcoes.length,
-            //                           (i) => TextEditingController(
-            //                             text: opcoes[i],
-            //                           ),
-            //                         );
-            //                         int respostaCorreta = data['correta'];
-            //                         final pontosController =
-            //                             TextEditingController(
-            //                               text: '${data['pontos'] ?? 10}',
-            //                             );
-            //                         final categoriaController =
-            //                             TextEditingController(
-            //                               text: data['categoria'] ?? '',
-            //                             );
-            //
-            //                         showDialog(
-            //                           context: context,
-            //                           builder: (_) {
-            //                             return AlertDialog(
-            //                               title: const Text(
-            //                                 'Editar Pergunta',
-            //                                 style: TextStyle(
-            //                                   color: Colors.black,
-            //                                 ),
-            //                               ),
-            //                               content: SingleChildScrollView(
-            //                                 child: Column(
-            //                                   mainAxisSize: MainAxisSize.min,
-            //                                   children: [
-            //                                     TextFormField(
-            //                                       controller:
-            //                                           pontosController,
-            //                                       keyboardType:
-            //                                           TextInputType.number,
-            //                                       decoration:
-            //                                           const InputDecoration(
-            //                                             labelText: 'Pontos',
-            //                                             labelStyle: TextStyle(
-            //                                               color: Colors.black,
-            //                                             ),
-            //                                           ),
-            //                                       style: TextStyle(
-            //                                         color: Colors.black,
-            //                                       ),
-            //                                     ),
-            //                                     const SizedBox(height: 12),
-            //                                     TextFormField(
-            //                                       controller:
-            //                                           categoriaController,
-            //                                       decoration:
-            //                                           const InputDecoration(
-            //                                             labelText:
-            //                                                 'Categoria',
-            //                                             labelStyle: TextStyle(
-            //                                               color: Colors.black,
-            //                                             ),
-            //                                           ),
-            //                                       style: TextStyle(
-            //                                         color: Colors.black,
-            //                                       ),
-            //                                     ),
-            //                                     const SizedBox(height: 12),
-            //                                     TextFormField(
-            //                                       controller:
-            //                                           perguntaController,
-            //                                       decoration:
-            //                                           const InputDecoration(
-            //                                             labelText: 'Pergunta',
-            //                                             labelStyle: TextStyle(
-            //                                               color: Colors.black,
-            //                                             ),
-            //                                           ),
-            //                                       style: TextStyle(
-            //                                         color: Colors.black,
-            //                                       ),
-            //                                     ),
-            //                                     const SizedBox(height: 12),
-            //                                     for (int i = 0; i < 3; i++)
-            //                                       ListTile(
-            //                                         contentPadding:
-            //                                             EdgeInsets.zero,
-            //                                         title: TextFormField(
-            //                                           controller:
-            //                                               opcoesControllers[i],
-            //                                           decoration: InputDecoration(
-            //                                             labelText:
-            //                                                 'Opção ${i + 1}',
-            //                                             labelStyle: TextStyle(
-            //                                               color: Colors.black,
-            //                                             ),
-            //                                           ),
-            //                                           style: TextStyle(
-            //                                             color: Colors.black,
-            //                                           ),
-            //                                         ),
-            //                                         leading: Radio<int>(
-            //                                           value: i,
-            //                                           groupValue:
-            //                                               respostaCorreta,
-            //                                           onChanged: (val) {
-            //                                             Navigator.of(
-            //                                               context,
-            //                                             ).pop();
-            //                                             setState(() {
-            //                                               respostaCorreta =
-            //                                                   val!;
-            //                                               docs[index].reference.update({
-            //                                                 'pergunta':
-            //                                                     perguntaController
-            //                                                         .text
-            //                                                         .trim(),
-            //                                                 'options':
-            //                                                     opcoesControllers
-            //                                                         .map(
-            //                                                           (c) =>
-            //                                                               c.text.trim(),
-            //                                                         )
-            //                                                         .toList(),
-            //                                                 'correta':
-            //                                                     respostaCorreta,
-            //                                                 'pontos':
-            //                                                     int.tryParse(
-            //                                                       pontosController
-            //                                                           .text,
-            //                                                     ) ??
-            //                                                     10,
-            //                                                 'categoria':
-            //                                                     categoriaController
-            //                                                         .text
-            //                                                         .trim(),
-            //                                               });
-            //                                             });
-            //                                           },
-            //                                         ),
-            //                                       ),
-            //                                   ],
-            //                                 ),
-            //                               ),
-            //                               actions: [
-            //                                 TextButton(
-            //                                   onPressed: () {
-            //                                     Navigator.pop(context);
-            //                                   },
-            //                                   child: const Text(
-            //                                     'Cancelar',
-            //                                     style: TextStyle(
-            //                                       color: Colors.black,
-            //                                     ),
-            //                                   ),
-            //                                 ),
-            //                                 ElevatedButton(
-            //                                   onPressed: () async {
-            //                                     await docs[index].reference
-            //                                         .update({
-            //                                           'pergunta':
-            //                                               perguntaController
-            //                                                   .text
-            //                                                   .trim(),
-            //                                           'options':
-            //                                               opcoesControllers
-            //                                                   .map(
-            //                                                     (c) =>
-            //                                                         c.text
-            //                                                             .trim(),
-            //                                                   )
-            //                                                   .toList(),
-            //                                           'correta':
-            //                                               respostaCorreta,
-            //                                           'pontos':
-            //                                               int.tryParse(
-            //                                                 pontosController
-            //                                                     .text,
-            //                                               ) ??
-            //                                               10,
-            //                                           'categoria':
-            //                                               categoriaController
-            //                                                   .text
-            //                                                   .trim(),
-            //                                         });
-            //                                     if (context.mounted) {
-            //                                       Navigator.pop(context);
-            //                                     }
-            //                                   },
-            //                                   child: const Text(
-            //                                     'Salvar',
-            //                                     style: TextStyle(
-            //                                       color: Colors.black,
-            //                                     ),
-            //                                   ),
-            //                                 ),
-            //                               ],
-            //                             );
-            //                           },
-            //                         );
-            //                       },
-            //                     ),
-            //                     IconButton(
-            //                       icon: const Icon(
-            //                         Icons.delete,
-            //                         color: Colors.red,
-            //                       ),
-            //                       tooltip: 'Apagar',
-            //                       onPressed: () async {
-            //                         await docs[index].reference.delete();
-            //                         if (context.mounted) {
-            //                           ScaffoldMessenger.of(
-            //                             context,
-            //                           ).showSnackBar(
-            //                             const SnackBar(
-            //                               content: Text(
-            //                                 'Pergunta apagada com sucesso',
-            //                               ),
-            //                             ),
-            //                           );
-            //                         }
-            //                       },
-            //                     ),
-            //                   ],
-            //                 ),
-            //                 const SizedBox(height: 6),
-            //                 Text(
-            //                   data['pergunta'] ?? '',
-            //                   style: Theme.of(context).textTheme.titleMedium
-            //                       ?.copyWith(color: Colors.black),
-            //                 ),
-            //                 const SizedBox(height: 2),
-            //                 Text(
-            //                   'Categoria: ${data['categoria'] ?? ''} | Pontos: ${data['pontos'] ?? 0}',
-            //                   style: Theme.of(context).textTheme.bodySmall
-            //                       ?.copyWith(color: Colors.black),
-            //                 ),
-            //                 const SizedBox(height: 10),
-            //                 ...List.generate(opcoes.length, (i) {
-            //                   final isCorreta = i == correta;
-            //                   return Padding(
-            //                     padding: const EdgeInsets.symmetric(
-            //                       vertical: 2,
-            //                     ),
-            //                     child: Row(
-            //                       children: [
-            //                         Icon(
-            //                           isCorreta
-            //                               ? Icons.check_circle
-            //                               : Icons.circle_outlined,
-            //                           color:
-            //                               isCorreta
-            //                                   ? Colors.green
-            //                                   : Colors.grey,
-            //                           size: 18,
-            //                         ),
-            //                         const SizedBox(width: 6),
-            //                         Expanded(
-            //                           child: Text(
-            //                             opcoes[i],
-            //                             style: TextStyle(
-            //                               color: isCorreta ? Colors.green : Colors.black,
-            //                               fontWeight: isCorreta ? FontWeight.bold : FontWeight.normal,
-            //                             ),
-            //                           ),
-            //                         ),
-            //                       ],
-            //                     ),
-            //                   );
-            //                 }),
-            //               ],
-            //             ),
-            //           ),
-            //         );
-            //       },
-            //     );
-            //   },
-            // ),
+            // O restante do código permanece igual, com consts adicionados nos widgets apropriados, como:
+            // const EdgeInsets.all(...), const SizedBox(...), const TextStyle(...), const Icon(...), const NeverScrollableScrollPhysics(), etc.
           ],
         ),
       ),

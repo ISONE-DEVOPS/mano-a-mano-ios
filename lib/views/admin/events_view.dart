@@ -98,6 +98,44 @@ class _EventsViewState extends State<EventsView> {
                       ),
                     ),
                   ),
+                  // DESCRIÇÃO column
+                  DataColumn(
+                    label: Text(
+                      'DESCRIÇÃO',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  // ENTIDADE column
+                  DataColumn(
+                    label: Text(
+                      'ENTIDADE',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'STATUS',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'CHECKPOINTS',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
                   DataColumn(
                     label: Text(
                       'AÇÕES / PERCURSO',
@@ -111,8 +149,7 @@ class _EventsViewState extends State<EventsView> {
                 rows:
                     docs.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
-                      final dataEvento =
-                          (data['data_event'] as Timestamp?)?.toDate();
+                      final dataEvento = (data['data'] as Timestamp?)?.toDate();
                       final dataTexto =
                           dataEvento != null
                               ? DateFormat(
@@ -178,6 +215,71 @@ class _EventsViewState extends State<EventsView> {
                               ),
                             ),
                           ),
+                          // DESCRIÇÃO column
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                data['descricao'] ?? '',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          // ENTIDADE column
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                data['entidade'] ?? '',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          // STATUS column
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: Text(
+                                data['status'] == true ? 'Ativo' : 'Inativo',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: Colors.black87),
+                              ),
+                            ),
+                          ),
+                          // CHECKPOINTS column
+                          DataCell(
+                            Container(
+                              decoration: cellDecoration,
+                              padding: cellPadding,
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream:
+                                    FirebaseFirestore.instance
+                                        .collection('editions')
+                                        .doc(widget.edicaoId)
+                                        .collection('events')
+                                        .doc(doc.id)
+                                        .collection('checkpoints')
+                                        .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const Text('...');
+                                  }
+                                  return Text(
+                                    '${snapshot.data!.docs.length}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(color: Colors.black87),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                           DataCell(
                             Row(
                               children: [
@@ -216,7 +318,7 @@ class _EventsViewState extends State<EventsView> {
                                     );
                                   },
                                 ),
-                                // Ver percurso
+                                /*
                                 IconButton(
                                   icon: const Icon(
                                     Icons.map,
@@ -254,6 +356,7 @@ class _EventsViewState extends State<EventsView> {
                                     );
                                   },
                                 ),
+                                */
                                 // Editar evento
                                 IconButton(
                                   icon: const Icon(
@@ -477,7 +580,7 @@ class _EventsViewState extends State<EventsView> {
                         'local': _localController.text.trim(),
                         'price':
                             double.tryParse(_priceController.text.trim()) ?? 0,
-                        'data_event': _selectedDate,
+                        'data_event': Timestamp.fromDate(_selectedDate!),
                         'status': _status,
                         'percurso': <Map<String, dynamic>>[],
                         'checkpoints': <Map<String, dynamic>>[],
@@ -637,7 +740,7 @@ class _EventsViewState extends State<EventsView> {
                           'local': localController.text.trim(),
                           'price':
                               double.tryParse(priceController.text.trim()) ?? 0,
-                          'data_event': selectedDate,
+                          'data_event': Timestamp.fromDate(selectedDate!),
                           'status': status,
                         });
                         if (!context.mounted) return;

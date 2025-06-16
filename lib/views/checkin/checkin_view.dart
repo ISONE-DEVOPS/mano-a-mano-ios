@@ -89,6 +89,27 @@ class _CheckinViewState extends State<CheckinView> {
                             'checkpoints.$posto.ultima_leitura': now,
                           });
 
+                      // Registra pontuação inicial ou atualização do checkpoint do user
+                      const eventId = 'shell_2025'; // pode ser dinâmico se necessário
+
+                      final pontuacaoRef = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .collection('eventos')
+                          .doc(eventId)
+                          .collection('pontuacoes')
+                          .doc(posto);
+
+                      await pontuacaoRef.set({
+                        'checkpointId': posto,
+                        'resposta1Correta': false,
+                        'resposta2Correta': false,
+                        'pontuacaoJogo': 0,
+                        'pontuacaoTotal': 0,
+                        'timestampEntrada': tipo == 'entrada' ? now : null,
+                        'timestampSaida': tipo == 'saida' ? now : null,
+                      }, SetOptions(merge: true));
+
                       setState(
                         () =>
                             resultMessage =

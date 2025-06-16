@@ -6,9 +6,9 @@ import 'participantes_view.dart';
 import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
 import 'generate_qr_view.dart';
-import 'perguntas_view.dart';
-import 'jogos_create_view.dart';
-import 'final_activities_view.dart';
+import 'perguntas_view.dart' as perguntas_view;
+//import 'jogos_create_view.dart';
+//import 'final_activities_view.dart';
 import 'ranking_detailed_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 import 'package:mano_mano_dashboard/widgets/shared/custom_navigation_rail.dart';
@@ -168,11 +168,8 @@ class _AdminViewState extends State<AdminView> {
     const DashboardAdminView(),
     const EditionView(),
     const GenerateQrView(),
-    const PerguntasView(),
-    const JogosCreateView(),
-    FinalActivitiesView(),
+    const perguntas_view.PerguntasView(),
     const RankingDetailedView(),
-    const Placeholder(), // Percurso (temporário)
     const ParticipantesView(),
   ];
 
@@ -181,10 +178,7 @@ class _AdminViewState extends State<AdminView> {
     'Edições',
     'QR Codes',
     'Perguntas',
-    'Jogos',
-    'Atividades Finais',
     'Ranking Detalhado',
-    'Percurso',
     'Participantes',
   ];
 
@@ -248,11 +242,21 @@ class _AdminViewState extends State<AdminView> {
                           ),
                         ),
                       CustomTopBar(
-                        title: _menuTitles[_selectedIndex],
+                        title:
+                            _menuTitles.asMap().containsKey(_selectedIndex)
+                                ? _menuTitles[_selectedIndex]
+                                : '',
                         onScanPressed:
                             () => Navigator.pushNamed(context, '/scan-score'),
                       ),
-                      Expanded(child: _pages[_selectedIndex]),
+                      Expanded(
+                        child:
+                            _pages.asMap().containsKey(_selectedIndex)
+                                ? _pages[_selectedIndex]
+                                : const Center(
+                                  child: Text('Página não encontrada'),
+                                ),
+                      ),
                     ],
                   ),
                 ),

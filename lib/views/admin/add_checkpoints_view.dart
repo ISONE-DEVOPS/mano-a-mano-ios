@@ -22,6 +22,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
 
+  final _percursoController = TextEditingController();
+  final _tempoMinimoController = TextEditingController();
+  final _pergunta1IdController = TextEditingController();
+  final _pergunta2IdController = TextEditingController();
+  final _jogoIdController = TextEditingController();
+
   bool _usarGeo = false;
 
   @override
@@ -71,11 +77,21 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           'lat': lat ?? 0.0,
           'lng': lng ?? 0.0,
           'origem': _usarGeo ? 'geolocalizacao' : 'manual',
+          'percurso': _percursoController.text.trim(),
+          'tempoMinimo': int.tryParse(_tempoMinimoController.text.trim()) ?? 1,
+          'pergunta1Id': _pergunta1IdController.text.trim(),
+          'pergunta2Id': _pergunta2IdController.text.trim(),
+          'jogoId': _jogoIdController.text.trim(),
         });
         _postoController.clear();
         _nomeController.clear();
         _latController.clear();
         _lngController.clear();
+        _percursoController.clear();
+        _tempoMinimoController.clear();
+        _pergunta1IdController.clear();
+        _pergunta2IdController.clear();
+        _jogoIdController.clear();
       });
     }
   }
@@ -99,10 +115,19 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
       final docRef = ref.doc();
       batch.set(docRef, {
         'nome': item['name'],
-        'descricao': '',
         'ordem': item['codigo'],
         'localizacao': GeoPoint(item['lat'], item['lng']),
         'origem': item['origem'],
+        'codigo': item['posto'],
+        'percurso': item['percurso'] ?? '',
+        'pergunta1Ref': FirebaseFirestore.instance
+            .collection('perguntas')
+            .doc(item['pergunta1Id']),
+        'pergunta2Ref': FirebaseFirestore.instance
+            .collection('perguntas')
+            .doc(item['pergunta2Id']),
+        'tempoMinimo': item['tempoMinimo'] ?? 1,
+        'jogoId': item['jogoId'] ?? '',
       });
     }
     try {
@@ -196,72 +221,149 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
       const SizedBox(height: 12),
       Form(
         key: _formKey,
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: TextFormField(
-                controller: _postoController,
-                decoration: const InputDecoration(
-                  labelText: 'Código do Posto (Ex: cidadeela)',
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _postoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Código do Posto (Ex: cidadeela)',
+                    ),
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
+                  ),
                 ),
-                validator:
-                    (value) =>
-                        value == null || value.isEmpty
-                            ? 'Campo obrigatório'
-                            : null,
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _nomeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do Checkpoint',
+                    ),
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (!_usarGeo) ...[
+                  Expanded(
+                    child: TextFormField(
+                      controller: _latController,
+                      decoration: const InputDecoration(labelText: 'Latitude'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (!_usarGeo && (value == null || value.isEmpty)) {
+                          return 'Campo obrigatório';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lngController,
+                      decoration: const InputDecoration(labelText: 'Longitude'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (!_usarGeo && (value == null || value.isEmpty)) {
+                          return 'Campo obrigatório';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+                IconButton(
+                  onPressed: _addCheckpoint,
+                  icon: const Icon(
+                    Icons.add_circle,
+                    color: AppColors.secondaryDark,
+                  ),
+                  tooltip: 'Adicionar',
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextFormField(
-                controller: _nomeController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do Checkpoint',
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _percursoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Percurso (A ou B)',
+                      labelStyle: TextStyle(color: Colors.black),
+                    ),
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
-                validator:
-                    (value) =>
-                        value == null || value.isEmpty
-                            ? 'Campo obrigatório'
-                            : null,
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _tempoMinimoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tempo Mínimo',
+                      labelStyle: TextStyle(color: Colors.black),
+                    ),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.black),
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty) {
+                        final n = int.tryParse(value);
+                        if (n == null || n < 0) {
+                          return 'Valor inválido';
+                        }
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            if (!_usarGeo) ...[
-              Expanded(
-                child: TextFormField(
-                  controller: _latController,
-                  decoration: const InputDecoration(labelText: 'Latitude'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (!_usarGeo && (value == null || value.isEmpty)) {
-                      return 'Campo obrigatório';
-                    }
-                    return null;
-                  },
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _pergunta1IdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pergunta 1 ID',
+                      labelStyle: TextStyle(color: Colors.black),
+                    ),
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  controller: _lngController,
-                  decoration: const InputDecoration(labelText: 'Longitude'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (!_usarGeo && (value == null || value.isEmpty)) {
-                      return 'Campo obrigatório';
-                    }
-                    return null;
-                  },
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _pergunta2IdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pergunta 2 ID',
+                      labelStyle: TextStyle(color: Colors.black),
+                    ),
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
-              ),
-            ],
-            IconButton(
-              onPressed: _addCheckpoint,
-              icon: const Icon(
-                Icons.add_circle,
-                color: AppColors.secondaryDark,
-              ),
-              tooltip: 'Adicionar',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _jogoIdController,
+                    decoration: const InputDecoration(
+                      labelText: 'Jogo ID',
+                      labelStyle: TextStyle(color: Colors.black),
+                    ),
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -305,6 +407,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                         _latController.text = item['lat'].toString();
                         _lngController.text = item['lng'].toString();
                         _usarGeo = item['origem'] == 'geolocalizacao';
+                        _percursoController.text = item['percurso'] ?? '';
+                        _tempoMinimoController.text =
+                            (item['tempoMinimo'] ?? '').toString();
+                        _pergunta1IdController.text = item['pergunta1Id'] ?? '';
+                        _pergunta2IdController.text = item['pergunta2Id'] ?? '';
+                        _jogoIdController.text = item['jogoId'] ?? '';
                         _checkpoints.removeAt(index);
                       });
                     },
@@ -361,6 +469,8 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
         child: StreamBuilder<QuerySnapshot>(
           stream:
               FirebaseFirestore.instance
+                  .collection('editions')
+                  .doc(edicaoId)
                   .collection('events')
                   .doc(eventId)
                   .collection('checkpoints')
@@ -384,13 +494,36 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 final data = docs[index].data()! as Map<String, dynamic>;
+                String pergunta1Id = '';
+                String pergunta2Id = '';
+                if (data['pergunta1Ref'] != null) {
+                  try {
+                    pergunta1Id =
+                        (data['pergunta1Ref'] as DocumentReference).id;
+                  } catch (_) {}
+                } else if (data['pergunta1Id'] != null) {
+                  pergunta1Id = data['pergunta1Id'];
+                }
+                if (data['pergunta2Ref'] != null) {
+                  try {
+                    pergunta2Id =
+                        (data['pergunta2Ref'] as DocumentReference).id;
+                  } catch (_) {}
+                } else if (data['pergunta2Id'] != null) {
+                  pergunta2Id = data['pergunta2Id'];
+                }
                 return ListTile(
                   title: Text(
                     '${data['nome']} (${data['codigo'] ?? data['ordem'] ?? ''})',
                     style: const TextStyle(color: Colors.black),
                   ),
                   subtitle: Text(
-                    'Origem: ${data['origem']}',
+                    'Origem: ${data['origem']}'
+                    ' | Percurso: ${data['percurso'] ?? ''}'
+                    ' | Tempo Mínimo: ${data['tempoMinimo'] ?? ''}'
+                    ' | Pergunta1Id: $pergunta1Id'
+                    ' | Pergunta2Id: $pergunta2Id'
+                    ' | JogoId: ${data['jogoId'] ?? ''}',
                     style: const TextStyle(color: Colors.black),
                   ),
                 );

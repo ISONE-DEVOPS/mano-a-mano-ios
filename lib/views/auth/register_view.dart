@@ -44,6 +44,29 @@ class _RegisterViewState extends State<RegisterView> {
 
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
+
+    // Verificação de limite de equipas considerando apenas equipas com pelo menos um membro do tipo "user"
+    final equipasSnapshot =
+        await FirebaseFirestore.instance.collection('equipas').get();
+    final usersSnapshot =
+        await FirebaseFirestore.instance.collection('users').get();
+    final userTypes = {
+      for (var doc in usersSnapshot.docs) doc.id: doc.data()['role'] ?? 'user',
+    };
+
+    final validEquipas =
+        equipasSnapshot.docs.where((doc) {
+          final membros = List<String>.from(doc.data()['membros'] ?? []);
+          return membros.any((uid) => userTypes[uid] == 'user');
+        }).length;
+
+    if (validEquipas >= 42) {
+      setState(() {
+        _error = 'Inscrições encerradas.';
+      });
+      return;
+    }
+
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() => _error = 'As senhas não coincidem');
       return;
@@ -216,6 +239,18 @@ class _RegisterViewState extends State<RegisterView> {
         // 'ultimoLogin' removido do set() inicial
       });
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
+
+      // Registo do evento atual na subcoleção 'eventos' do utilizador
+      debugPrint(
+        '🔁 Criando subcoleção events para $uid e evento $_selectedEventId',
+      );
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('events')
+          .doc(_selectedEventId)
+          .set({'eventoId': _selectedEventId, 'checkpointsVisitados': []});
+      debugPrint('✅ Subcoleção events criada com sucesso');
 
       // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
       try {

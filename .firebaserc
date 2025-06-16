@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "mano-mano-dashboard-b7a75"
-  }
+    "default": "mano-mano-dashboard-b7a75",
+    "shell": "mano-mano-dashboard-b7a75"
+  },
+  "targets": {},
+  "etags": {}
 }
