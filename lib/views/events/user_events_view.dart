@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
-import '../../widgets/shared/nav_topbar.dart';
 import '../../widgets/shared/nav_bottom.dart';
-import '../../theme/app_colors.dart';
 
 class UserEventsView extends StatefulWidget {
   const UserEventsView({super.key});
@@ -16,111 +12,89 @@ class UserEventsView extends StatefulWidget {
 }
 
 class _UserEventsViewState extends State<UserEventsView> {
-  late Future<List<Map<String, dynamic>>> _futureEventos;
-  String _userName = '';
-  String _location = 'Localização indisponível';
+  late Future<List<Map<String, dynamic>>> _futureEdicoes;
 
   @override
   void initState() {
     super.initState();
-    _futureEventos = _loadUserEvents();
-    _loadUserData();
-    _loadLocation();
+    _futureEdicoes = _loadEdicoesComEventos();
   }
 
-  Future<void> _loadUserData() async {
+  Future<List<Map<String, dynamic>>> _loadEdicoesComEventos() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-      final dadosUser = userDoc.data();
-      setState(() {
-        _userName = dadosUser?['nome'] ?? user.email ?? '';
-      });
-    }
-  }
+    if (user == null) return Future.error('not_logged_in');
 
-  Future<void> _loadLocation() async {
-    try {
-      Position pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-        ),
-      );
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        pos.latitude,
-        pos.longitude,
-      );
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        setState(() {
-          _location = [
-            if (place.subAdministrativeArea != null)
-              place.subAdministrativeArea,
-            if (place.locality != null) place.locality,
-            if (place.country != null) place.country,
-          ].where((e) => e != null && e.isNotEmpty).join(', ');
-        });
-      }
-    } catch (_) {
-      setState(() {
-        _location = 'Localização indisponível';
-      });
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> _loadUserEvents() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      // Não está logado, force login
-      return Future.error('not_logged_in');
-    }
-
-    final userDoc =
+    final userEventsSnapshot =
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
+            .collection('events')
             .get();
-    final dadosUser = userDoc.data();
-    if (dadosUser == null) return [];
 
-    // Suporte para múltiplos eventos
-    List<dynamic> eventosInscritos = [];
-    if (dadosUser['eventosInscritos'] != null) {
-      eventosInscritos =
-          List<String>.from(
-            dadosUser['eventosInscritos'],
-          ).map((e) => e.toString().split('/').last).toList();
-    } else if (dadosUser['eventoId'] != null) {
-      eventosInscritos = [dadosUser['eventoId'].toString().split('/').last];
+    final Set<String> inscritos =
+        userEventsSnapshot.docs
+            .where((doc) => doc.data()['ativo'] == true)
+            .map((doc) => doc.data()['eventoId'] as String)
+            .toSet();
+
+    final edicoesSnapshot =
+        await FirebaseFirestore.instance.collection('editions').get();
+
+    List<Map<String, dynamic>> edicoes = [];
+
+    for (final ed in edicoesSnapshot.docs) {
+      final edId = ed.id;
+      final eventosSnapshot =
+          await FirebaseFirestore.instance
+              .collection('editions')
+              .doc(edId)
+              .collection('events')
+              .get();
+
+      final eventos =
+          eventosSnapshot.docs.map((e) {
+            final data = e.data();
+            return {
+              'id': e.id,
+              'inscrito': inscritos.contains('editions/$edId/events/${e.id}'),
+              ...data,
+            };
+          }).toList();
+
+      edicoes.add({
+        'id': edId,
+        'nome': ed.data()['nome'] ?? edId,
+        'eventos': eventos,
+      });
     }
 
-    if (eventosInscritos.isEmpty) return [];
-
-    final eventsQuery =
-        await FirebaseFirestore.instance
-            .collection('events')
-            .where(FieldPath.documentId, whereIn: eventosInscritos)
-            .get();
-
-    return eventsQuery.docs.map((e) => {'id': e.id, ...e.data()}).toList();
+    return edicoes;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(96),
-        child: NavTopBar(location: _location, userName: _userName),
+      appBar: AppBar(title: const Text('Eventos'), centerTitle: true),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 1,
+        onTap: (index) {
+          if (index != 1) {
+            Navigator.pushReplacementNamed(
+              context,
+              [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index],
+            );
+          }
+        },
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 1),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _futureEventos,
+        future: _futureEdicoes,
         builder: (ctx, snapshot) {
-          // Caso usuário não logado
           if (snapshot.hasError && snapshot.error == 'not_logged_in') {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.of(context).pushReplacementNamed('/login');
@@ -130,48 +104,42 @@ class _UserEventsViewState extends State<UserEventsView> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('Você não está inscrito em nenhum evento.'),
-            );
+          if (!snapshot.hasData ||
+              snapshot.data == null ||
+              snapshot.data!.isEmpty) {
+            return const Center(child: Text('Nenhuma edição encontrada.'));
           }
-          final eventos = snapshot.data!;
+          final edicoes = snapshot.data!;
           return ListView.builder(
-            itemCount: eventos.length,
+            itemCount: edicoes.length,
             itemBuilder: (ctx, i) {
-              final evento = eventos[i];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  title: Text(evento['nome'] ?? 'Evento'),
-                  subtitle: Text(
-                    evento['data_event'] != null
-                        ? DateFormat(
-                          'dd/MM/yyyy HH:mm',
-                        ).format((evento['data_event'] as Timestamp).toDate())
-                        : '',
-                  ),
-                  trailing: ElevatedButton.icon(
-                    onPressed:
-                        evento['id'] != null
-                            ? () {
-                              Navigator.of(context).pushNamed(
-                                '/route-map',
-                                arguments: evento['id'],
-                              );
-                            }
-                            : null,
-                    icon: const Icon(Icons.map),
-                    label: const Text('Ver Percurso'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
+              final ed = edicoes[i];
+              final eventos = ed['eventos'] as List<Map<String, dynamic>>;
+              return ExpansionTile(
+                title: Text(ed['nome'] ?? ed['id']),
+                children:
+                    eventos.map((evento) {
+                      return ListTile(
+                        title: Text(evento['nome'] ?? 'Evento'),
+                        subtitle: Text(
+                          evento['data'] != null
+                              ? DateFormat(
+                                'dd/MM/yyyy HH:mm',
+                              ).format((evento['data'] as Timestamp).toDate())
+                              : '',
+                        ),
+                        trailing: TextButton.icon(
+                          onPressed: () {
+                            // ação futura para abrir detalhes
+                          },
+                          icon: const Icon(
+                            Icons.info_outline,
+                            color: Colors.blue,
+                          ),
+                          label: const Text('Detalhes'),
+                        ),
+                      );
+                    }).toList(),
               );
             },
           );

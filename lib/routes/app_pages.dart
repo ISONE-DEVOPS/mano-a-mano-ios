@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../views/dashboard/home_view.dart';
 import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
@@ -48,7 +49,7 @@ class AppPages {
     GetPage(name: '/splash', page: () => const IntroSplashView()),
     GetPage(name: '/login', page: () => const LoginView()),
     GetPage(name: '/register', page: () => const RegisterView()),
-    // GetPage(name: '/home', page: () => const HomeView()),
+    GetPage(name: '/home', page: () => const HomeView()),
     GetPage(name: '/forgot-password', page: () => const ForgotPasswordView()),
 
     // Administração

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/shared/nav_bottom.dart';
@@ -36,7 +37,11 @@ class _CheckinViewState extends State<CheckinView> {
           children: [
             const Text(
               'Escaneie o QR Code do posto',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -62,13 +67,15 @@ class _CheckinViewState extends State<CheckinView> {
                     final uid = FirebaseAuth.instance.currentUser?.uid;
 
                     if (uid == null) {
-                      setState(() => resultMessage = 'Usuário não autenticado');
+                      setState(
+                        () => resultMessage = 'Utilizador não autenticado',
+                      );
                       return;
                     }
 
                     final now = DateTime.now().toUtc().toIso8601String();
                     final registroRef = FirebaseFirestore.instance
-                        .collection('cars')
+                        .collection('veiculos')
                         .doc(uid)
                         .collection('checkpoints')
                         .doc(posto)
@@ -82,7 +89,7 @@ class _CheckinViewState extends State<CheckinView> {
                       });
 
                       await FirebaseFirestore.instance
-                          .collection('cars')
+                          .collection('veiculos')
                           .doc(uid)
                           .update({
                             'checkpoints.$posto.$tipo': now,
@@ -90,7 +97,8 @@ class _CheckinViewState extends State<CheckinView> {
                           });
 
                       // Registra pontuação inicial ou atualização do checkpoint do user
-                      const eventId = 'shell_2025'; // pode ser dinâmico se necessário
+                      const eventId =
+                          'shell_2025'; // pode ser dinâmico se necessário
 
                       final pontuacaoRef = FirebaseFirestore.instance
                           .collection('users')
@@ -139,7 +147,7 @@ class _CheckinViewState extends State<CheckinView> {
                     _controller.stop();
 
                     if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/home');
+                      Get.offNamed('/home');
                     }
                   },
                 ),
@@ -177,7 +185,24 @@ class _CheckinViewState extends State<CheckinView> {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 2),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 2,
+        onTap: (index) {
+          // Atualize conforme necessário; exemplo simples:
+          if (index != 2) {
+            Navigator.pushReplacementNamed(
+              context,
+              [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index],
+            );
+          }
+        },
+      ),
     );
   }
 

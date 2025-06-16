@@ -59,7 +59,9 @@ class _HomeViewState extends State<HomeView> {
     try {
       final snapshot =
           await FirebaseFirestore.instance
-              .collection('eventos')
+              .collection('editions')
+              .doc('shell_2025')
+              .collection('events')
               .where('ativo', isEqualTo: true)
               .limit(1)
               .get();
@@ -211,7 +213,7 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: NavTopBar(
               location: 'Localização indisponível',
               userName: '',
@@ -229,6 +231,7 @@ class _HomeViewState extends State<HomeView> {
             label: const Text(
               'Tentar Novamente',
               style: TextStyle(color: Colors.white),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -308,6 +311,27 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData) {
+          // Usuário não autenticado
+          return const Scaffold(
+            body: Center(child: Text('Usuário não autenticado')),
+          );
+        }
+
+        return _buildHomeContent(context);
+      },
+    );
+  }
+
+  Widget _buildHomeContent(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(40),
@@ -731,7 +755,21 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
       // floatingActionButton removido conforme solicitado.
-      bottomNavigationBar: BottomNavBar(currentIndex: _selectedIndex),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          // Atualize conforme necessário
+          if (index != _selectedIndex) {
+            Navigator.pushReplacementNamed(context, [
+              '/home',
+              '/my-events',
+              '/checkin',
+              '/ranking',
+              '/profile',
+            ][index]);
+          }
+        },
+      ),
     );
   }
 }

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../widgets/shared/nav_bottom.dart';
-import '../../widgets/shared/nav_topbar.dart';
 
 class InfoTile extends StatelessWidget {
   final String label;
@@ -22,7 +21,7 @@ class ProfileView extends StatelessWidget {
 
   Future<Map<String, dynamic>> _getUserAndCarData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception('Usuário não autenticado');
+    if (uid == null) throw Exception('Utilizador não autenticado');
 
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -34,10 +33,13 @@ class ProfileView extends StatelessWidget {
     }
 
     final carDoc =
-        await FirebaseFirestore.instance.collection('cars').doc(carId).get();
-    final carData = carDoc.data() ?? {};
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(carId)
+            .get();
+    final veiculoData = carDoc.data() ?? {};
 
-    return {'user': userData, 'car': carData};
+    return {'user': userData, 'veiculo': veiculoData};
   }
 
   @override
@@ -57,16 +59,13 @@ class ProfileView extends StatelessWidget {
         }
 
         final userData = snapshot.data!['user'] as Map<String, dynamic>;
-        final carData = snapshot.data!['car'] as Map<String, dynamic>;
-        final passageiros = carData['passageiros'] as List<dynamic>? ?? [];
+        final veiculoData = snapshot.data!['veiculo'] as Map<String, dynamic>;
+        final passageiros = veiculoData['passageiros'] as List<dynamic>? ?? [];
 
         return Scaffold(
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(100),
-            child: NavTopBar(
-              userName: userData['nome'] ?? '',
-              location: 'Perfil',
-            ),
+          appBar: AppBar(
+            title: const Text('Perfil'),
+            centerTitle: true,
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -94,9 +93,9 @@ class ProfileView extends StatelessWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                InfoTile('🚗 Modelo', carData['modelo'] ?? ''),
-                InfoTile('📋 Matrícula', carData['matricula'] ?? ''),
-                InfoTile('🔰 Dístico', carData['distico'] ?? ''),
+                InfoTile('🚗 Modelo', veiculoData['modelo'] ?? ''),
+                InfoTile('📋 Matrícula', veiculoData['matricula'] ?? ''),
+                InfoTile('🔰 Dístico', veiculoData['distico'] ?? ''),
                 const Divider(height: 32),
                 const Text(
                   'QR Code do Condutor:',
@@ -106,11 +105,11 @@ class ProfileView extends StatelessWidget {
                 Center(
                   child: QrImageView(
                     data:
-                      'UID: ${FirebaseAuth.instance.currentUser?.uid ?? ''}\n'
-                      'Nome: ${userData['nome'] ?? ''}\n'
-                      'Matrícula: ${carData['matricula'] ?? ''}\n'
-                      'Email: ${userData['email'] ?? ''}\n'
-                      'Telefone: ${userData['telefone'] ?? ''}',
+                        'UID: ${FirebaseAuth.instance.currentUser?.uid ?? ''}\n'
+                        'Nome: ${userData['nome'] ?? ''}\n'
+                        'Matrícula: ${veiculoData['matricula'] ?? ''}\n'
+                        'Email: ${userData['email'] ?? ''}\n'
+                        'Telefone: ${userData['telefone'] ?? ''}',
                     version: QrVersions.auto,
                     size: MediaQuery.of(context).size.width * 0.6,
                     backgroundColor: Colors.white,
@@ -135,7 +134,20 @@ class ProfileView extends StatelessWidget {
               ],
             ),
           ),
-          bottomNavigationBar: const BottomNavBar(currentIndex: 4),
+          bottomNavigationBar: BottomNavBar(
+            currentIndex: 4,
+            onTap: (index) {
+              if (index != 4) {
+                Navigator.pushReplacementNamed(context, [
+                  '/home',
+                  '/my-events',
+                  '/checkin',
+                  '/ranking',
+                  '/profile',
+                ][index]);
+              }
+            },
+          ),
         );
       },
     );

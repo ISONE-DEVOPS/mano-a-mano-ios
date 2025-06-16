@@ -265,7 +265,20 @@ class _EventRouteViewState extends State<EventRouteView> {
                     ),
                   ],
                 ),
-        bottomNavigationBar: const BottomNavBar(currentIndex: 1),
+        bottomNavigationBar: BottomNavBar(
+          currentIndex: 1,
+          onTap: (index) {
+            if (index != 1) {
+              Navigator.pushReplacementNamed(context, [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index]);
+            }
+          },
+        ),
       ),
     );
   }

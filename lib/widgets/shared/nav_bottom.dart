@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_colors.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
+  final ValueChanged<int> onTap;
 
-  const BottomNavBar({super.key, required this.currentIndex});
+  const BottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +20,6 @@ class BottomNavBar extends StatelessWidget {
       Icons.leaderboard,
       Icons.person,
     ];
-    final routes = ['/home', '/my-events', '/checkin', '/ranking', '/profile'];
     final labels = ['Home', 'Eventos', 'CheckPoint', 'Ranking', 'Perfil'];
 
     return Container(
@@ -26,16 +29,7 @@ class BottomNavBar extends StatelessWidget {
       ),
       child: BottomNavigationBar(
         currentIndex: currentIndex,
-        // Evita empilhamento de rotas e navegação desnecessária
-        onTap: (index) {
-          if (index == currentIndex) return;
-          final user = FirebaseAuth.instance.currentUser;
-          if (index != 0 && user == null) {
-            Navigator.of(context).pushReplacementNamed('/login');
-            return;
-          }
-          Navigator.of(context).pushReplacementNamed(routes[index]);
-        },
+        onTap: onTap,
         backgroundColor: Colors.transparent,
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,

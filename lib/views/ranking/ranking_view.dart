@@ -89,7 +89,20 @@ class RankingView extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 3),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 3,
+        onTap: (index) {
+          if (index != 3) {
+            Navigator.pushReplacementNamed(context, [
+              '/home',
+              '/my-events',
+              '/checkin',
+              '/ranking',
+              '/profile',
+            ][index]);
+          }
+        },
+      ),
     );
   }
 }

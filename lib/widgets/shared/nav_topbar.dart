@@ -44,59 +44,37 @@ class NavTopBar extends StatelessWidget {
                   ),
                 ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Sua localização',
-                        style: TextStyle(fontSize: 14, color: Colors.white70),
-                      ),
-                      Text(
-                        location.isNotEmpty
-                            ? location
-                            : 'Localização indisponível',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Sua localização',
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Data: $dataHoje',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
+                        Text(
+                          location.isNotEmpty
+                              ? location
+                              : 'Localização indisponível',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Data: $dataHoje',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  // Stack(
-                  //   children: [
-                  //     const Icon(
-                  //       Icons.notifications_none,
-                  //       size: 28,
-                  //       color: Colors.white,
-                  //     ),
-                  //     if (notifications > 0)
-                  //       Positioned(
-                  //         right: 0,
-                  //         child: CircleAvatar(
-                  //           radius: 8,
-                  //           backgroundColor: Colors.red,
-                  //           child: Text(
-                  //             '$notifications',
-                  //             style: const TextStyle(
-                  //               fontSize: 10,
-                  //               color: Colors.white,
-                  //             ),
-                  //           ),
-                  //         ),
-                  //       ),
-                  //   ],
-                  // ),
                 ],
               ),
             ],
