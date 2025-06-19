@@ -192,7 +192,7 @@ class ParticipantesView extends StatelessWidget {
 
                                     final buffer = StringBuffer();
                                     buffer.writeln(
-                                      'Condutor,Matricula,Modelo,Telefone,T-Shirt,Acompanhantes,Equipa',
+                                      'Condutor,Matricula,Modelo,Distico,Grupo,Telefone,T-Shirt,Acompanhantes,Equipa',
                                     );
 
                                     for (var doc in usersSnapshot.docs) {
@@ -206,6 +206,8 @@ class ParticipantesView extends StatelessWidget {
                                       final matricula =
                                           veiculo?['matricula'] ?? '';
                                       final modelo = veiculo?['modelo'] ?? '';
+                                      final distico = veiculo?['distico'] ?? '';
+                                      final grupo = veiculo?['grupo'] ?? '';
                                       final acompanhantes =
                                           (veiculo?['passageiros'] ?? [])
                                               .map(
@@ -221,6 +223,8 @@ class ParticipantesView extends StatelessWidget {
                                               nome,
                                               matricula,
                                               modelo,
+                                              distico,
+                                              grupo,
                                               telefone,
                                               tshirt,
                                               acompanhantes,
@@ -416,25 +420,34 @@ class ParticipantesView extends StatelessWidget {
                                                         DataCell(
                                                           Row(
                                                             children: [
-                                                              IconButton(
-                                                                icon: const Icon(
-                                                                  Icons.edit,
-                                                                  color:
-                                                                      Colors
-                                                                          .orange,
-                                                                ),
-                                                                tooltip:
-                                                                    'Editar Participante',
-                                                                onPressed: () {
-                                                                  Navigator.of(
-                                                                    context,
-                                                                  ).pushNamed(
-                                                                    '/register-participant',
-                                                                    arguments:
-                                                                        doc.id,
-                                                                  );
-                                                                },
-                                                              ),
+                                                              // IconButton(
+                                                              //   icon: const Icon(
+                                                              //     Icons.edit,
+                                                              //     color:
+                                                              //         Colors
+                                                              //             .orange,
+                                                              //   ),
+                                                              //   tooltip:
+                                                              //       'Editar Participante',
+                                                              //   onPressed: () {
+                                                              //     Navigator.of(
+                                                              //       context,
+                                                              //     ).pushNamed(
+                                                              //       '/register-participant',
+                                                              //       arguments: {
+                                                              //         'userId':
+                                                              //             doc.id,
+                                                              //         'grupo':
+                                                              //             (data['grupo'] ==
+                                                              //                         'A' ||
+                                                              //                     data['grupo'] ==
+                                                              //                         'B')
+                                                              //                 ? data['grupo']
+                                                              //                 : null,
+                                                              //       },
+                                                              //     );
+                                                              //   },
+                                                              // ),
                                                               IconButton(
                                                                 icon: const Icon(
                                                                   Icons.group,
@@ -707,11 +720,84 @@ class ParticipantesView extends StatelessWidget {
                                                                                             )
                                                                                             .update(
                                                                                               {
-                                                                                                'registro':
+                                                                                                'distico':
                                                                                                     value,
                                                                                               },
                                                                                             );
                                                                                       },
+                                                                                    ),
+                                                                                    const SizedBox(
+                                                                                      height:
+                                                                                          10,
+                                                                                    ),
+                                                                                    DropdownButtonFormField<
+                                                                                      String
+                                                                                    >(
+                                                                                      value:
+                                                                                          veiculo['grupo'],
+                                                                                      decoration: const InputDecoration(
+                                                                                        labelText:
+                                                                                            'Grupo',
+                                                                                        labelStyle: TextStyle(
+                                                                                          color:
+                                                                                              Colors.black,
+                                                                                        ),
+                                                                                        enabledBorder: UnderlineInputBorder(
+                                                                                          borderSide: BorderSide(
+                                                                                            color:
+                                                                                                Colors.black,
+                                                                                          ),
+                                                                                        ),
+                                                                                      ),
+                                                                                      items:
+                                                                                          [
+                                                                                            'A',
+                                                                                            'B',
+                                                                                          ].map(
+                                                                                            (
+                                                                                              String value,
+                                                                                            ) {
+                                                                                              return DropdownMenuItem<
+                                                                                                String
+                                                                                              >(
+                                                                                                value:
+                                                                                                    value,
+                                                                                                child: Text(
+                                                                                                  value,
+                                                                                                  style: const TextStyle(
+                                                                                                    color:
+                                                                                                        Colors.black,
+                                                                                                  ),
+                                                                                                ),
+                                                                                              );
+                                                                                            },
+                                                                                          ).toList(),
+                                                                                      onChanged: (
+                                                                                        String? newValue,
+                                                                                      ) async {
+                                                                                        if (newValue !=
+                                                                                            null) {
+                                                                                          await FirebaseFirestore.instance
+                                                                                              .collection(
+                                                                                                'veiculos',
+                                                                                              )
+                                                                                              .doc(
+                                                                                                veiculoId,
+                                                                                              )
+                                                                                              .update(
+                                                                                                {
+                                                                                                  'grupo':
+                                                                                                      newValue,
+                                                                                                },
+                                                                                              );
+                                                                                        }
+                                                                                      },
+                                                                                      style: const TextStyle(
+                                                                                        color:
+                                                                                            Colors.black,
+                                                                                      ),
+                                                                                      dropdownColor:
+                                                                                          Colors.white,
                                                                                     ),
                                                                                   ],
                                                                                 ),
@@ -1045,7 +1131,10 @@ class ParticipantesView extends StatelessWidget {
                                                                         ) => AlertDialog(
                                                                           title: const Text(
                                                                             'Eliminar Participante',
-                                                                            style: TextStyle(color: Colors.black),
+                                                                            style: TextStyle(
+                                                                              color:
+                                                                                  Colors.black,
+                                                                            ),
                                                                           ),
                                                                           content: const Text(
                                                                             'Tem certeza que deseja eliminar este participante, o veículo associado e a equipa?',
@@ -1064,7 +1153,10 @@ class ParticipantesView extends StatelessWidget {
                                                                                   ),
                                                                               child: const Text(
                                                                                 'Cancelar',
-                                                                                style: TextStyle(color: Colors.black),
+                                                                                style: TextStyle(
+                                                                                  color:
+                                                                                      Colors.black,
+                                                                                ),
                                                                               ),
                                                                             ),
                                                                             TextButton(
@@ -1076,7 +1168,10 @@ class ParticipantesView extends StatelessWidget {
                                                                                   ),
                                                                               child: const Text(
                                                                                 'Eliminar',
-                                                                                style: TextStyle(color: Colors.black),
+                                                                                style: TextStyle(
+                                                                                  color:
+                                                                                      Colors.black,
+                                                                                ),
                                                                               ),
                                                                             ),
                                                                           ],

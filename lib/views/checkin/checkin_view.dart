@@ -97,26 +97,51 @@ class _CheckinViewState extends State<CheckinView> {
                           });
 
                       // Registra pontuação inicial ou atualização do checkpoint do user
-                      const eventId =
-                          'shell_2025'; // pode ser dinâmico se necessário
+                    const eventId =
+                        'shell_2025'; // pode ser dinâmico se necessário
 
-                      final pontuacaoRef = FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(uid)
-                          .collection('eventos')
-                          .doc(eventId)
-                          .collection('pontuacoes')
-                          .doc(posto);
+                    // Assegura que o documento do evento existe na subcoleção 'eventos' do utilizador
+                    final eventoDocRef = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(uid)
+                        .collection('eventos')
+                        .doc(eventId);
+
+                    await eventoDocRef.set({
+                      'editionId': 'shell_2025',
+                      'grupo': 'A',
+                      'checkpointsVisitados': [],
+                      'pontuacaoTotal': 0,
+                      'tempoTotal': 0,
+                      'classificacao': 0,
+                    }, SetOptions(merge: true));
+
+                    final pontuacaoRef = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(uid)
+                        .collection('eventos')
+                        .doc(eventId)
+                        .collection('pontuacoes')
+                        .doc(posto);
 
                       await pontuacaoRef.set({
                         'checkpointId': posto,
-                        'resposta1Correta': false,
-                        'resposta2Correta': false,
+                        'respostaCorreta': false,
                         'pontuacaoJogo': 0,
                         'pontuacaoTotal': 0,
                         'timestampEntrada': tipo == 'entrada' ? now : null,
                         'timestampSaida': tipo == 'saida' ? now : null,
                       }, SetOptions(merge: true));
+
+                      // Atualiza a lista de checkpoints visitados do utilizador
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .update({
+                            'checkpointsVisitados': FieldValue.arrayUnion([
+                              posto,
+                            ]),
+                          });
 
                       setState(
                         () =>

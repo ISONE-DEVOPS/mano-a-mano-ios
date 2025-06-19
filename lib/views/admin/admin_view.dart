@@ -10,6 +10,7 @@ import 'perguntas_view.dart' as perguntas_view;
 import 'jogos_create_view.dart';
 //import 'final_activities_view.dart';
 import 'ranking_detailed_view.dart';
+import 'gestao_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 import 'package:mano_mano_dashboard/widgets/shared/custom_navigation_rail.dart';
 import 'package:mano_mano_dashboard/widgets/shared/custom_top_bar.dart';
@@ -172,6 +173,7 @@ class _AdminViewState extends State<AdminView> {
     const JogosCreateView(),
     const ParticipantesView(),
     const RankingDetailedView(),
+    const GestaoView(),
   ];
 
   final List<String> _menuTitles = [
@@ -182,6 +184,7 @@ class _AdminViewState extends State<AdminView> {
     'Jogos',
     'Participantes',
     'Ranking Detalhado',
+    'Gestão',
   ];
 
   @override

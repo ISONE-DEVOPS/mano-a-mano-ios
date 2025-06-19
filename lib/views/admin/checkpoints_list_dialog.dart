@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class CheckpointsListDialog extends StatelessWidget {
   final String edicaoId;
@@ -42,13 +41,19 @@ class CheckpointsListDialog extends StatelessWidget {
                           .collection('events')
                           .doc(eventId)
                           .collection('checkpoints')
-                          .orderBy('ordem')
                           .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     final docs = snapshot.data!.docs;
+                    docs.sort((a, b) {
+                      final aData = a.data() as Map<String, dynamic>;
+                      final bData = b.data() as Map<String, dynamic>;
+                      final aOrd = aData['ordemA'] ?? 0;
+                      final bOrd = bData['ordemA'] ?? 0;
+                      return aOrd.compareTo(bOrd);
+                    });
                     if (docs.isEmpty) {
                       return const Text(
                         'Nenhum checkpoint encontrado.',
@@ -64,13 +69,10 @@ class CheckpointsListDialog extends StatelessWidget {
                           final localizacao = data['localizacao'];
                           GeoPoint? ponto;
                           String coordenadas = 'não definida';
-                          String? mapsUrl;
                           if (localizacao is GeoPoint) {
                             ponto = localizacao;
                             coordenadas =
                                 '${ponto.latitude.toStringAsFixed(5)}, ${ponto.longitude.toStringAsFixed(5)}';
-                            mapsUrl =
-                                'https://www.google.com/maps/search/?api=1&query=${ponto.latitude},${ponto.longitude}';
                           }
                           return Card(
                             elevation: 2,
@@ -81,7 +83,7 @@ class CheckpointsListDialog extends StatelessWidget {
                               ),
                               child: ListTile(
                                 title: Text(
-                                  '${data['nome']} (${data['codigo'] ?? data['ordem'] ?? ''})',
+                                  '${data['nome']} • percurso: ${data['percurso'] ?? '-'}',
                                   style: const TextStyle(
                                     color: Colors.black87,
                                     fontWeight: FontWeight.w600,
@@ -106,6 +108,13 @@ class CheckpointsListDialog extends StatelessWidget {
                                         fontSize: 13,
                                       ),
                                     ),
+                                    Text(
+                                      'Ordem A: ${data['ordemA'] ?? '-'} | Ordem B: ${data['ordemB'] ?? '-'}',
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 13,
+                                      ),
+                                    ),
                                     if (data['pergunta1Ref'] != null)
                                       FutureBuilder<DocumentSnapshot>(
                                         future:
@@ -113,12 +122,23 @@ class CheckpointsListDialog extends StatelessWidget {
                                                     as DocumentReference)
                                                 .get(),
                                         builder: (context, snapshot) {
-                                          if (!snapshot.hasData) {
-                                            return const SizedBox();
+                                          if (!snapshot.hasData ||
+                                              !snapshot.data!.exists) {
+                                            return const Text(
+                                              'Pergunta: (não encontrada)',
+                                              style: TextStyle(
+                                                color: Colors.black54,
+                                              ),
+                                            );
                                           }
+                                          final raw =
+                                              snapshot.data!.data()
+                                                  as Map<String, dynamic>?;
                                           final texto =
-                                              snapshot.data!.get('texto') ??
-                                              '---';
+                                              raw?['texto'] ??
+                                              raw?['pergunta'] ??
+                                              raw?['pergunda'] ??
+                                              'Pergunta sem texto definido';
                                           return Text(
                                             'Pergunta: $texto',
                                             style: const TextStyle(
@@ -132,17 +152,6 @@ class CheckpointsListDialog extends StatelessWidget {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (mapsUrl != null)
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.map,
-                                          color: Colors.green,
-                                        ),
-                                        tooltip: 'Abrir no Google Maps',
-                                        onPressed:
-                                            () =>
-                                                launchUrl(Uri.parse(mapsUrl!)),
-                                      ),
                                     IconButton(
                                       icon: const Icon(
                                         Icons.edit,

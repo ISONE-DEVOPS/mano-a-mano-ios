@@ -86,8 +86,8 @@ class _PerguntasViewState extends State<PerguntasView> {
         // atualizar
         await FirebaseFirestore.instance
             .collection('perguntas')
-            .doc(_perguntaIdEmEdicao)
-            .update({
+            .doc(_perguntaIdEmEdicao!)
+            .set({
               'editionId': _edicaoSelecionada,
               'eventId': _eventoSelecionado,
               'pergunta': pergunta,
@@ -95,8 +95,7 @@ class _PerguntasViewState extends State<PerguntasView> {
               'respostas': opcoes,
               'respostaCerta': _respostaCorreta,
               'pontos': pontos,
-              // Não atualiza createdAt
-            });
+            }, SetOptions(merge: true));
       } else {
         // criar novo
         await FirebaseFirestore.instance.collection('perguntas').add({
@@ -449,7 +448,8 @@ class _PerguntasViewState extends State<PerguntasView> {
                   separatorBuilder: (_, _) => const Divider(),
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
-                    final isEditing = _perguntaIdEmEdicao == snapshot.data!.docs[index].id;
+                    final isEditing =
+                        _perguntaIdEmEdicao == snapshot.data!.docs[index].id;
                     return ListTile(
                       tileColor: isEditing ? Colors.yellow[100] : null,
                       title: Text(
@@ -528,13 +528,21 @@ class _PerguntasViewState extends State<PerguntasView> {
 
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Pergunta eliminada com sucesso')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'Pergunta eliminada com sucesso',
+                                        ),
+                                      ),
                                     );
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Erro ao eliminar pergunta: $e')),
+                                      SnackBar(
+                                        content: Text(
+                                          'Erro ao eliminar pergunta: $e',
+                                        ),
+                                      ),
                                     );
                                   }
                                 }

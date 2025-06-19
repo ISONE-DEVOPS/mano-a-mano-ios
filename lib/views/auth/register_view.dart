@@ -61,6 +61,7 @@ class _RegisterViewState extends State<RegisterView> {
         }).length;
 
     if (validEquipas >= 42) {
+      if (!mounted) return;
       setState(() {
         _error = 'Inscrições encerradas.';
       });
@@ -68,6 +69,7 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
+      if (!mounted) return;
       setState(() => _error = 'As senhas não coincidem');
       return;
     }
@@ -83,6 +85,7 @@ class _RegisterViewState extends State<RegisterView> {
         _teamNameController.text.trim().isEmpty ||
         _selectedShirtSize == null ||
         _selectedEventId == null) {
+      if (!mounted) return;
       setState(
         () => _error = 'Por favor preencha todos os campos obrigatórios.',
       );
@@ -94,6 +97,7 @@ class _RegisterViewState extends State<RegisterView> {
       if (passageiro['nome']!.text.trim().isEmpty ||
           passageiro['telefone']!.text.trim().isEmpty ||
           passageiro['tshirt']!.text.trim().isEmpty) {
+        if (!mounted) return;
         setState(() => _error = 'Preencha todos os dados dos passageiros.');
         return;
       }
@@ -101,6 +105,7 @@ class _RegisterViewState extends State<RegisterView> {
 
     debugPrint('✔️ Validações concluídas, iniciando criação de conta');
 
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -116,6 +121,7 @@ class _RegisterViewState extends State<RegisterView> {
         debugPrint('✅ signUp retornou UID: $uid');
       } catch (e) {
         debugPrint('❌ Erro durante signUp: $e');
+        if (!mounted) return;
         setState(() => _error = 'Erro ao criar utilizador: ${e.toString()}');
         return;
       }
@@ -128,6 +134,7 @@ class _RegisterViewState extends State<RegisterView> {
 
       // Aguarda propagação do currentUser no FirebaseAuth
       await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
       final confirmedUser = FirebaseAuth.instance.currentUser;
       debugPrint('✅ UID após delay: ${confirmedUser?.uid}');
 
@@ -135,6 +142,7 @@ class _RegisterViewState extends State<RegisterView> {
 
       // Verificação UID antes de salvar dados
       if (uid.isEmpty) {
+        if (!mounted) return;
         setState(
           () => _error = 'Erro: UID inválido. Utilizador não autenticado.',
         );
@@ -160,6 +168,7 @@ class _RegisterViewState extends State<RegisterView> {
               .collection('events')
               .doc(_selectedEventId)
               .get();
+      if (!mounted) return;
       if (!eventDoc.exists) {
         setState(() => _error = 'Evento selecionado inválido.');
         return;
@@ -195,6 +204,7 @@ class _RegisterViewState extends State<RegisterView> {
         debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
       } catch (e) {
         debugPrint('❌ Falha ao salvar carro: $e');
+        if (!mounted) return;
         setState(
           () => _error = 'Erro ao salvar dados do veículo: ${e.toString()}',
         );
@@ -203,20 +213,32 @@ class _RegisterViewState extends State<RegisterView> {
 
       // Criar documento da equipa em equipas/equipaId
       try {
+        final equipaData = {
+          'nome': _teamNameController.text.trim(),
+          'hino': '',
+          'bandeiraUrl': '',
+          'pontuacaoTotal': 0,
+          'ranking': 0,
+          'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+        };
+
+        if (!mounted) return;
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is Map<String, dynamic>) {
+          final grupo = args['grupo'];
+          if (grupo == 'A' || grupo == 'B') {
+            equipaData['grupo'] = grupo;
+          }
+        }
+
         await FirebaseFirestore.instance
             .collection('equipas')
             .doc(equipaId)
-            .set({
-              'nome': _teamNameController.text.trim(),
-              'hino': '',
-              'bandeiraUrl': '',
-              'pontuacaoTotal': 0,
-              'ranking': 0,
-              'membros': [uid, ...passageiros.map((p) => p['telefone'])],
-            });
+            .set(equipaData);
         debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
       } catch (e) {
         debugPrint('❌ Falha ao criar equipa: $e');
+        if (!mounted) return;
         setState(() => _error = 'Erro ao criar equipa: ${e.toString()}');
         return;
       }
@@ -238,6 +260,7 @@ class _RegisterViewState extends State<RegisterView> {
         'createdAt': FieldValue.serverTimestamp(),
         // 'ultimoLogin' removido do set() inicial
       });
+      if (!mounted) return;
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
 
       // Registo do evento atual na subcoleção 'eventos' do utilizador
@@ -250,6 +273,7 @@ class _RegisterViewState extends State<RegisterView> {
           .collection('events')
           .doc(_selectedEventId)
           .set({'eventoId': _selectedEventId, 'checkpointsVisitados': []});
+      if (!mounted) return;
       debugPrint('✅ Subcoleção events criada com sucesso');
 
       // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
@@ -257,6 +281,7 @@ class _RegisterViewState extends State<RegisterView> {
         await FirebaseFirestore.instance.collection('users').doc(uid).update({
           'ultimoLogin': FieldValue.serverTimestamp(),
         });
+        if (!mounted) return;
         debugPrint('✅ ultimoLogin atualizado com sucesso');
       } catch (e) {
         debugPrint('❌ Falha ao atualizar ultimoLogin: $e');
@@ -266,11 +291,14 @@ class _RegisterViewState extends State<RegisterView> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('acceptedTerms', true);
 
+      if (!mounted) return;
       if (price > 0) {
         // Navega para pagamento
+        if (!mounted) return;
         Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
       } else {
         // Sem valor, já termina registro
+        if (!mounted) return;
         Get.offAll(
           () => UserSummaryView(
             nome: _nameController.text.trim(),
@@ -285,6 +313,7 @@ class _RegisterViewState extends State<RegisterView> {
       }
     } on FirebaseAuthException catch (authError) {
       // Tratar erro de e-mail já cadastrado
+      if (!mounted) return;
       if (authError.code == 'email-already-in-use') {
         setState(
           () => _error = 'Este e-mail já está registado. Por favor faça login.',
@@ -297,9 +326,12 @@ class _RegisterViewState extends State<RegisterView> {
           e.toString().isEmpty ? 'Erro desconhecido' : e.toString();
       debugPrint('❌ Erro capturado no register: $mensagemErro');
       debugPrint('🪵 Stack trace: $stackTrace');
+      if (!mounted) return;
       setState(() => _error = 'Erro ao criar conta: $mensagemErro');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
       // Removido o animateToPage para evitar loop ao retornar à etapa com erro
     }
   }

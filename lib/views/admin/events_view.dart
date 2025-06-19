@@ -309,8 +309,8 @@ class _EventsViewState extends State<EventsView> {
                                     color: AppColors.secondary,
                                   ),
                                   tooltip: 'Ver checkpoints',
-                                  onPressed: () {
-                                    showDialog(
+                                  onPressed: () async {
+                                    await showDialog(
                                       context: context,
                                       builder:
                                           (_) => CheckpointsListDialog(

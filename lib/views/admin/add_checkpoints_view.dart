@@ -10,6 +10,9 @@ class AddCheckpointsView extends StatefulWidget {
 }
 
 class _AddCheckpointsViewState extends State<AddCheckpointsView> {
+  int _ordemA = 0;
+  int _ordemB = 0;
+  String _percurso = 'ambos';
   late String edicaoId;
   late String eventId;
 
@@ -91,6 +94,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           'jogoId': _jogoIdController.text.trim(),
           'finalComJogosFinais': _finalJogos,
           'jogosIds': _finalJogos ? List.from(_jogosSelecionados) : [],
+          'ordemA': _ordemA,
+          'ordemB': _ordemB,
+          'percurso': _percurso,
         });
         _nomeController.clear();
         _descricaoController.clear();
@@ -102,6 +108,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
         _jogoIdController.clear();
         _finalJogos = false;
         _jogosSelecionados.clear();
+        _ordemA = 0;
+        _ordemB = 0;
+        _percurso = 'ambos';
       });
     }
   }
@@ -149,6 +158,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                     )
                     .toList()
                 : [],
+        'ordemA': item['ordemA'] ?? 0,
+        'ordemB': item['ordemB'] ?? 0,
+        'percurso': item['percurso'] ?? 'ambos',
       });
     }
     try {
@@ -161,7 +173,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           ),
         ),
       );
-      setState(() => _checkpoints.clear());
+      setState(() {
+        _checkpoints.clear();
+        _ordemA = 0;
+        _ordemB = 0;
+        _percurso = 'ambos';
+      });
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -326,6 +343,41 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                       }
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Ordem A'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        _ordemA = int.tryParse(value) ?? 0;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Ordem B'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        _ordemB = int.tryParse(value) ?? 0;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: _percurso,
+                    onChanged: (value) {
+                      setState(() {
+                        _percurso = value ?? 'ambos';
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Percurso'),
+                    items: const [
+                      DropdownMenuItem(value: 'A', child: Text('A')),
+                      DropdownMenuItem(value: 'B', child: Text('B')),
+                      DropdownMenuItem(value: 'ambos', child: Text('Ambos')),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   buildDropdownFields(),

@@ -78,6 +78,7 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
                 6,
                 isCollapsed,
               ),
+              _buildMenuItem(context, Icons.settings, 'Gestão', 7, isCollapsed),
             ],
           ),
         );
@@ -97,6 +98,14 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
     return InkWell(
       onTap: () {
         widget.onItemSelected(index);
+        if (index == 7) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          final navigator = Navigator.of(context);
+          Future.delayed(Duration.zero, () {
+            if (!mounted) return;
+            navigator.pushNamed('/gestao');
+          });
+        }
       },
       child: Container(
         padding: EdgeInsets.symmetric(

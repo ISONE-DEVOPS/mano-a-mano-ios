@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mano_mano_dashboard/views/admin/gestao_view.dart';
 import '../views/dashboard/home_view.dart';
 import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
@@ -83,6 +84,7 @@ class AppPages {
     ),
     GetPage(name: '/challenges', page: () => ChallengeView()),
     GetPage(name: '/ranking-detailed', page: () => const RankingDetailedView()),
+    GetPage(name: '/gestao', page: () => const GestaoView()),
     // GetPage(name: '/final-activities', page: () => FinalActivitiesView()),
     GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
     GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),

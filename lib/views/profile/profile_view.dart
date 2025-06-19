@@ -130,6 +130,7 @@ class ProfileView extends StatelessWidget {
                 InfoTile('🚗 Modelo', veiculoData['modelo'] ?? ''),
                 InfoTile('📋 Matrícula', veiculoData['matricula'] ?? ''),
                 InfoTile('🔰 Dístico', veiculoData['distico'] ?? ''),
+                InfoTile('🏁 Percurso', userData['grupo'] ?? 'Não atribuído'),
                 const Divider(height: 32),
                 const Text(
                   'QR Code do Condutor:',
