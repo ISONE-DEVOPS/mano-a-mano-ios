@@ -29,6 +29,8 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
   final bool _usarGeo = false;
 
+  List<String> _jogosSelecionados = [];
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +55,14 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
   void _addCheckpoint() {
     if (!_formKey.currentState!.validate()) return;
+    if (_finalJogos && _jogosSelecionados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione ao menos 1 jogo para o checkpoint final.'),
+        ),
+      );
+      return;
+    }
     if (_nomeController.text.isNotEmpty) {
       final lat = double.tryParse(_latController.text.trim());
       final lng = double.tryParse(_lngController.text.trim());
@@ -80,6 +90,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           'pergunta1Id': _pergunta1IdController.text.trim(),
           'jogoId': _jogoIdController.text.trim(),
           'finalComJogosFinais': _finalJogos,
+          'jogosIds': _finalJogos ? List.from(_jogosSelecionados) : [],
         });
         _nomeController.clear();
         _descricaoController.clear();
@@ -90,6 +101,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
         _pergunta1IdController.clear();
         _jogoIdController.clear();
         _finalJogos = false;
+        _jogosSelecionados.clear();
       });
     }
   }
@@ -120,10 +132,23 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
         'pergunta1Ref': FirebaseFirestore.instance
             .collection('perguntas')
             .doc(item['pergunta1Id']),
-        'jogoRef': FirebaseFirestore.instance
-            .collection('jogos')
-            .doc(item['jogoId']),
+        'jogoRef':
+            item['finalComJogosFinais'] == true
+                ? null
+                : FirebaseFirestore.instance
+                    .collection('jogos')
+                    .doc(item['jogoId']),
         'finalComJogosFinais': item['finalComJogosFinais'] ?? false,
+        'jogosRefs':
+            item['finalComJogosFinais'] == true
+                ? (item['jogosIds'] as List<String>)
+                    .map(
+                      (id) => FirebaseFirestore.instance
+                          .collection('jogos')
+                          .doc(id),
+                    )
+                    .toList()
+                : [],
       });
     }
     try {
@@ -193,21 +218,50 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const CircularProgressIndicator();
               final jogos = snapshot.data!.docs;
-              return DropdownButtonFormField<String>(
-                value:
-                    _jogoIdController.text.isEmpty
-                        ? null
-                        : _jogoIdController.text,
-                onChanged:
-                    (value) =>
-                        setState(() => _jogoIdController.text = value ?? ''),
-                items:
-                    jogos.map((doc) {
-                      final nome = doc['nome'] ?? 'Sem nome';
-                      return DropdownMenuItem(value: doc.id, child: Text(nome));
-                    }).toList(),
-                decoration: const InputDecoration(labelText: 'Selecionar Jogo'),
-              );
+              if (_finalJogos) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children:
+                      jogos.map((doc) {
+                        final nome = doc['nome'] ?? 'Sem nome';
+                        final id = doc.id;
+                        return CheckboxListTile(
+                          title: Text(nome),
+                          value: _jogosSelecionados.contains(id),
+                          onChanged: (selected) {
+                            setState(() {
+                              if (selected == true) {
+                                _jogosSelecionados.add(id);
+                              } else {
+                                _jogosSelecionados.remove(id);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                );
+              } else {
+                return DropdownButtonFormField<String>(
+                  value:
+                      _jogoIdController.text.isEmpty
+                          ? null
+                          : _jogoIdController.text,
+                  onChanged:
+                      (value) =>
+                          setState(() => _jogoIdController.text = value ?? ''),
+                  items:
+                      jogos.map((doc) {
+                        final nome = doc['nome'] ?? 'Sem nome';
+                        return DropdownMenuItem(
+                          value: doc.id,
+                          child: Text(nome),
+                        );
+                      }).toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Selecionar Jogo',
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -231,11 +285,23 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                   TextFormField(
                     controller: _nomeController,
                     decoration: const InputDecoration(labelText: 'Nome'),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe o nome';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _descricaoController,
                     decoration: const InputDecoration(labelText: 'Descrição'),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe a descrição';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -254,6 +320,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                     decoration: const InputDecoration(
                       labelText: 'Tempo Mínimo',
                     ),
+                    validator: (value) {
+                      if (value == null || int.tryParse(value.trim()) == null) {
+                        return 'Informe um tempo válido';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   buildDropdownFields(),
@@ -280,6 +352,120 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
               ),
             ),
             const SizedBox(height: 20),
+            if (_checkpoints.isNotEmpty)
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _checkpoints.length,
+                itemBuilder: (context, index) {
+                  final checkpoint = _checkpoints[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${checkpoint['codigo']}. ${checkpoint['name']}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(checkpoint['descricao'] ?? ''),
+                          const SizedBox(height: 8),
+                          FutureBuilder<List<DocumentSnapshot>>(
+                            future: Future.wait(
+                              (checkpoint['jogosRefs'] as List<dynamic>? ?? [])
+                                  .map(
+                                    (ref) => (ref as DocumentReference).get(),
+                                  ),
+                            ),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Text('Carregando jogos...');
+                              }
+                              final jogos = snapshot.data!;
+                              if (jogos.isEmpty) return const SizedBox();
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Jogos Associados:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ...jogos.map((doc) {
+                                    final data =
+                                        doc.data() as Map<String, dynamic>;
+                                    return Text(
+                                      '- ${data['nome']} (${data['tipo']})',
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.orange,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _nomeController.text = checkpoint['name'];
+                                    _descricaoController.text =
+                                        checkpoint['descricao'];
+                                    _latController.text =
+                                        checkpoint['lat'].toString();
+                                    _lngController.text =
+                                        checkpoint['lng'].toString();
+                                    _tempoMinimoController.text =
+                                        checkpoint['tempoMinimo'].toString();
+                                    _pergunta1IdController.text =
+                                        checkpoint['pergunta1Id'];
+                                    _jogoIdController.text =
+                                        checkpoint['jogoId'];
+                                    _finalJogos =
+                                        checkpoint['finalComJogosFinais'] ??
+                                        false;
+                                    _jogosSelecionados = List<String>.from(
+                                      checkpoint['jogosIds'] ?? [],
+                                    );
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _checkpoints.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ElevatedButton.icon(
               onPressed: _saveCheckpoints,
               icon: const Icon(Icons.save),

@@ -14,7 +14,6 @@ class _PerguntasViewState extends State<PerguntasView> {
   Map<String, String> _edicoes = {};
   String? _eventoSelecionado;
   Map<String, String> _eventos = {};
-  String? _checkpointSelecionado;
   final _perguntaController = TextEditingController();
   final _categoriaController = TextEditingController();
   final _pontosController =
@@ -24,7 +23,7 @@ class _PerguntasViewState extends State<PerguntasView> {
     (_) => TextEditingController(),
   );
   int _respostaCorreta = 0;
-  Map<String, String> _postos = {};
+  String? _perguntaIdEmEdicao;
 
   @override
   void initState() {
@@ -56,22 +55,6 @@ class _PerguntasViewState extends State<PerguntasView> {
     setState(() => _eventos = Map<String, String>.from(mapa));
   }
 
-  void _carregarPostos(String eventId) async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('editions')
-            .doc(_edicaoSelecionada)
-            .collection('events')
-            .doc(eventId)
-            .collection('checkpoints')
-            .get();
-    final mapa = {
-      for (var doc in snapshot.docs)
-        doc.id: doc.data()['nome']?.toString() ?? doc.id,
-    };
-    setState(() => _postos = Map<String, String>.from(mapa));
-  }
-
   void _salvarPergunta() async {
     final pergunta = _perguntaController.text.trim();
     final categoria = _categoriaController.text.trim();
@@ -79,15 +62,10 @@ class _PerguntasViewState extends State<PerguntasView> {
     final pontosText = _pontosController.text.trim();
     final pontos = int.tryParse(pontosText);
 
-    // Verificação se o evento e o posto são válidos
-    if (_edicaoSelecionada == null ||
-        _eventoSelecionado == null ||
-        _checkpointSelecionado == null) {
+    if (_edicaoSelecionada == null || _eventoSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Selecione uma edição, um evento e um checkpoint válido',
-          ),
+          content: Text('Selecione uma edição e um evento válido'),
         ),
       );
       return;
@@ -104,36 +82,54 @@ class _PerguntasViewState extends State<PerguntasView> {
     }
 
     try {
-      await FirebaseFirestore.instance.collection('perguntas').add({
-        'editionId': _edicaoSelecionada,
-        'eventId': _eventoSelecionado,
-        'checkpointId': _checkpointSelecionado,
-        'pergunta': pergunta,
-        'categoria': categoria,
-        'respostas': opcoes,
-        'respostaCerta': _respostaCorreta,
-        'pontos': pontos,
-      });
+      if (_perguntaIdEmEdicao != null) {
+        // atualizar
+        await FirebaseFirestore.instance
+            .collection('perguntas')
+            .doc(_perguntaIdEmEdicao)
+            .update({
+              'editionId': _edicaoSelecionada,
+              'eventId': _eventoSelecionado,
+              'pergunta': pergunta,
+              'categoria': categoria,
+              'respostas': opcoes,
+              'respostaCerta': _respostaCorreta,
+              'pontos': pontos,
+              // Não atualiza createdAt
+            });
+      } else {
+        // criar novo
+        await FirebaseFirestore.instance.collection('perguntas').add({
+          'editionId': _edicaoSelecionada,
+          'eventId': _eventoSelecionado,
+          'pergunta': pergunta,
+          'categoria': categoria,
+          'respostas': opcoes,
+          'respostaCerta': _respostaCorreta,
+          'pontos': pontos,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pergunta salva com sucesso')),
       );
-      _checkpointSelecionado = null;
-      _eventoSelecionado = null;
+
       _edicaoSelecionada = null;
+      _eventoSelecionado = null;
       _perguntaController.clear();
       _categoriaController.clear();
       _pontosController.clear();
       for (final c in _opcoes) {
         c.clear();
       }
+
       setState(() {
         _respostaCorreta = 0;
-        // Limpa corretamente os mapas como Map<String, String>
-        _postos = <String, String>{};
         _eventos = <String, String>{};
-        _edicoes = _edicoes;
+        _perguntaIdEmEdicao = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -183,9 +179,6 @@ class _PerguntasViewState extends State<PerguntasView> {
                         setState(() {
                           _edicaoSelecionada = value;
                           _eventoSelecionado = null;
-                          _checkpointSelecionado = null;
-                          _eventos = {};
-                          _postos = {};
                           if (value != null) {
                             _carregarEventos(value);
                           }
@@ -226,11 +219,6 @@ class _PerguntasViewState extends State<PerguntasView> {
                       onChanged: (value) {
                         setState(() {
                           _eventoSelecionado = value;
-                          _checkpointSelecionado = null;
-                          _postos = {};
-                          if (value != null) {
-                            _carregarPostos(value);
-                          }
                         });
                       },
                       items:
@@ -262,42 +250,7 @@ class _PerguntasViewState extends State<PerguntasView> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // 3. Checkpoint (mostrar nome do checkpoint, não ID)
-                    DropdownButtonFormField<String>(
-                      style: const TextStyle(color: Colors.black),
-                      value: _checkpointSelecionado,
-                      onChanged: (value) {
-                        setState(() {
-                          _checkpointSelecionado = value;
-                        });
-                      },
-                      items:
-                          _postos.entries
-                              .map(
-                                (entry) => DropdownMenuItem<String>(
-                                  value: entry.key,
-                                  child: Text(
-                                    entry.value,
-                                    style: const TextStyle(color: Colors.black),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                      decoration: InputDecoration(
-                        labelText: 'Checkpoint',
-                        labelStyle: const TextStyle(color: Colors.black),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.grey),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
+                    // 3. Checkpoint removido
                     const SizedBox(height: 24),
                     // 4. Pergunta
                     TextFormField(
@@ -435,6 +388,29 @@ class _PerguntasViewState extends State<PerguntasView> {
                         child: const Text('Salvar Pergunta'),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    if (_perguntaIdEmEdicao != null)
+                      Center(
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                          label: const Text(
+                            'Cancelar edição',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _perguntaIdEmEdicao = null;
+                              _perguntaController.clear();
+                              _categoriaController.clear();
+                              _pontosController.clear();
+                              _respostaCorreta = 0;
+                              for (final c in _opcoes) {
+                                c.clear();
+                              }
+                            });
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -451,47 +427,127 @@ class _PerguntasViewState extends State<PerguntasView> {
               ),
             ),
             const SizedBox(height: 12),
-            // Lista de perguntas cadastradas para o checkpoint selecionado
-            if (_checkpointSelecionado != null)
-              StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('perguntas')
-                        .where(
-                          'checkpointId',
-                          isEqualTo: _checkpointSelecionado,
-                        )
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Text(
-                      'Nenhuma pergunta cadastrada para este checkpoint.',
+            // Lista de todas as perguntas cadastradas, ordenadas por data de criação
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('perguntas')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Text('Nenhuma pergunta cadastrada.');
+                }
+                final docs = snapshot.data!.docs;
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, _) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final isEditing = _perguntaIdEmEdicao == snapshot.data!.docs[index].id;
+                    return ListTile(
+                      tileColor: isEditing ? Colors.yellow[100] : null,
+                      title: Text(
+                        data['pergunta'] ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Categoria: ${data['categoria'] ?? ''} | Pontos: ${data['pontos'] ?? ''}',
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.orange),
+                            onPressed: () {
+                              final pergunta = data['pergunta'] ?? '';
+                              final categoria = data['categoria'] ?? '';
+                              final pontos = data['pontos']?.toString() ?? '';
+                              final respostas = data['respostas'] ?? [];
+                              final respostaCerta = data['respostaCerta'] ?? 0;
+
+                              setState(() {
+                                _perguntaIdEmEdicao =
+                                    snapshot.data!.docs[index].id;
+                                _perguntaController.text = pergunta;
+                                _categoriaController.text = categoria;
+                                _pontosController.text = pontos;
+                                _respostaCorreta = respostaCerta;
+                                for (int i = 0; i < _opcoes.length; i++) {
+                                  _opcoes[i].text =
+                                      i < respostas.length ? respostas[i] : '';
+                                }
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder:
+                                    (ctx) => AlertDialog(
+                                      title: const Text(
+                                        'Eliminar Pergunta',
+                                        style: TextStyle(color: Colors.black),
+                                      ),
+                                      content: const Text(
+                                        'Tem certeza que deseja eliminar esta pergunta?',
+                                        style: TextStyle(color: Colors.black),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () =>
+                                                  Navigator.of(ctx).pop(false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.of(ctx).pop(true),
+                                          child: const Text('Eliminar'),
+                                        ),
+                                      ],
+                                    ),
+                              );
+                              if (confirm == true) {
+                                try {
+                                  await FirebaseFirestore.instance
+                                      .collection('perguntas')
+                                      .doc(snapshot.data!.docs[index].id)
+                                      .delete();
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Pergunta eliminada com sucesso')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Erro ao eliminar pergunta: $e')),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     );
-                  }
-                  final docs = snapshot.data!.docs;
-                  return ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: docs.length,
-                    separatorBuilder: (_, _) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      return ListTile(
-                        title: Text(
-                          data['pergunta'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          'Categoria: ${data['categoria'] ?? ''} | Pontos: ${data['pontos'] ?? ''}',
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),

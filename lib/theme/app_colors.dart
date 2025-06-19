@@ -11,11 +11,15 @@ class AppColors {
   // Fundo e superfícies
   static const Color background = Color(0xFFFFFBE6); // Amarelo bem clarinho
   static const Color surface = Color(0xFFFFFBE6); // Amarelo bem clarinho
-  static const Color surfaceSecondary = Color(0xFFFFFBE6); // Amarelo bem clarinho
+  static const Color surfaceSecondary = Color(
+    0xFFFFFBE6,
+  ); // Amarelo bem clarinho
 
   // Texto (usado sobre fundo e surface amarelo claro)
   static const Color textPrimary = Color(0xFF000000); // Preto total
-  static const Color textSecondary = Color(0xFF333333); // Cinza escuro para contraste
+  static const Color textSecondary = Color(
+    0xFF333333,
+  ); // Cinza escuro para contraste
 
   // Campos de input
   static const Color inputBackground = Color(0xFFF5F5F5); // Shell Grey 50
@@ -38,5 +42,10 @@ class AppColors {
     backgroundColor: primary,
     foregroundColor: Colors.white,
     textStyle: const TextStyle(fontWeight: FontWeight.bold),
+  );
+
+  static ButtonStyle dialogButtonStyle = TextButton.styleFrom(
+    foregroundColor: textPrimary,
+    textStyle: const TextStyle(fontWeight: FontWeight.normal),
   );
 }

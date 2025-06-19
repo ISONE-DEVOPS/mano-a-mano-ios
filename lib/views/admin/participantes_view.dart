@@ -49,6 +49,9 @@ class ParticipantesView extends StatelessWidget {
                     child: StatefulBuilder(
                       builder: (context, setState) {
                         int rowsPerPage = 10;
+                        // Move ValueNotifier para fora do LayoutBuilder para não ser recriado a cada rebuild
+                        final ValueNotifier<int> pageNotifier =
+                            ValueNotifier<int>(0);
                         return Column(
                           children: [
                             // Botões centralizados e espaçados
@@ -91,6 +94,9 @@ class ParticipantesView extends StatelessWidget {
                                         await FirebaseFirestore.instance
                                             .collection('equipas')
                                             .get();
+                                    if (!context.mounted) {
+                                      return;
+                                    }
                                     final Map<String, String> equipas = {
                                       for (var doc in equipasSnapshot.docs)
                                         doc.id: doc['nome'] ?? '',
@@ -99,6 +105,9 @@ class ParticipantesView extends StatelessWidget {
                                         await FirebaseFirestore.instance
                                             .collection('users')
                                             .get();
+                                    if (!context.mounted) {
+                                      return;
+                                    }
                                     final buffer = StringBuffer();
                                     buffer.writeln(
                                       'Nome,Email,Telefone,Emergência,T-Shirt,Equipa',
@@ -154,14 +163,23 @@ class ParticipantesView extends StatelessWidget {
                                         await FirebaseFirestore.instance
                                             .collection('users')
                                             .get();
+                                    if (!context.mounted) {
+                                      return;
+                                    }
                                     final veiculosSnapshot =
                                         await FirebaseFirestore.instance
                                             .collection('veiculos')
                                             .get();
+                                    if (!context.mounted) {
+                                      return;
+                                    }
                                     final equipasSnapshot =
                                         await FirebaseFirestore.instance
                                             .collection('equipas')
                                             .get();
+                                    if (!context.mounted) {
+                                      return;
+                                    }
 
                                     final veiculos = {
                                       for (var doc in veiculosSnapshot.docs)
@@ -236,16 +254,9 @@ class ParticipantesView extends StatelessWidget {
                             const SizedBox(height: 8),
                             LayoutBuilder(
                               builder: (context, constraints) {
-                                // Paginação manual
-                                // As variáveis de controle de página devem ser mantidas no escopo do StatefulBuilder
-                                // Vamos usar um ValueNotifier para manter o estado entre rebuilds do LayoutBuilder
-                                final ValueNotifier<int> pageNotifier =
-                                    ValueNotifier<int>(0);
                                 return ValueListenableBuilder<int>(
                                   valueListenable: pageNotifier,
                                   builder: (context, page, _) {
-                                    int totalPages =
-                                        (users.length / rowsPerPage).ceil();
                                     List<QueryDocumentSnapshot> currentData =
                                         users
                                             .skip(page * rowsPerPage)
@@ -440,10 +451,6 @@ class ParticipantesView extends StatelessWidget {
                                                                           .toString()
                                                                           .trim()
                                                                           .isEmpty) {
-                                                                    if (!context
-                                                                        .mounted) {
-                                                                      return;
-                                                                    }
                                                                     showDialog(
                                                                       context:
                                                                           context,
@@ -475,16 +482,16 @@ class ParticipantesView extends StatelessWidget {
                                                                             veiculoId,
                                                                           )
                                                                           .get();
+                                                                  if (!context
+                                                                      .mounted) {
+                                                                    return;
+                                                                  }
                                                                   final veiculo =
                                                                       veiculoDoc
                                                                           .data();
                                                                   final acompanhantes =
                                                                       veiculo?['passageiros'] ??
                                                                       [];
-                                                                  if (!context
-                                                                      .mounted) {
-                                                                    return;
-                                                                  }
                                                                   showDialog(
                                                                     context:
                                                                         context,
@@ -516,7 +523,9 @@ class ParticipantesView extends StatelessWidget {
                                                                                   children:
                                                                                       (acompanhantes
                                                                                               as List)
-                                                                                          .map(
+                                                                                          .map<
+                                                                                            Widget
+                                                                                          >(
                                                                                             (
                                                                                               p,
                                                                                             ) {
@@ -598,19 +607,24 @@ class ParticipantesView extends StatelessWidget {
                                                                             veiculoId,
                                                                           )
                                                                           .get();
-                                                                  final veiculo =
-                                                                      veiculoDoc
-                                                                          .data();
                                                                   if (!context
                                                                       .mounted) {
                                                                     return;
                                                                   }
+                                                                  final veiculo =
+                                                                      veiculoDoc
+                                                                          .data();
                                                                   showDialog(
                                                                     context:
                                                                         context,
                                                                     builder: (
                                                                       ctx,
                                                                     ) {
+                                                                      final controller = TextEditingController(
+                                                                        text:
+                                                                            veiculo?['registro'] ??
+                                                                            '',
+                                                                      );
                                                                       return AlertDialog(
                                                                         title: const Text(
                                                                           'Veículo',
@@ -661,11 +675,8 @@ class ParticipantesView extends StatelessWidget {
                                                                                           10,
                                                                                     ),
                                                                                     TextField(
-                                                                                      controller: TextEditingController(
-                                                                                        text:
-                                                                                            veiculo['registro'] ??
-                                                                                            '',
-                                                                                      ),
+                                                                                      controller:
+                                                                                          controller,
                                                                                       decoration: const InputDecoration(
                                                                                         labelText:
                                                                                             'Distíco',
@@ -830,83 +841,78 @@ class ParticipantesView extends StatelessWidget {
                                                                                         FontWeight.bold,
                                                                                   ),
                                                                                 ),
-                                                                                FutureBuilder<
-                                                                                  DocumentSnapshot
-                                                                                >(
-                                                                                  future:
-                                                                                      (data['equipaId'] ==
-                                                                                                  null ||
-                                                                                              data['equipaId']
-                                                                                                  .toString()
-                                                                                                  .isEmpty)
-                                                                                          ? null
-                                                                                          : FirebaseFirestore.instance
-                                                                                              .collection(
-                                                                                                'equipas',
-                                                                                              )
-                                                                                              .doc(
-                                                                                                data['equipaId'],
-                                                                                              )
-                                                                                              .get(),
-                                                                                  builder: (
-                                                                                    context,
-                                                                                    snapshot,
-                                                                                  ) {
-                                                                                    if (snapshot.connectionState ==
-                                                                                        ConnectionState.none) {
-                                                                                      return const Text(
-                                                                                        'Equipa não definida',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
+                                                                                if (data['equipaId'] ==
+                                                                                        null ||
+                                                                                    data['equipaId'].toString().isEmpty)
+                                                                                  const Text(
+                                                                                    'Equipa não definida',
+                                                                                    style: TextStyle(
+                                                                                      color:
+                                                                                          Colors.black,
+                                                                                    ),
+                                                                                  )
+                                                                                else
+                                                                                  FutureBuilder<
+                                                                                    DocumentSnapshot
+                                                                                  >(
+                                                                                    future:
+                                                                                        FirebaseFirestore.instance
+                                                                                            .collection(
+                                                                                              'equipas',
+                                                                                            )
+                                                                                            .doc(
+                                                                                              data['equipaId'],
+                                                                                            )
+                                                                                            .get(),
+                                                                                    builder: (
+                                                                                      context,
+                                                                                      snapshot,
+                                                                                    ) {
+                                                                                      if (!snapshot.hasData ||
+                                                                                          !snapshot.data!.exists) {
+                                                                                        return const Text(
+                                                                                          'Equipa não encontrada',
+                                                                                          style: TextStyle(
+                                                                                            color:
+                                                                                                Colors.black,
+                                                                                          ),
+                                                                                        );
+                                                                                      }
+                                                                                      final equipa =
+                                                                                          snapshot.data!.data()
+                                                                                              as Map<
+                                                                                                String,
+                                                                                                dynamic
+                                                                                              >;
+                                                                                      return Column(
+                                                                                        crossAxisAlignment:
+                                                                                            CrossAxisAlignment.start,
+                                                                                        children: [
+                                                                                          Text(
+                                                                                            'Nome da Equipa: ${equipa['nome'] ?? ''}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                          Text(
+                                                                                            'Hino: ${equipa['hino'] ?? ''}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                          Text(
+                                                                                            'Pontuação Total: ${equipa['pontuacaoTotal'] ?? 0}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                        ],
                                                                                       );
-                                                                                    }
-                                                                                    if (!snapshot.hasData ||
-                                                                                        !snapshot.data!.exists) {
-                                                                                      return const Text(
-                                                                                        'Equipa não encontrada',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                      );
-                                                                                    }
-                                                                                    final equipa =
-                                                                                        snapshot.data!.data()
-                                                                                            as Map<
-                                                                                              String,
-                                                                                              dynamic
-                                                                                            >;
-                                                                                    return Column(
-                                                                                      crossAxisAlignment:
-                                                                                          CrossAxisAlignment.start,
-                                                                                      children: [
-                                                                                        Text(
-                                                                                          'Nome da Equipa: ${equipa['nome'] ?? ''}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                        Text(
-                                                                                          'Hino: ${equipa['hino'] ?? ''}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                        Text(
-                                                                                          'Pontuação Total: ${equipa['pontuacaoTotal'] ?? 0}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                      ],
-                                                                                    );
-                                                                                  },
-                                                                                ),
+                                                                                    },
+                                                                                  ),
                                                                                 const SizedBox(
                                                                                   height:
                                                                                       12,
@@ -920,180 +926,81 @@ class ParticipantesView extends StatelessWidget {
                                                                                         FontWeight.bold,
                                                                                   ),
                                                                                 ),
-                                                                                FutureBuilder<
-                                                                                  DocumentSnapshot
-                                                                                >(
-                                                                                  future:
-                                                                                      (data['veiculoId'] ==
-                                                                                                  null ||
-                                                                                              data['veiculoId']
-                                                                                                  .toString()
-                                                                                                  .isEmpty)
-                                                                                          ? null
-                                                                                          : FirebaseFirestore.instance
-                                                                                              .collection(
-                                                                                                'veiculos',
-                                                                                              )
-                                                                                              .doc(
-                                                                                                data['veiculoId'],
-                                                                                              )
-                                                                                              .get(),
-                                                                                  builder: (
-                                                                                    context,
-                                                                                    snapshot,
-                                                                                  ) {
-                                                                                    if (snapshot.connectionState ==
-                                                                                        ConnectionState.none) {
-                                                                                      return const Text(
-                                                                                        'Veículo não definido',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
+                                                                                if (data['veiculoId'] ==
+                                                                                        null ||
+                                                                                    data['veiculoId'].toString().isEmpty)
+                                                                                  const Text(
+                                                                                    'Veículo não definido',
+                                                                                    style: TextStyle(
+                                                                                      color:
+                                                                                          Colors.black,
+                                                                                    ),
+                                                                                  )
+                                                                                else
+                                                                                  FutureBuilder<
+                                                                                    DocumentSnapshot
+                                                                                  >(
+                                                                                    future:
+                                                                                        FirebaseFirestore.instance
+                                                                                            .collection(
+                                                                                              'veiculos',
+                                                                                            )
+                                                                                            .doc(
+                                                                                              data['veiculoId'],
+                                                                                            )
+                                                                                            .get(),
+                                                                                    builder: (
+                                                                                      context,
+                                                                                      snapshot,
+                                                                                    ) {
+                                                                                      if (!snapshot.hasData ||
+                                                                                          !snapshot.data!.exists) {
+                                                                                        return const Text(
+                                                                                          'Veículo não encontrado',
+                                                                                          style: TextStyle(
+                                                                                            color:
+                                                                                                Colors.black,
+                                                                                          ),
+                                                                                        );
+                                                                                      }
+                                                                                      final v =
+                                                                                          snapshot.data!.data()
+                                                                                              as Map<
+                                                                                                String,
+                                                                                                dynamic
+                                                                                              >;
+                                                                                      return Column(
+                                                                                        crossAxisAlignment:
+                                                                                            CrossAxisAlignment.start,
+                                                                                        children: [
+                                                                                          Text(
+                                                                                            'Marca: ${v['marca'] ?? ''}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                          Text(
+                                                                                            'Modelo: ${v['modelo'] ?? ''}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                          Text(
+                                                                                            'Matrícula: ${v['matricula'] ?? ''}',
+                                                                                            style: const TextStyle(
+                                                                                              color:
+                                                                                                  Colors.black,
+                                                                                            ),
+                                                                                          ),
+                                                                                        ],
                                                                                       );
-                                                                                    }
-                                                                                    if (!snapshot.hasData ||
-                                                                                        !snapshot.data!.exists) {
-                                                                                      return const Text(
-                                                                                        'Veículo não encontrado',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                      );
-                                                                                    }
-                                                                                    final v =
-                                                                                        snapshot.data!.data()
-                                                                                            as Map<
-                                                                                              String,
-                                                                                              dynamic
-                                                                                            >;
-                                                                                    return Column(
-                                                                                      crossAxisAlignment:
-                                                                                          CrossAxisAlignment.start,
-                                                                                      children: [
-                                                                                        Text(
-                                                                                          'Marca: ${v['marca'] ?? ''}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                        Text(
-                                                                                          'Modelo: ${v['modelo'] ?? ''}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                        Text(
-                                                                                          'Matrícula: ${v['matricula'] ?? ''}',
-                                                                                          style: const TextStyle(
-                                                                                            color:
-                                                                                                Colors.black,
-                                                                                          ),
-                                                                                        ),
-                                                                                      ],
-                                                                                    );
-                                                                                  },
-                                                                                ),
+                                                                                    },
+                                                                                  ),
                                                                                 const SizedBox(
                                                                                   height:
                                                                                       12,
-                                                                                ),
-                                                                                const Text(
-                                                                                  '--- Acompanhantes ---',
-                                                                                  style: TextStyle(
-                                                                                    color:
-                                                                                        Colors.black,
-                                                                                    fontWeight:
-                                                                                        FontWeight.bold,
-                                                                                  ),
-                                                                                ),
-                                                                                FutureBuilder<
-                                                                                  DocumentSnapshot
-                                                                                >(
-                                                                                  future:
-                                                                                      (data['veiculoId'] ==
-                                                                                                  null ||
-                                                                                              data['veiculoId']
-                                                                                                  .toString()
-                                                                                                  .isEmpty)
-                                                                                          ? null
-                                                                                          : FirebaseFirestore.instance
-                                                                                              .collection(
-                                                                                                'veiculos',
-                                                                                              )
-                                                                                              .doc(
-                                                                                                data['veiculoId'],
-                                                                                              )
-                                                                                              .get(),
-                                                                                  builder: (
-                                                                                    context,
-                                                                                    snapshot,
-                                                                                  ) {
-                                                                                    if (snapshot.connectionState ==
-                                                                                        ConnectionState.none) {
-                                                                                      return const Text(
-                                                                                        'Veículo não definido',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                      );
-                                                                                    }
-                                                                                    if (!snapshot.hasData ||
-                                                                                        !snapshot.data!.exists) {
-                                                                                      return const Text(
-                                                                                        'Sem acompanhantes',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                      );
-                                                                                    }
-                                                                                    final passageiros =
-                                                                                        (snapshot.data!.get(
-                                                                                                  'passageiros',
-                                                                                                ) ??
-                                                                                                [])
-                                                                                            as List;
-                                                                                    if (passageiros.isEmpty) {
-                                                                                      return const Text(
-                                                                                        'Sem acompanhantes',
-                                                                                        style: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                      );
-                                                                                    }
-                                                                                    return Column(
-                                                                                      crossAxisAlignment:
-                                                                                          CrossAxisAlignment.start,
-                                                                                      children:
-                                                                                          passageiros.map<
-                                                                                            Widget
-                                                                                          >(
-                                                                                            (
-                                                                                              p,
-                                                                                            ) {
-                                                                                              return Padding(
-                                                                                                padding: const EdgeInsets.only(
-                                                                                                  top:
-                                                                                                      4,
-                                                                                                ),
-                                                                                                child: Text(
-                                                                                                  '• ${p['nome']} - ${p['telefone']} - T-Shirt: ${p['tshirt']}',
-                                                                                                  style: const TextStyle(
-                                                                                                    color:
-                                                                                                        Colors.black,
-                                                                                                  ),
-                                                                                                ),
-                                                                                              );
-                                                                                            },
-                                                                                          ).toList(),
-                                                                                    );
-                                                                                  },
                                                                                 ),
                                                                               ],
                                                                             ),
@@ -1117,6 +1024,154 @@ class ParticipantesView extends StatelessWidget {
                                                                   );
                                                                 },
                                                               ),
+                                                              IconButton(
+                                                                icon: const Icon(
+                                                                  Icons.delete,
+                                                                  color:
+                                                                      Colors
+                                                                          .red,
+                                                                ),
+                                                                tooltip:
+                                                                    'Eliminar participante',
+                                                                onPressed: () async {
+                                                                  final confirm = await showDialog<
+                                                                    bool
+                                                                  >(
+                                                                    context:
+                                                                        context,
+                                                                    builder:
+                                                                        (
+                                                                          ctx,
+                                                                        ) => AlertDialog(
+                                                                          title: const Text(
+                                                                            'Eliminar Participante',
+                                                                            style: TextStyle(color: Colors.black),
+                                                                          ),
+                                                                          content: const Text(
+                                                                            'Tem certeza que deseja eliminar este participante, o veículo associado e a equipa?',
+                                                                            style: TextStyle(
+                                                                              color:
+                                                                                  Colors.black,
+                                                                            ),
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed:
+                                                                                  () => Navigator.of(
+                                                                                    ctx,
+                                                                                  ).pop(
+                                                                                    false,
+                                                                                  ),
+                                                                              child: const Text(
+                                                                                'Cancelar',
+                                                                                style: TextStyle(color: Colors.black),
+                                                                              ),
+                                                                            ),
+                                                                            TextButton(
+                                                                              onPressed:
+                                                                                  () => Navigator.of(
+                                                                                    ctx,
+                                                                                  ).pop(
+                                                                                    true,
+                                                                                  ),
+                                                                              child: const Text(
+                                                                                'Eliminar',
+                                                                                style: TextStyle(color: Colors.black),
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                  );
+                                                                  if (confirm ==
+                                                                      true) {
+                                                                    final userId =
+                                                                        doc.id;
+                                                                    final veiculoId =
+                                                                        data['veiculoId'];
+                                                                    final equipaId =
+                                                                        data['equipaId'];
+                                                                    await FirebaseFirestore
+                                                                        .instance
+                                                                        .collection(
+                                                                          'users',
+                                                                        )
+                                                                        .doc(
+                                                                          userId,
+                                                                        )
+                                                                        .delete();
+                                                                    if (!context
+                                                                        .mounted) {
+                                                                      return;
+                                                                    }
+                                                                    if (veiculoId !=
+                                                                        null) {
+                                                                      await FirebaseFirestore
+                                                                          .instance
+                                                                          .collection(
+                                                                            'veiculos',
+                                                                          )
+                                                                          .doc(
+                                                                            veiculoId,
+                                                                          )
+                                                                          .delete();
+                                                                      if (!context
+                                                                          .mounted) {
+                                                                        return;
+                                                                      }
+                                                                    }
+                                                                    if (equipaId !=
+                                                                        null) {
+                                                                      final equipaUsada =
+                                                                          await FirebaseFirestore
+                                                                              .instance
+                                                                              .collection(
+                                                                                'users',
+                                                                              )
+                                                                              .where(
+                                                                                'equipaId',
+                                                                                isEqualTo:
+                                                                                    equipaId,
+                                                                              )
+                                                                              .get();
+                                                                      if (!context
+                                                                          .mounted) {
+                                                                        return;
+                                                                      }
+                                                                      if (equipaUsada
+                                                                              .docs
+                                                                              .length <=
+                                                                          1) {
+                                                                        await FirebaseFirestore
+                                                                            .instance
+                                                                            .collection(
+                                                                              'equipas',
+                                                                            )
+                                                                            .doc(
+                                                                              equipaId,
+                                                                            )
+                                                                            .delete();
+                                                                        if (!context
+                                                                            .mounted) {
+                                                                          return;
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                    if (Navigator.of(
+                                                                      context,
+                                                                    ).mounted) {
+                                                                      ScaffoldMessenger.of(
+                                                                        context,
+                                                                      ).showSnackBar(
+                                                                        const SnackBar(
+                                                                          content: Text(
+                                                                            'Participante eliminado com sucesso',
+                                                                          ),
+                                                                        ),
+                                                                      );
+                                                                    }
+                                                                  }
+                                                                },
+                                                              ),
                                                             ],
                                                           ),
                                                         ),
@@ -1126,6 +1181,8 @@ class ParticipantesView extends StatelessWidget {
                                             ),
                                           ),
                                         ),
+                                        // PAGINAÇÃO CENTRALIZADA ABAIXO DA TABELA
+                                        const SizedBox(height: 8),
                                         Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
@@ -1133,38 +1190,29 @@ class ParticipantesView extends StatelessWidget {
                                             TextButton(
                                               onPressed:
                                                   page > 0
-                                                      ? () {
-                                                        pageNotifier.value =
-                                                            page - 1;
-                                                      }
+                                                      ? () =>
+                                                          pageNotifier.value =
+                                                              page - 1
                                                       : null,
-                                              child: const Text(
-                                                'Anterior',
-                                                style: TextStyle(
-                                                  color: Colors.black,
-                                                ),
-                                              ),
+                                              child: const Text('Anterior'),
                                             ),
+                                            const SizedBox(width: 16),
                                             Text(
-                                              'Página ${page + 1} de $totalPages',
+                                              'Página ${page + 1} de ${(users.length / rowsPerPage).ceil()}',
                                               style: const TextStyle(
                                                 color: Colors.black,
                                               ),
                                             ),
+                                            const SizedBox(width: 16),
                                             TextButton(
                                               onPressed:
-                                                  page < totalPages - 1
-                                                      ? () {
-                                                        pageNotifier.value =
-                                                            page + 1;
-                                                      }
+                                                  (page + 1) * rowsPerPage <
+                                                          users.length
+                                                      ? () =>
+                                                          pageNotifier.value =
+                                                              page + 1
                                                       : null,
-                                              child: const Text(
-                                                'Próximo',
-                                                style: TextStyle(
-                                                  color: Colors.black,
-                                                ),
-                                              ),
+                                              child: const Text('Próximo'),
                                             ),
                                           ],
                                         ),
@@ -1173,16 +1221,6 @@ class ParticipantesView extends StatelessWidget {
                                   },
                                 );
                               },
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: Text(
-                                  '© ${DateTime.now().year} by Mano a Mano – Desenvolvido por Cloud Technology',
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
-                              ),
                             ),
                           ],
                         );

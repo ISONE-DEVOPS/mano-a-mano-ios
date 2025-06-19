@@ -18,10 +18,9 @@ class _JogosCreateViewState extends State<JogosCreateView> {
 
   String _tipoSelecionado = 'pontaria';
 
-  // Novas variáveis de estado para edição/evento/checkpoint
+  // Novas variáveis de estado para edição/evento
   String? _selectedEditionId;
   String? _selectedEventId;
-  String? _selectedCheckpointId;
 
   final List<String> _tipos = [
     'pontaria',
@@ -43,16 +42,13 @@ class _JogosCreateViewState extends State<JogosCreateView> {
         // Novos campos
         'editionId': _selectedEditionId,
         'eventId': _selectedEventId,
-        'checkpointId': _selectedCheckpointId,
-        // Removed: 'grupo', 'tempoEstimado', 'materialNecessario', 'avaliacaoAutomatica', 'visivelParaAdmin', 'ordemRecomendada', 'nivelDificuldade', 'localPadrao'
+        // Removed: checkpointId, 'grupo', 'tempoEstimado', 'materialNecessario', 'avaliacaoAutomatica', 'visivelParaAdmin', 'ordemRecomendada', 'nivelDificuldade', 'localPadrao'
       });
 
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      );
+      ScaffoldMessenger.of(context);
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.pop(context);
@@ -62,7 +58,6 @@ class _JogosCreateViewState extends State<JogosCreateView> {
         _tipoSelecionado = 'pontaria';
         _selectedEditionId = null;
         _selectedEventId = null;
-        _selectedCheckpointId = null;
       });
     }
   }
@@ -106,9 +101,13 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                       children: [
                         // --- Edição Dropdown ---
                         StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance.collection('editions').snapshots(),
+                          stream:
+                              FirebaseFirestore.instance
+                                  .collection('editions')
+                                  .snapshots(),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
                               return const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 child: LinearProgressIndicator(),
@@ -122,7 +121,9 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                               value: _selectedEditionId,
                               decoration: InputDecoration(
                                 labelText: 'Edição',
-                                labelStyle: const TextStyle(color: Colors.black),
+                                labelStyle: const TextStyle(
+                                  color: Colors.black,
+                                ),
                                 filled: true,
                                 fillColor: const Color(0xFFF5F5F5),
                                 border: OutlineInputBorder(
@@ -130,24 +131,29 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              items: editions
-                                  .map((doc) => DropdownMenuItem<String>(
-                                        value: doc.id,
-                                        child: Text(
-                                          doc['nome'] ?? doc.id,
-                                          style: const TextStyle(color: Colors.black),
+                              items:
+                                  editions
+                                      .map(
+                                        (doc) => DropdownMenuItem<String>(
+                                          value: doc.id,
+                                          child: Text(
+                                            doc['nome'] ?? doc.id,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                            ),
+                                          ),
                                         ),
-                                      ))
-                                  .toList(),
+                                      )
+                                      .toList(),
                               onChanged: (val) {
                                 setState(() {
                                   _selectedEditionId = val;
                                   _selectedEventId = null;
-                                  _selectedCheckpointId = null;
                                 });
                               },
                               style: const TextStyle(color: Colors.black),
-                              validator: (v) => v == null ? 'Obrigatório' : null,
+                              validator:
+                                  (v) => v == null ? 'Obrigatório' : null,
                             );
                           },
                         ),
@@ -155,13 +161,15 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                         // --- Evento Dropdown ---
                         if (_selectedEditionId != null)
                           StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('editions')
-                                .doc(_selectedEditionId)
-                                .collection('events')
-                                .snapshots(),
+                            stream:
+                                FirebaseFirestore.instance
+                                    .collection('editions')
+                                    .doc(_selectedEditionId)
+                                    .collection('events')
+                                    .snapshots(),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
                                 return const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 12),
                                   child: LinearProgressIndicator(),
@@ -175,7 +183,9 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                                 value: _selectedEventId,
                                 decoration: InputDecoration(
                                   labelText: 'Evento',
-                                  labelStyle: const TextStyle(color: Colors.black),
+                                  labelStyle: const TextStyle(
+                                    color: Colors.black,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF5F5F5),
                                   border: OutlineInputBorder(
@@ -183,80 +193,34 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                                     borderSide: BorderSide.none,
                                   ),
                                 ),
-                                items: events
-                                    .map((doc) => DropdownMenuItem<String>(
-                                          value: doc.id,
-                                          child: Text(
-                                            doc['nome'] ?? doc.id,
-                                            style: const TextStyle(color: Colors.black),
+                                items:
+                                    events
+                                        .map(
+                                          (doc) => DropdownMenuItem<String>(
+                                            value: doc.id,
+                                            child: Text(
+                                              doc['nome'] ?? doc.id,
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                              ),
+                                            ),
                                           ),
-                                        ))
-                                    .toList(),
+                                        )
+                                        .toList(),
                                 onChanged: (val) {
                                   setState(() {
                                     _selectedEventId = val;
-                                    _selectedCheckpointId = null;
                                   });
                                 },
                                 style: const TextStyle(color: Colors.black),
-                                validator: (v) => v == null ? 'Obrigatório' : null,
+                                validator:
+                                    (v) => v == null ? 'Obrigatório' : null,
                               );
                             },
                           ),
-                        if (_selectedEditionId != null) const SizedBox(height: 12),
-                        // --- Checkpoint Dropdown ---
-                        if (_selectedEditionId != null && _selectedEventId != null)
-                          StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('editions')
-                                .doc(_selectedEditionId)
-                                .collection('events')
-                                .doc(_selectedEventId)
-                                .collection('checkpoints')
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: LinearProgressIndicator(),
-                                );
-                              }
-                              if (snapshot.hasError) {
-                                return const Text('Erro ao carregar checkpoints');
-                              }
-                              final checkpoints = snapshot.data?.docs ?? [];
-                              return DropdownButtonFormField<String>(
-                                value: _selectedCheckpointId,
-                                decoration: InputDecoration(
-                                  labelText: 'Checkpoint',
-                                  labelStyle: const TextStyle(color: Colors.black),
-                                  filled: true,
-                                  fillColor: const Color(0xFFF5F5F5),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                items: checkpoints
-                                    .map((doc) => DropdownMenuItem<String>(
-                                          value: doc.id,
-                                          child: Text(
-                                            doc['nome'] ?? doc.id,
-                                            style: const TextStyle(color: Colors.black),
-                                          ),
-                                        ))
-                                    .toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedCheckpointId = val;
-                                  });
-                                },
-                                style: const TextStyle(color: Colors.black),
-                                validator: (v) => v == null ? 'Obrigatório' : null,
-                              );
-                            },
-                          ),
-                        if (_selectedEditionId != null && _selectedEventId != null) const SizedBox(height: 12),
+                        if (_selectedEditionId != null)
+                          const SizedBox(height: 12),
+                        // --- Checkpoint Dropdown REMOVIDO ---
                         TextFormField(
                           controller: _nomeController,
                           decoration: InputDecoration(
@@ -270,8 +234,9 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                             ),
                           ),
                           style: const TextStyle(color: Colors.black),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Obrigatório' : null,
+                          validator:
+                              (v) =>
+                                  v == null || v.isEmpty ? 'Obrigatório' : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -287,8 +252,9 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                             ),
                           ),
                           style: const TextStyle(color: Colors.black),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Obrigatório' : null,
+                          validator:
+                              (v) =>
+                                  v == null || v.isEmpty ? 'Obrigatório' : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -335,20 +301,22 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                             ),
                           ),
                           dropdownColor: const Color(0xFFFFF8E1),
-                          items: _tipos
-                              .map(
-                                (e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(
-                                    e,
-                                    style: const TextStyle(
-                                      color: Colors.black,
+                          items:
+                              _tipos
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(
+                                        e,
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => _tipoSelecionado = v!),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (v) => setState(() => _tipoSelecionado = v!),
                           style: const TextStyle(color: Colors.black),
                         ),
                         // Removed dropdown de grupo
