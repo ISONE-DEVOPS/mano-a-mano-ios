@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../theme/app_colors.dart';
+import '../checkin/responder_pergunta_view.dart';
 
 class CheckinView extends StatefulWidget {
   const CheckinView({super.key});
@@ -172,7 +172,12 @@ class _CheckinViewState extends State<CheckinView> {
                     _controller.stop();
 
                     if (context.mounted) {
-                      Get.offNamed('/home');
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ResponderPerguntaView(checkpointId: posto),
+                        ),
+                      );
                     }
                   },
                 ),

@@ -365,6 +365,20 @@ class _HomeViewState extends State<HomeView> {
                             final userData = userDoc.data() ?? {};
                             final userName = userData['nome'] ?? '';
                             final veiculoId = userData['veiculoId'];
+                            // Buscar grupo da equipa
+                            final equipaId = userData['equipaId'];
+                            String? grupo;
+                            if (equipaId != null &&
+                                equipaId.toString().isNotEmpty) {
+                              final equipaDoc =
+                                  await FirebaseFirestore.instance
+                                      .collection('equipas')
+                                      .doc(equipaId)
+                                      .get();
+                              if (equipaDoc.exists) {
+                                grupo = equipaDoc.data()?['grupo'];
+                              }
+                            }
                             if (veiculoId == null ||
                                 veiculoId.toString().isEmpty) {
                               return {
@@ -372,6 +386,7 @@ class _HomeViewState extends State<HomeView> {
                                 'userData': userData,
                                 'carData': null,
                                 'carId': null,
+                                'grupo': grupo,
                               };
                             }
                             final carDoc =
@@ -386,6 +401,7 @@ class _HomeViewState extends State<HomeView> {
                               'userData': userData,
                               'carData': carData,
                               'carId': veiculoId,
+                              'grupo': grupo,
                             };
                           })(),
                       builder: (context, snapshot) {
@@ -446,7 +462,7 @@ class _HomeViewState extends State<HomeView> {
                             final visitedCheckpoints =
                                 checkpoints.entries.where((entry) {
                                   final cp = entry.value;
-                                  return cp.containsKey('entrada') ||
+                                  return cp.containsKey('entrada') &&
                                       cp.containsKey('saida');
                                 }).length;
                             final int totalCheckpoints = checkpoints.length;
@@ -522,6 +538,9 @@ class _HomeViewState extends State<HomeView> {
                                               Text(
                                                 'Dístico: ${carData['distico'] ?? '-'}',
                                               ),
+                                              Text(
+                                                'Grupo: ${data['grupo'] ?? '-'}',
+                                              ),
                                               if (_eventoAtivoNome != null)
                                                 Text(
                                                   'Evento: $_eventoAtivoNome',
@@ -541,15 +560,26 @@ class _HomeViewState extends State<HomeView> {
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                'Postos visitados: $visitedCheckpoints de $totalCheckpoints',
+                                                'Postos completos: $visitedCheckpoints de $totalCheckpoints',
                                               ),
                                               const SizedBox(height: 8),
                                               LinearProgressIndicator(
                                                 value: progress,
                                                 backgroundColor: Colors.white
                                                     .withAlpha(61),
-                                                color: AppColors.secondaryDark,
+                                                color:
+                                                    progress >= 1.0
+                                                        ? Colors.green
+                                                        : (progress >= 0.5
+                                                            ? Colors.orange
+                                                            : Colors.red),
                                                 minHeight: 8,
+                                              ),
+                                              Text(
+                                                'Postos restantes: ${totalCheckpoints - visitedCheckpoints}',
+                                                style: TextStyle(
+                                                  color: Colors.grey[700],
+                                                ),
                                               ),
                                               const Divider(height: 24),
                                               const Text(
@@ -718,7 +748,7 @@ class _HomeViewState extends State<HomeView> {
                                     ],
                                   ),
                                 ),
-                                // Substituição: Exibe QR Code com UID e nome do usuário autenticado
+                                // Substituição: Exibe QR Code com dados relevantes para leitura pelo Admin
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -726,7 +756,11 @@ class _HomeViewState extends State<HomeView> {
                                   ),
                                   child: QrImageView(
                                     data:
-                                        'UID: ${FirebaseAuth.instance.currentUser?.uid ?? ''}\nNome: ${userName ?? ''}',
+                                        'uid=${FirebaseAuth.instance.currentUser?.uid ?? ''};'
+                                        'nome=${userName ?? ''};'
+                                        'matricula=${carData['matricula'] ?? ''};'
+                                        'grupo=${data['grupo'] ?? ''};'
+                                        'pontuacao=${carData['pontuacao_total'] ?? 0};',
                                     version: QrVersions.auto,
                                     size: 200.0,
                                     backgroundColor: Colors.white,

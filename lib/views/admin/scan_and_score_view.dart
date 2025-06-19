@@ -34,32 +34,55 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
       return;
     }
 
-    final parts = scannedData.split('\n');
-    final nome = parts
-        .firstWhere((e) => e.startsWith('Nome:'), orElse: () => 'Nome:')
-        .replaceFirst('Nome: ', '');
-    final matricula = parts
-        .firstWhere(
-          (e) => e.startsWith('Matrícula:'),
-          orElse: () => 'Matrícula:',
-        )
-        .replaceFirst('Matrícula: ', '');
-    final email = parts
-        .firstWhere((e) => e.startsWith('Email:'), orElse: () => 'Email:')
-        .replaceFirst('Email: ', '');
-    final telefone = parts
-        .firstWhere((e) => e.startsWith('Telefone:'), orElse: () => 'Telefone:')
-        .replaceFirst('Telefone: ', '');
+    final parts = scannedData.split(';');
+    final Map<String, String> parsed = {};
+    for (var part in parts) {
+      final kv = part.split('=');
+      if (kv.length == 2) {
+        parsed[kv[0].trim()] = kv[1].trim();
+      }
+    }
 
-    await FirebaseFirestore.instance.collection('scores').add({
-      'nome': nome,
-      'matricula': matricula,
-      'email': email,
-      'telefone': telefone,
-      'jogo': selectedGame,
-      'pontos': int.tryParse(_pointsController.text) ?? 0,
-      'timestamp': DateTime.now().toUtc().toIso8601String(),
-    });
+    final uid = parsed['uid'] ?? '';
+    final pontuacaoAnterior = int.tryParse(parsed['pontuacao'] ?? '0') ?? 0;
+    final respostaUser = int.tryParse(parsed['resposta'] ?? '-1') ?? -1;
+
+    final pontos = int.tryParse(_pointsController.text) ?? 0;
+    final perguntaQuery =
+        await FirebaseFirestore.instance
+            .collection('perguntas')
+            .where('checkpoint', isEqualTo: selectedGame)
+            .limit(1)
+            .get();
+
+    int pontuacaoPergunta = 0;
+    bool respostaCorreta = false;
+    if (perguntaQuery.docs.isNotEmpty) {
+      final doc = perguntaQuery.docs.first.data();
+      final correta = doc['respostaCerta'];
+      respostaCorreta = correta == respostaUser;
+      if (respostaCorreta) {
+        pontuacaoPergunta = doc['pontos'] ?? 0;
+      }
+    }
+
+    final pontuacaoTotal = pontuacaoAnterior + pontos + pontuacaoPergunta;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('events')
+        .doc('shell_km_02')
+        .collection('pontuacoes')
+        .doc(selectedGame.toLowerCase().replaceAll(' ', '_'))
+        .set({
+          'checkpointId': selectedGame,
+          'pontuacaoJogo': pontos,
+          'pontuacaoPergunta': pontuacaoPergunta,
+          'pontuacaoTotal': pontuacaoTotal,
+          'respostaCorreta': respostaCorreta,
+          'timestampEntrada': FieldValue.serverTimestamp(),
+          'timestampSaida': FieldValue.serverTimestamp(),
+        });
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

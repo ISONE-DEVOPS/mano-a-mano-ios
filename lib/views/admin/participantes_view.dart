@@ -627,6 +627,49 @@ class ParticipantesView extends StatelessWidget {
                                                                   final veiculo =
                                                                       veiculoDoc
                                                                           .data();
+                                                                  // Carrega equipa correspondente
+                                                                  final equipaId =
+                                                                      data['equipaId'];
+                                                                  DocumentSnapshot?
+                                                                  equipaDoc;
+                                                                  Map<
+                                                                    String,
+                                                                    dynamic
+                                                                  >?
+                                                                  equipa;
+                                                                  if (equipaId !=
+                                                                          null &&
+                                                                      equipaId
+                                                                          .toString()
+                                                                          .isNotEmpty) {
+                                                                    equipaDoc =
+                                                                        await FirebaseFirestore
+                                                                            .instance
+                                                                            .collection(
+                                                                              'equipas',
+                                                                            )
+                                                                            .doc(
+                                                                              equipaId,
+                                                                            )
+                                                                            .get();
+                                                                    if (!context
+                                                                        .mounted) {
+                                                                      return;
+                                                                    }
+                                                                    if (equipaDoc
+                                                                        .exists) {
+                                                                      equipa =
+                                                                          equipaDoc.data()
+                                                                              as Map<
+                                                                                String,
+                                                                                dynamic
+                                                                              >?;
+                                                                    }
+                                                                  }
+                                                                  if (!context
+                                                                      .mounted) {
+                                                                    return;
+                                                                  }
                                                                   showDialog(
                                                                     context:
                                                                         context,
@@ -734,7 +777,19 @@ class ParticipantesView extends StatelessWidget {
                                                                                       String
                                                                                     >(
                                                                                       value:
-                                                                                          veiculo['grupo'],
+                                                                                          (equipa !=
+                                                                                                      null &&
+                                                                                                  equipa['grupo'] !=
+                                                                                                      null &&
+                                                                                                  [
+                                                                                                    'A',
+                                                                                                    'B',
+                                                                                                  ].contains(
+                                                                                                    equipa['grupo'],
+                                                                                                  ))
+                                                                                              ? equipa['grupo']
+                                                                                                  as String
+                                                                                              : null,
                                                                                       decoration: const InputDecoration(
                                                                                         labelText:
                                                                                             'Grupo',
