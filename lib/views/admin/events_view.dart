@@ -20,6 +20,8 @@ class _EventsViewState extends State<EventsView> {
   final _nameController = TextEditingController();
   final _localController = TextEditingController();
   final _priceController = TextEditingController();
+  final _descricaoController = TextEditingController();
+  final _entidadeController = TextEditingController();
   DateTime? _selectedDate;
   bool _status = true;
   final _formKey = GlobalKey<FormState>();
@@ -405,6 +407,17 @@ class _EventsViewState extends State<EventsView> {
                                           ),
                                     );
                                     if (confirmed == true) {
+                                      final checkpoints =
+                                          await FirebaseFirestore.instance
+                                              .collection('editions')
+                                              .doc(widget.edicaoId)
+                                              .collection('events')
+                                              .doc(doc.id)
+                                              .collection('checkpoints')
+                                              .get();
+                                      for (final cp in checkpoints.docs) {
+                                        await cp.reference.delete();
+                                      }
                                       await doc.reference.delete();
                                     }
                                   },
@@ -448,6 +461,38 @@ class _EventsViewState extends State<EventsView> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    TextFormField(
+                      controller: _descricaoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Descrição',
+                        hintText: 'Descrição do evento',
+                        labelStyle: TextStyle(color: Colors.black),
+                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.black),
+                      validator:
+                          (v) =>
+                              v == null || v.isEmpty
+                                  ? 'Informe a descrição'
+                                  : null,
+                    ),
+                    TextFormField(
+                      controller: _entidadeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Entidade',
+                        hintText: 'Entidade responsável',
+                        labelStyle: TextStyle(color: Colors.black),
+                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.black),
+                      validator:
+                          (v) =>
+                              v == null || v.isEmpty
+                                  ? 'Informe a entidade'
+                                  : null,
+                    ),
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -580,16 +625,18 @@ class _EventsViewState extends State<EventsView> {
                         'local': _localController.text.trim(),
                         'price':
                             double.tryParse(_priceController.text.trim()) ?? 0,
-                        'data_event': Timestamp.fromDate(_selectedDate!),
+                        'data': Timestamp.fromDate(_selectedDate!),
                         'status': _status,
-                        'percurso': <Map<String, dynamic>>[],
-                        'checkpoints': <Map<String, dynamic>>[],
+                        'descricao': _descricaoController.text.trim(),
+                        'entidade': _entidadeController.text.trim(),
                       });
                   if (!mounted) return;
                   Navigator.pop(context);
                   _nameController.clear();
                   _localController.clear();
                   _priceController.clear();
+                  _descricaoController.clear();
+                  _entidadeController.clear();
                   setState(() => _selectedDate = null);
                 },
                 child: const Text('Salvar'),
@@ -608,8 +655,14 @@ class _EventsViewState extends State<EventsView> {
     final priceController = TextEditingController(
       text: '${data['price'] ?? ''}',
     );
+    final descricaoController = TextEditingController(
+      text: data['descricao'] ?? '',
+    );
+    final entidadeController = TextEditingController(
+      text: data['entidade'] ?? '',
+    );
     DateTime? selectedDate =
-        (data['data_event'] as Timestamp?)?.toDate() ?? DateTime.now();
+        (data['data'] as Timestamp?)?.toDate() ?? DateTime.now();
     bool status = data['status'] ?? true;
 
     showDialog(
@@ -625,6 +678,36 @@ class _EventsViewState extends State<EventsView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          TextFormField(
+                            controller: descricaoController,
+                            decoration: const InputDecoration(
+                              labelText: 'Descrição',
+                              hintText: 'Descrição do evento',
+                              labelStyle: TextStyle(color: Colors.black87),
+                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
+                            validator:
+                                (v) =>
+                                    v == null || v.isEmpty
+                                        ? 'Informe a descrição'
+                                        : null,
+                          ),
+                          TextFormField(
+                            controller: entidadeController,
+                            decoration: const InputDecoration(
+                              labelText: 'Entidade',
+                              hintText: 'Entidade responsável',
+                              labelStyle: TextStyle(color: Colors.black87),
+                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
+                            validator:
+                                (v) =>
+                                    v == null || v.isEmpty
+                                        ? 'Informe a entidade'
+                                        : null,
+                          ),
                           TextFormField(
                             controller: nameController,
                             decoration: const InputDecoration(
@@ -740,8 +823,10 @@ class _EventsViewState extends State<EventsView> {
                           'local': localController.text.trim(),
                           'price':
                               double.tryParse(priceController.text.trim()) ?? 0,
-                          'data_event': Timestamp.fromDate(selectedDate!),
+                          'data': Timestamp.fromDate(selectedDate!),
                           'status': status,
+                          'descricao': descricaoController.text.trim(),
+                          'entidade': entidadeController.text.trim(),
                         });
                         if (!context.mounted) return;
                         Navigator.pop(context);

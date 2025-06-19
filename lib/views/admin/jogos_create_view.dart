@@ -15,16 +15,13 @@ class _JogosCreateViewState extends State<JogosCreateView> {
   final _descricaoController = TextEditingController();
   final _pontuacaoController = TextEditingController();
   final _regrasController = TextEditingController();
-  final _tempoController = TextEditingController();
-  final _localPadraoController = TextEditingController();
-  final _materialController = TextEditingController();
-  final _ordemController = TextEditingController();
 
   String _tipoSelecionado = 'pontaria';
-  String _grupoSelecionado = 'ambos';
-  String _dificuldadeSelecionada = 'média';
-  bool _avaliacaoAutomatica = true;
-  bool _visivelParaAdmin = true;
+
+  // Novas variáveis de estado para edição/evento/checkpoint
+  String? _selectedEditionId;
+  String? _selectedEventId;
+  String? _selectedCheckpointId;
 
   final List<String> _tipos = [
     'pontaria',
@@ -33,7 +30,6 @@ class _JogosCreateViewState extends State<JogosCreateView> {
     'resistencia',
     'criatividade',
   ];
-  final List<String> _grupos = ['A', 'B', 'ambos'];
   final List<String> _dificuldades = ['fácil', 'média', 'difícil'];
 
   void _salvarJogo() async {
@@ -44,15 +40,11 @@ class _JogosCreateViewState extends State<JogosCreateView> {
         'pontuacaoMax': int.tryParse(_pontuacaoController.text) ?? 0,
         'regras': _regrasController.text,
         'tipo': _tipoSelecionado,
-        'grupo': _grupoSelecionado,
-        'tempoEstimado': int.tryParse(_tempoController.text) ?? 0,
-        'materialNecessario':
-            _materialController.text.split(',').map((e) => e.trim()).toList(),
-        'avaliacaoAutomatica': _avaliacaoAutomatica,
-        'visivelParaAdmin': _visivelParaAdmin,
-        'ordemRecomendada': int.tryParse(_ordemController.text) ?? 0,
-        'nivelDificuldade': _dificuldadeSelecionada,
-        'localPadrao': _localPadraoController.text,
+        // Novos campos
+        'editionId': _selectedEditionId,
+        'eventId': _selectedEventId,
+        'checkpointId': _selectedCheckpointId,
+        // Removed: 'grupo', 'tempoEstimado', 'materialNecessario', 'avaliacaoAutomatica', 'visivelParaAdmin', 'ordemRecomendada', 'nivelDificuldade', 'localPadrao'
       });
 
       if (!mounted) {
@@ -60,19 +52,17 @@ class _JogosCreateViewState extends State<JogosCreateView> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Jogo salvo com sucesso')));
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      });
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        Navigator.pop(context);
+      }
       _formKey.currentState!.reset();
       setState(() {
         _tipoSelecionado = 'pontaria';
-        _grupoSelecionado = 'ambos';
-        _dificuldadeSelecionada = 'média';
-        _avaliacaoAutomatica = true;
-        _visivelParaAdmin = true;
+        _selectedEditionId = null;
+        _selectedEventId = null;
+        _selectedCheckpointId = null;
       });
     }
   }
@@ -114,174 +104,261 @@ class _JogosCreateViewState extends State<JogosCreateView> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        // --- Edição Dropdown ---
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance.collection('editions').snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: LinearProgressIndicator(),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return const Text('Erro ao carregar edições');
+                            }
+                            final editions = snapshot.data?.docs ?? [];
+                            return DropdownButtonFormField<String>(
+                              value: _selectedEditionId,
+                              decoration: InputDecoration(
+                                labelText: 'Edição',
+                                labelStyle: const TextStyle(color: Colors.black),
+                                filled: true,
+                                fillColor: const Color(0xFFF5F5F5),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              items: editions
+                                  .map((doc) => DropdownMenuItem<String>(
+                                        value: doc.id,
+                                        child: Text(
+                                          doc['nome'] ?? doc.id,
+                                          style: const TextStyle(color: Colors.black),
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedEditionId = val;
+                                  _selectedEventId = null;
+                                  _selectedCheckpointId = null;
+                                });
+                              },
+                              style: const TextStyle(color: Colors.black),
+                              validator: (v) => v == null ? 'Obrigatório' : null,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        // --- Evento Dropdown ---
+                        if (_selectedEditionId != null)
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('editions')
+                                .doc(_selectedEditionId)
+                                .collection('events')
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: LinearProgressIndicator(),
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return const Text('Erro ao carregar eventos');
+                              }
+                              final events = snapshot.data?.docs ?? [];
+                              return DropdownButtonFormField<String>(
+                                value: _selectedEventId,
+                                decoration: InputDecoration(
+                                  labelText: 'Evento',
+                                  labelStyle: const TextStyle(color: Colors.black),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF5F5F5),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                items: events
+                                    .map((doc) => DropdownMenuItem<String>(
+                                          value: doc.id,
+                                          child: Text(
+                                            doc['nome'] ?? doc.id,
+                                            style: const TextStyle(color: Colors.black),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedEventId = val;
+                                    _selectedCheckpointId = null;
+                                  });
+                                },
+                                style: const TextStyle(color: Colors.black),
+                                validator: (v) => v == null ? 'Obrigatório' : null,
+                              );
+                            },
+                          ),
+                        if (_selectedEditionId != null) const SizedBox(height: 12),
+                        // --- Checkpoint Dropdown ---
+                        if (_selectedEditionId != null && _selectedEventId != null)
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('editions')
+                                .doc(_selectedEditionId)
+                                .collection('events')
+                                .doc(_selectedEventId)
+                                .collection('checkpoints')
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: LinearProgressIndicator(),
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return const Text('Erro ao carregar checkpoints');
+                              }
+                              final checkpoints = snapshot.data?.docs ?? [];
+                              return DropdownButtonFormField<String>(
+                                value: _selectedCheckpointId,
+                                decoration: InputDecoration(
+                                  labelText: 'Checkpoint',
+                                  labelStyle: const TextStyle(color: Colors.black),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF5F5F5),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                items: checkpoints
+                                    .map((doc) => DropdownMenuItem<String>(
+                                          value: doc.id,
+                                          child: Text(
+                                            doc['nome'] ?? doc.id,
+                                            style: const TextStyle(color: Colors.black),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedCheckpointId = val;
+                                  });
+                                },
+                                style: const TextStyle(color: Colors.black),
+                                validator: (v) => v == null ? 'Obrigatório' : null,
+                              );
+                            },
+                          ),
+                        if (_selectedEditionId != null && _selectedEventId != null) const SizedBox(height: 12),
                         TextFormField(
                           controller: _nomeController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Nome',
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           style: const TextStyle(color: Colors.black),
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Obrigatório' : null,
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Obrigatório' : null,
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _descricaoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Descrição',
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           style: const TextStyle(color: Colors.black),
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Obrigatório' : null,
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Obrigatório' : null,
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _pontuacaoController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Pontuação Máxima',
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           style: const TextStyle(color: Colors.black),
                           keyboardType: TextInputType.number,
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _regrasController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Regras',
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           style: const TextStyle(color: Colors.black),
                         ),
+                        const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           value: _tipoSelecionado,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Tipo',
-                            labelStyle: TextStyle(color: Colors.black),
+                            labelStyle: const TextStyle(color: Colors.black),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                           dropdownColor: const Color(0xFFFFF8E1),
-                          items:
-                              _tipos
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(
-                                        e,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                        ),
-                                      ),
+                          items: _tipos
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(
+                                    e,
+                                    style: const TextStyle(
+                                      color: Colors.black,
                                     ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (v) => setState(() => _tipoSelecionado = v!),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _tipoSelecionado = v!),
                           style: const TextStyle(color: Colors.black),
                         ),
-                        DropdownButtonFormField<String>(
-                          value: _grupoSelecionado,
-                          decoration: const InputDecoration(
-                            labelText: 'Grupo',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          dropdownColor: const Color(0xFFFFF8E1),
-                          items:
-                              _grupos
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(
-                                        e,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (v) => setState(() => _grupoSelecionado = v!),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        TextFormField(
-                          controller: _tempoController,
-                          decoration: const InputDecoration(
-                            labelText: 'Tempo Estimado (min)',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          style: const TextStyle(color: Colors.black),
-                          keyboardType: TextInputType.number,
-                        ),
-                        TextFormField(
-                          controller: _materialController,
-                          decoration: const InputDecoration(
-                            labelText:
-                                'Materiais necessários (separados por vírgula)',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: _dificuldadeSelecionada,
-                          decoration: const InputDecoration(
-                            labelText: 'Dificuldade',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          dropdownColor: const Color(0xFFFFF8E1),
-                          items:
-                              _dificuldades
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(
-                                        e,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (v) =>
-                                  setState(() => _dificuldadeSelecionada = v!),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        TextFormField(
-                          controller: _localPadraoController,
-                          decoration: const InputDecoration(
-                            labelText: 'Local Padrão',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        TextFormField(
-                          controller: _ordemController,
-                          decoration: const InputDecoration(
-                            labelText: 'Ordem Recomendada',
-                            labelStyle: TextStyle(color: Colors.black),
-                          ),
-                          style: const TextStyle(color: Colors.black),
-                          keyboardType: TextInputType.number,
-                        ),
-                        SwitchListTile(
-                          title: const Text(
-                            'Avaliação Automática',
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          value: _avaliacaoAutomatica,
-                          onChanged:
-                              (v) => setState(() => _avaliacaoAutomatica = v),
-                        ),
-                        SwitchListTile(
-                          title: const Text(
-                            'Visível para Admin',
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          value: _visivelParaAdmin,
-                          onChanged:
-                              (v) => setState(() => _visivelParaAdmin = v),
-                        ),
+                        // Removed dropdown de grupo
+                        // Removed campo tempoEstimado
+                        // Removed campo materialNecessario
+                        // Removed dropdown de dificuldade
+                        // Removed campo localPadrao
+                        // Removed campo ordemRecomendada
+                        // Removed SwitchListTile de avaliação automática
+                        // Removed SwitchListTile de visível para admin
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(

@@ -39,12 +39,17 @@ class _EditionViewState extends State<EditionView> {
       );
       return;
     }
+    if (dataInicio.isAfter(dataFim)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data de início deve ser antes da data de fim')),
+      );
+      return;
+    }
 
     try {
       await FirebaseFirestore.instance
           .collection('editions')
-          .doc(nome.toLowerCase().replaceAll(' ', '_'))
-          .set({
+          .add({
             'nome': nome,
             'descricao': descricao,
             'dataInicio': dataInicio,
@@ -325,77 +330,108 @@ class _EditionViewState extends State<EditionView> {
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(4),
-                                  child: IconButton(
-                                    icon: const Icon(
-                                      Icons.event,
-                                      color: Colors.orange,
-                                    ),
-                                    tooltip: 'Gerenciar Eventos',
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder:
-                                            (_) => Dialog(
-                                              backgroundColor: Colors.white,
-                                              insetPadding:
-                                                  const EdgeInsets.all(16),
-                                              child: Column(
-                                                children: [
-                                                  Container(
-                                                    color: AppColors.primary,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 16,
-                                                          vertical: 10,
-                                                        ),
-                                                    child: Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .spaceBetween,
-                                                      children: [
-                                                        Text(
-                                                          'Eventos: ${data['nome'] ?? doc.id}',
-                                                          style:
-                                                              const TextStyle(
-                                                                color:
-                                                                    Colors
-                                                                        .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                        ),
-                                                        IconButton(
-                                                          icon: const Icon(
-                                                            Icons.close,
-                                                            color: Colors.white,
-                                                          ),
-                                                          onPressed:
-                                                              () =>
-                                                                  Navigator.pop(
-                                                                    context,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.event,
+                                          color: Colors.orange,
+                                        ),
+                                        tooltip: 'Gerenciar Eventos',
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder:
+                                                (_) => Dialog(
+                                                  backgroundColor: Colors.white,
+                                                  insetPadding:
+                                                      const EdgeInsets.all(16),
+                                                  child: Column(
+                                                    children: [
+                                                      Container(
+                                                        color: AppColors.primary,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 16,
+                                                              vertical: 10,
+                                                            ),
+                                                        child: Row(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .spaceBetween,
+                                                          children: [
+                                                            Text(
+                                                              'Eventos: ${data['nome'] ?? doc.id}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                    color:
+                                                                        Colors
+                                                                            .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
                                                                   ),
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(
+                                                                Icons.close,
+                                                                color: Colors.white,
+                                                              ),
+                                                              onPressed:
+                                                                  () =>
+                                                                      Navigator.pop(
+                                                                        context,
+                                                                      ),
+                                                            ),
+                                                          ],
                                                         ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Expanded(
-                                                    child: SizedBox(
-                                                      width:
-                                                          MediaQuery.of(
-                                                            context,
-                                                          ).size.width *
-                                                          0.9,
-                                                      child: EventsView(
-                                                        edicaoId: doc.id,
                                                       ),
-                                                    ),
+                                                      Expanded(
+                                                        child: SizedBox(
+                                                          width:
+                                                              MediaQuery.of(
+                                                                context,
+                                                              ).size.width *
+                                                              0.9,
+                                                          child: EventsView(
+                                                            edicaoId: doc.id,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        tooltip: 'Eliminar Edição',
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('Confirmar exclusão'),
+                                              content: const Text('Deseja mesmo eliminar esta edição? Esta ação não pode ser desfeita.'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx, false),
+                                                  child: const Text('Cancelar'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx, true),
+                                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                                ),
+                                              ],
                                             ),
-                                      );
-                                    },
+                                          );
+                                          if (confirm == true) {
+                                            await FirebaseFirestore.instance.collection('editions').doc(doc.id).delete();
+                                          }
+                                        },
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

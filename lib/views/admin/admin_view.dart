@@ -7,7 +7,7 @@ import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
 import 'generate_qr_view.dart';
 import 'perguntas_view.dart' as perguntas_view;
-//import 'jogos_create_view.dart';
+import 'jogos_create_view.dart';
 //import 'final_activities_view.dart';
 import 'ranking_detailed_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
@@ -169,8 +169,9 @@ class _AdminViewState extends State<AdminView> {
     const EditionView(),
     const GenerateQrView(),
     const perguntas_view.PerguntasView(),
-    const RankingDetailedView(),
+    const JogosCreateView(),
     const ParticipantesView(),
+    const RankingDetailedView(),
   ];
 
   final List<String> _menuTitles = [
@@ -178,8 +179,9 @@ class _AdminViewState extends State<AdminView> {
     'Edições',
     'QR Codes',
     'Perguntas',
-    'Ranking Detalhado',
+    'Jogos',
     'Participantes',
+    'Ranking Detalhado',
   ];
 
   @override
