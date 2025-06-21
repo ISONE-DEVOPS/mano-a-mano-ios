@@ -148,7 +148,8 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       'lat': checkpointData['localizacao']?.latitude ?? '',
       'lng': checkpointData['localizacao']?.longitude ?? '',
       'percurso': checkpointData['percurso'] ?? '',
-      'pergunta1Id': checkpointData['pergunta1Id'] ?? '',
+      'perguntaId':
+          (checkpointData['perguntaRef'] as DocumentReference?)?.id ?? '',
       'pergunta2Id': checkpointData['pergunta2Id'] ?? '',
       'jogoId': checkpointData['jogoId'] ?? '',
     };
@@ -407,6 +408,68 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryDark,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                  // Botão para mostrar QR Code em diálogo
+                  ElevatedButton.icon(
+                    onPressed:
+                        _qrData == null
+                            ? null
+                            : () {
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (_) => AlertDialog(
+                                      title: const Text('QR Code Gerado'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          QrImageView(
+                                            data: _qrData!,
+                                            version: QrVersions.auto,
+                                            size: 200.0,
+                                            embeddedImage: const AssetImage(
+                                              'assets/images/shell_logo.png',
+                                            ),
+                                            embeddedImageStyle:
+                                                const QrEmbeddedImageStyle(
+                                                  size: Size(40, 40),
+                                                ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Checkpoint: $_postoSelecionado',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(context),
+                                          child: const Text('Fechar'),
+                                        ),
+                                      ],
+                                    ),
+                              );
+                            },
+                    icon: const Icon(Icons.visibility),
+                    label: Text(
+                      'Mostrar QR Code',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,

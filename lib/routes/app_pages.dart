@@ -1,8 +1,12 @@
+import '../views/staff/staff_home_view.dart';
+import '../views/staff/staff_checkin_view.dart';
+import '../views/staff/staff_pontuacao_view.dart';
+import '../views/staff/pontuacao_qr_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mano_mano_dashboard/views/admin/gestao_view.dart';
 import '../views/dashboard/home_view.dart';
-import '../views/splash/splash_view.dart';
+
+///import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/profile/profile_view.dart';
@@ -41,17 +45,22 @@ import '../views/admin/perguntas_view.dart';
 //import '../views/admin/jogos_create_view.dart';
 import '../views/admin/checkpoints_list_dialog.dart';
 import '../views/admin/register_participant_view.dart';
+import '../views/admin/create_user_view.dart';
+import '../views/admin/report_geral_view.dart';
+import '../views/auth/closed_registration_view.dart';
 
 class AppPages {
   static const initial = '/';
 
   static final routes = [
     // Splash e Autenticação
-    GetPage(name: '/', page: () => const SplashView()),
+    //GetPage(name: '/', page: () => const SplashView()),
+    GetPage(name: '/', page: () => const ClosedRegistrationView()),
     GetPage(name: '/loading-admin', page: () => const LoadingAdminView()),
     GetPage(name: '/splash', page: () => const IntroSplashView()),
     GetPage(name: '/login', page: () => const LoginView()),
     GetPage(name: '/register', page: () => const RegisterView()),
+    GetPage(name: '/closed', page: () => const ClosedRegistrationView()),
     GetPage(name: '/home', page: () => const HomeView()),
     GetPage(name: '/forgot-password', page: () => const ForgotPasswordView()),
 
@@ -83,8 +92,14 @@ class AppPages {
           ),
     ),
     GetPage(name: '/challenges', page: () => ChallengeView()),
+    GetPage(name: '/jogos', page: () => ChallengeView()),
     GetPage(name: '/ranking-detailed', page: () => const RankingDetailedView()),
-    GetPage(name: '/gestao', page: () => const GestaoView()),
+    GetPage(name: '/gestao-utilizadores', page: () => const CreateUserView()),
+    GetPage(name: '/gestao-reports', page: () => const ReportsView()),
+    GetPage(
+      name: '/gestao-participantes',
+      page: () => const ParticipantesView(),
+    ),
     // GetPage(name: '/final-activities', page: () => FinalActivitiesView()),
     GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
     GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
@@ -189,5 +204,10 @@ class AppPages {
         );
       },
     ),
+    // Staff pages
+    GetPage(name: '/staff', page: () => const StaffHomeView()),
+    GetPage(name: '/staff/checkin', page: () => const StaffCheckinView()),
+    GetPage(name: '/staff/jogos', page: () => const PontuacaoQrView()),
+    GetPage(name: '/staff/ver_pontuacao', page: () => const StaffPontuacaoView()),
   ];
 }

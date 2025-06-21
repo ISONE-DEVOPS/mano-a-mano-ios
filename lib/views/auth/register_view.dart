@@ -45,26 +45,14 @@ class _RegisterViewState extends State<RegisterView> {
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
 
-    // Verificação de limite de equipas considerando apenas equipas com pelo menos um membro do tipo "user"
+    // Verificação de limite de equipas simplificada: limita pelo número total de equipas
     final equipasSnapshot =
         await FirebaseFirestore.instance.collection('equipas').get();
-    final usersSnapshot =
-        await FirebaseFirestore.instance.collection('users').get();
-    final userTypes = {
-      for (var doc in usersSnapshot.docs) doc.id: doc.data()['role'] ?? 'user',
-    };
+    final totalEquipas = equipasSnapshot.size;
 
-    final validEquipas =
-        equipasSnapshot.docs.where((doc) {
-          final membros = List<String>.from(doc.data()['membros'] ?? []);
-          return membros.any((uid) => userTypes[uid] == 'user');
-        }).length;
-
-    if (validEquipas >= 42) {
+    if (totalEquipas >= 42) {
       if (!mounted) return;
-      setState(() {
-        _error = 'Inscrições encerradas.';
-      });
+      Navigator.of(context).pushReplacementNamed('/closed');
       return;
     }
 
@@ -175,7 +163,7 @@ class _RegisterViewState extends State<RegisterView> {
       }
       final Map<String, dynamic> data = eventDoc.data()!;
       final nomeEvento = data['nome'] ?? 'Sem nome';
-      final price = double.tryParse('${data['price']}') ?? 0;
+      final price = double.tryParse('${data['price'] ?? '0'}') ?? 0;
 
       // Gerar novos IDs para veiculo e equipa
       final veiculoId =
@@ -223,13 +211,6 @@ class _RegisterViewState extends State<RegisterView> {
         };
 
         if (!mounted) return;
-        final args = ModalRoute.of(context)?.settings.arguments;
-        if (args is Map<String, dynamic>) {
-          final grupo = args['grupo'];
-          if (grupo == 'A' || grupo == 'B') {
-            equipaData['grupo'] = grupo;
-          }
-        }
 
         await FirebaseFirestore.instance
             .collection('equipas')
@@ -1080,10 +1061,31 @@ class _RegisterViewState extends State<RegisterView> {
               width: 200,
               height: 48,
               child: ElevatedButton(
-                onPressed:
-                    (_loading || _selectedEventId == null || !_acceptedTerms)
-                        ? null
-                        : _register,
+                onPressed: () {
+                  debugPrint('🟢 Clique no botão REGISTRAR');
+                  if (_loading) {
+                    debugPrint('⚠️ Está em loading, botão desativado.');
+                    return;
+                  }
+                  if (_selectedEventId == null) {
+                    debugPrint('⚠️ Nenhum evento selecionado.');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Selecione um evento.')),
+                    );
+                    return;
+                  }
+                  if (!_acceptedTerms) {
+                    debugPrint('⚠️ Termos não foram aceites.');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Aceite os termos para continuar.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  _register();
+                },
                 child:
                     _loading
                         ? const SizedBox(

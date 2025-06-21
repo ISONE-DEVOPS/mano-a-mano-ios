@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'edit_participantes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'dart:convert';
@@ -420,34 +421,17 @@ class ParticipantesView extends StatelessWidget {
                                                         DataCell(
                                                           Row(
                                                             children: [
-                                                              // IconButton(
-                                                              //   icon: const Icon(
-                                                              //     Icons.edit,
-                                                              //     color:
-                                                              //         Colors
-                                                              //             .orange,
-                                                              //   ),
-                                                              //   tooltip:
-                                                              //       'Editar Participante',
-                                                              //   onPressed: () {
-                                                              //     Navigator.of(
-                                                              //       context,
-                                                              //     ).pushNamed(
-                                                              //       '/register-participant',
-                                                              //       arguments: {
-                                                              //         'userId':
-                                                              //             doc.id,
-                                                              //         'grupo':
-                                                              //             (data['grupo'] ==
-                                                              //                         'A' ||
-                                                              //                     data['grupo'] ==
-                                                              //                         'B')
-                                                              //                 ? data['grupo']
-                                                              //                 : null,
-                                                              //       },
-                                                              //     );
-                                                              //   },
-                                                              // ),
+                                                              IconButton(
+                                                                icon: const Icon(Icons.edit, color: Colors.orange),
+                                                                tooltip: 'Editar Participante',
+                                                                onPressed: () {
+                                                                  Navigator.of(context).push(
+                                                                    MaterialPageRoute(
+                                                                      builder: (_) => EditParticipantesView(userId: doc.id),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              ),
                                                               IconButton(
                                                                 icon: const Icon(
                                                                   Icons.group,

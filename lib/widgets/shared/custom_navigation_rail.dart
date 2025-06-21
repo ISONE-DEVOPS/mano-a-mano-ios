@@ -64,13 +64,13 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
               ),
               _buildMenuItem(context, Icons.quiz, 'Perguntas', 3, isCollapsed),
               _buildMenuItem(context, Icons.extension, 'Jogos', 4, isCollapsed),
-              _buildMenuItem(
+              /* _buildMenuItem(
                 context,
                 Icons.people,
                 'Participantes',
                 5,
                 isCollapsed,
-              ),
+              ),*/
               _buildMenuItem(
                 context,
                 Icons.bar_chart,
@@ -78,7 +78,51 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
                 6,
                 isCollapsed,
               ),
-              _buildMenuItem(context, Icons.settings, 'Gestão', 7, isCollapsed),
+              if (!isCollapsed) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    'Gestão',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+                _buildMenuItem(
+                  context,
+                  Icons.manage_accounts,
+                  'Participantes',
+                  7,
+                  isCollapsed,
+                ),
+                _buildMenuItem(
+                  context,
+                  Icons.insert_chart,
+                  'Reports',
+                  8,
+                  isCollapsed,
+                ),
+                _buildMenuItem(
+                  context,
+                  Icons.groups,
+                  'Utilizadores',
+                  5,
+                  isCollapsed,
+                ),
+              ] else ...[
+                _buildMenuItem(
+                  context,
+                  Icons.settings,
+                  'Gestão',
+                  7,
+                  isCollapsed,
+                ),
+              ],
             ],
           ),
         );
@@ -98,14 +142,6 @@ class _CustomNavigationRailState extends State<CustomNavigationRail> {
     return InkWell(
       onTap: () {
         widget.onItemSelected(index);
-        if (index == 7) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          final navigator = Navigator.of(context);
-          Future.delayed(Duration.zero, () {
-            if (!mounted) return;
-            navigator.pushNamed('/gestao');
-          });
-        }
       },
       child: Container(
         padding: EdgeInsets.symmetric(

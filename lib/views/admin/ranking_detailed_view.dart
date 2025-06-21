@@ -15,16 +15,17 @@ class RankingDetailedView extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Ranking Detalhado',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.black),
         ),
         backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('ranking')
-            .orderBy('pontuacao', descending: true)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection('ranking')
+                .orderBy('pontuacao', descending: true)
+                .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -50,38 +51,62 @@ class RankingDetailedView extends StatelessWidget {
               }
 
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('equipas').doc(equipaId).get(),
+                future:
+                    FirebaseFirestore.instance
+                        .collection('equipas')
+                        .doc(equipaId)
+                        .get(),
                 builder: (context, equipaSnapshot) {
-                  final equipaNome = equipaSnapshot.data?.get('nome') ?? 'Equipa';
+                  final equipaNome =
+                      equipaSnapshot.data?.get('nome') ?? 'Equipa';
 
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.secondaryDark,
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
-                    title: Text(
-                      equipaNome,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Checkpoints: ${data['checkpointCount'] ?? 0}',
-                      style: TextStyle(
-                        color: AppColors.textSecondary.withAlpha(179),
-                      ),
-                    ),
-                    trailing: Text(
-                      '${data['pontuacao'] ?? 0} pts',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  return FutureBuilder<QuerySnapshot>(
+                    future:
+                        FirebaseFirestore.instance
+                            .collection('equipas')
+                            .doc(equipaId)
+                            .collection('pontuacoes')
+                            .get(),
+                    builder: (context, pontuacaoSnapshot) {
+                      int pontosPerguntas = 0;
+                      if (pontuacaoSnapshot.hasData) {
+                        for (var doc in pontuacaoSnapshot.data!.docs) {
+                          final dados = doc.data() as Map<String, dynamic>;
+                          if (dados['respostaCorreta'] == true) {
+                            pontosPerguntas +=
+                                10; // pontuação padrão por pergunta
+                          }
+                        }
+                      }
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.secondaryDark,
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ),
+                        title: Text(
+                          equipaNome,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Checkpoints: ${data['checkpointCount'] ?? 0} | Pontos de Pergunta: $pontosPerguntas',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                        trailing: Text(
+                          '${data['pontuacao'] ?? 0} pts',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               );

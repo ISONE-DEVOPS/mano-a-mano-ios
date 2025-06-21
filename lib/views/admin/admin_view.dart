@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mano_mano_dashboard/views/admin/create_user_view.dart';
 import 'participantes_view.dart';
 import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
@@ -10,7 +11,7 @@ import 'perguntas_view.dart' as perguntas_view;
 import 'jogos_create_view.dart';
 //import 'final_activities_view.dart';
 import 'ranking_detailed_view.dart';
-import 'gestao_view.dart';
+import 'report_geral_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 import 'package:mano_mano_dashboard/widgets/shared/custom_navigation_rail.dart';
 import 'package:mano_mano_dashboard/widgets/shared/custom_top_bar.dart';
@@ -171,9 +172,12 @@ class _AdminViewState extends State<AdminView> {
     const GenerateQrView(),
     const perguntas_view.PerguntasView(),
     const JogosCreateView(),
+    // Sub-menu "Gestão"
+    const CreateUserView(),
+    const ReportsView(),
     const ParticipantesView(),
     const RankingDetailedView(),
-    const GestaoView(),
+    const SizedBox.shrink(),
   ];
 
   final List<String> _menuTitles = [
@@ -182,9 +186,11 @@ class _AdminViewState extends State<AdminView> {
     'QR Codes',
     'Perguntas',
     'Jogos',
-    'Participantes',
+    'Gestão - Utilizadores',
+    'Gestão - Reports',
+    'Gestão - Participantes',
     'Ranking Detalhado',
-    'Gestão',
+    'Logout',
   ];
 
   @override
@@ -219,7 +225,7 @@ class _AdminViewState extends State<AdminView> {
                     selectedIndex: _selectedIndex,
                     isCollapsed: _isCollapsed,
                     onItemSelected: (index) {
-                      if (index == 10) {
+                      if (_menuTitles[index] == 'Logout') {
                         FirebaseAuth.instance.signOut();
                         Navigator.of(context).pushReplacementNamed('/login');
                         return;

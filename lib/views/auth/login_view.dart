@@ -48,6 +48,9 @@ class _LoginViewState extends State<LoginView> {
         onContinue: () {
           if (role == 'admin') {
             Get.offAllNamed('/admin');
+          } else if (role == 'staff') {
+            Get.offAllNamed('/staff');
+            return;
           } else {
             Get.offAll(() => const HomeView());
           }
@@ -73,6 +76,8 @@ class _LoginViewState extends State<LoginView> {
       final role = userData?['role'] ?? 'user';
       if (role == 'admin') {
         Get.offAllNamed('/admin');
+      } else if (role == 'staff') {
+        Get.offAllNamed('/staff');
       } else {
         _goToPermissions(role);
       }
@@ -121,7 +126,10 @@ class _LoginViewState extends State<LoginView> {
                   const SizedBox(width: 8),
                   Text(
                     _error!,
-                    style: const TextStyle(color: AppColors.primary, fontSize: 16),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -259,7 +267,9 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     child:
                         _loading
-                            ? const CircularProgressIndicator(color: Colors.black)
+                            ? const CircularProgressIndicator(
+                              color: Colors.black,
+                            )
                             : Text('Entrar', style: textTheme.bodyLarge),
                   ),
                 ),

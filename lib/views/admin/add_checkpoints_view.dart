@@ -91,9 +91,12 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
           'origem': _usarGeo ? 'geolocalizacao' : 'manual',
           'tempoMinimo': int.tryParse(_tempoMinimoController.text.trim()) ?? 1,
           'pergunta1Id': _pergunta1IdController.text.trim(),
-          'jogoId': _jogoIdController.text.trim(),
+          'jogoId': _finalJogos ? null : _jogoIdController.text.trim(),
           'finalComJogosFinais': _finalJogos,
-          'jogosIds': _finalJogos ? List.from(_jogosSelecionados) : [],
+          'jogosIds':
+              _finalJogos
+                  ? _jogosSelecionados.map((e) => e.toString()).toList()
+                  : [],
           'ordemA': _ordemA,
           'ordemB': _ordemB,
           'percurso': _percurso,
@@ -118,6 +121,8 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
   Future<void> _saveCheckpoints() async {
     if (_checkpoints.isEmpty) return;
 
+    debugPrint('Checkpoints a gravar: $_checkpoints');
+
     _checkpoints.sort(
       (a, b) => (a['codigo'] as int).compareTo(b['codigo'] as int),
     );
@@ -131,6 +136,23 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
     final batch = FirebaseFirestore.instance.batch();
     for (var item in _checkpoints) {
+      // Validação de pergunta1Id
+      if (item['pergunta1Id'] == null ||
+          item['pergunta1Id'].toString().isEmpty) {
+        throw Exception("Checkpoint sem pergunta associada.");
+      }
+
+      // Validação de jogos finais
+      if (item['finalComJogosFinais'] == true) {
+        if (item['jogosIds'] == null || (item['jogosIds'] as List).isEmpty) {
+          throw Exception("Checkpoint final sem jogos associados.");
+        }
+        debugPrint('JogosRefs para salvar: ${item['jogosIds']}');
+        debugPrint(
+          'jogosRefs convertidos: ${item['jogosIds'].map((id) => FirebaseFirestore.instance.collection('jogos').doc(id)).toList()}',
+        );
+      }
+
       final docRef = ref.doc();
       batch.set(docRef, {
         'nome': item['name'],
@@ -165,6 +187,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
     }
     try {
       await batch.commit();
+      debugPrint('Checkpoints gravados com sucesso.');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -181,6 +204,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
       });
       Navigator.pop(context);
     } catch (e) {
+      debugPrint('Erro completo: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -493,9 +517,16 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                                     _finalJogos =
                                         checkpoint['finalComJogosFinais'] ??
                                         false;
-                                    _jogosSelecionados = List<String>.from(
-                                      checkpoint['jogosIds'] ?? [],
-                                    );
+                                    _jogosSelecionados =
+                                        (checkpoint['jogosIds'] ?? [])
+                                            .map<String>((e) {
+                                              if (e is String) return e;
+                                              if (e is DocumentReference) {
+                                                return e.id;
+                                              }
+                                              return e.toString();
+                                            })
+                                            .toList();
                                   });
                                 },
                               ),

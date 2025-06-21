@@ -90,6 +90,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               label: const Text('Permitir e Continuar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0E0E2C),
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: _acceptPermissions,

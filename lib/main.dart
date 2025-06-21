@@ -13,9 +13,9 @@ import 'theme/app_backend_theme.dart' as backend;
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  ).then((_) {
+  Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((
+    _,
+  ) {
     Get.put(AuthService());
     Future.microtask(() {
       runApp(
@@ -47,7 +47,8 @@ class ManoManoDashboard extends StatelessWidget {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Dashboard Mano Mano',
-      initialRoute: kIsWeb ? '/loading-admin' : '/splash',
+      //initialRoute: kIsWeb ? '/loading-admin' : '/splash',
+      initialRoute: kIsWeb ? '/closed' : '/splash',
       getPages: AppPages.routes,
       theme: AppTheme.theme,
       darkTheme: AppTheme.darkTheme,

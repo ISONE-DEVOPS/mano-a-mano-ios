@@ -77,17 +77,32 @@ class _PerguntasViewState extends State<PerguntasView> {
         pontos == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Preencha todos os campos')));
+      ).showSnackBar(const SnackBar(
+        content: Text(
+          'Preencha todos os campos',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+      ));
       return;
     }
 
     try {
       if (_perguntaIdEmEdicao != null) {
+        // Verificação de ID inválido antes de atualizar
+        if (_perguntaIdEmEdicao != null && _perguntaIdEmEdicao!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Erro interno: ID da pergunta inválido'),
+            ),
+          );
+          return;
+        }
         // atualizar
         await FirebaseFirestore.instance
             .collection('perguntas')
             .doc(_perguntaIdEmEdicao!)
-            .set({
+            .update({
               'editionId': _edicaoSelecionada,
               'eventId': _eventoSelecionado,
               'pergunta': pergunta,
@@ -95,7 +110,7 @@ class _PerguntasViewState extends State<PerguntasView> {
               'respostas': opcoes,
               'respostaCerta': _respostaCorreta,
               'pontos': pontos,
-            }, SetOptions(merge: true));
+            });
       } else {
         // criar novo
         await FirebaseFirestore.instance.collection('perguntas').add({
@@ -113,7 +128,13 @@ class _PerguntasViewState extends State<PerguntasView> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pergunta salva com sucesso')),
+        const SnackBar(
+          content: Text(
+            'Pergunta salva com sucesso',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.white,
+        ),
       );
 
       _edicaoSelecionada = null;
