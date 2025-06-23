@@ -175,11 +175,13 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         final posto = data['posto'];
 
                         if (tipo == 'entrada' && posto != null) {
-                          final saidaRegistrada = veiculoCheckpointSnapshot.docs.any((d) {
-                            final dData = d.data();
-                            return dData['posto']?.toString().trim() == posto.toString().trim() &&
-                                   dData['tipo'] == 'saida';
-                          });
+                          final saidaRegistrada = veiculoCheckpointSnapshot.docs
+                              .any((d) {
+                                final dData = d.data();
+                                return dData['posto']?.toString().trim() ==
+                                        posto.toString().trim() &&
+                                    dData['tipo'] == 'saida';
+                              });
 
                           if (!saidaRegistrada) {
                             checkpointAtivo = posto.toString().trim();
@@ -192,14 +194,11 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Este participante ainda não deu entrada em nenhum checkpoint.',
+                              'Nenhum checkpoint ativo detectado. Por favor selecione manualmente.',
                             ),
-                            backgroundColor: Colors.red,
+                            backgroundColor: Colors.orange,
                           ),
                         );
-                        setState(() {
-                          _qrLido = false;
-                        });
                         return;
                       }
 
@@ -323,36 +322,74 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                               );
                             }).toList(),
                         value: _selectedCheckpointId,
-                        onChanged: (v) async {
-                          setState(() {
-                            _selectedCheckpointId = v;
-                            _selectedJogoId = null;
-                            _jogosDisponiveis = [];
-                          });
-                          final selectedCheckpoint = _checkpoints
-                              .firstWhereOrNull((c) => c['id'] == v);
-                          if (selectedCheckpoint == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Checkpoint ativo não encontrado na lista carregada.',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            setState(() {
-                              _qrLido = false;
-                            });
-                            return;
-                          }
-                          await loadJogosFromCheckpoint(selectedCheckpoint);
-                        },
+                        onChanged:
+                            (_selectedCheckpointId != null)
+                                ? null
+                                : (v) async {
+                                  setState(() {
+                                    _selectedCheckpointId = v;
+                                    _selectedJogoId = null;
+                                    _jogosDisponiveis = [];
+                                  });
+                                  final selectedCheckpoint = _checkpoints
+                                      .firstWhereOrNull((c) => c['id'] == v);
+                                  if (selectedCheckpoint == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Checkpoint ativo não encontrado na lista carregada.',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                    setState(() {
+                                      _qrLido = false;
+                                    });
+                                    return;
+                                  }
+                                  await loadJogosFromCheckpoint(
+                                    selectedCheckpoint,
+                                  );
+                                },
                         validator: (v) {
                           if (v == null || v.isEmpty) {
                             return 'Selecione um checkpoint';
                           }
                           return null;
                         },
+                        disabledHint:
+                            _selectedCheckpointId != null
+                                ? Text(
+                                  _checkpoints.firstWhereOrNull(
+                                        (c) => c['id'] == _selectedCheckpointId,
+                                      )?['nome'] ??
+                                      'Checkpoint selecionado',
+                                )
+                                : null,
+                        // Desabilita o dropdown se checkpointAtivo != null e já está pré-selecionado
+                        // (Opcional: pode customizar disabledHint acima)
+                        // ignore: prefer_if_null_operators
+                        // isExpanded: true,
+                        // style: TextStyle(color: Colors.black),
+                        // dropdownColor: Colors.white,
+                        // iconEnabledColor: Colors.black,
+                        // iconDisabledColor: Colors.grey,
+                        // elevation: 2,
+                        // underline: Container(height: 1, color: Colors.grey),
+                        // focusColor: Colors.transparent,
+                        // autofocus: false,
+                        // itemHeight: null,
+                        // value: _selectedCheckpointId,
+                        // onChanged: ...,
+                        // validator: ...,
+                        // disabledHint: ...,
+                        // (outros parâmetros se necessário)
+                        //
+                        // O importante: desabilitar se checkpointAtivo != null
+                        //
+                        // onChanged: _selectedCheckpointId != null ? null : (v) async { ... }
+                        //
+                        // O código acima já faz isso.
                       ),
                       const SizedBox(height: 16),
                       if (jogosNaoPontuados.isEmpty)
