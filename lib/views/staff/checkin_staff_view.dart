@@ -9,14 +9,12 @@ import '../../widgets/shared/staff_nav_bottom.dart';
 
 class StaffScoreInputView extends StatefulWidget {
   final Map<String, dynamic> participanteData; // nome, matricula, grupo, uid
-  // Removido: final String checkpointId;
   final List<Map<String, dynamic>> jogosDisponiveis; // [{id, nome}]
   final List<String> jogosJaPontuados; // [jogoId]
 
   const StaffScoreInputView({
     super.key,
     required this.participanteData,
-    // Removido: required this.checkpointId,
     required this.jogosDisponiveis,
     required this.jogosJaPontuados,
   });
@@ -35,17 +33,16 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   List<Map<String, dynamic>> _checkpoints = [];
   final MobileScannerController _scannerController = MobileScannerController();
   bool _qrLido = false;
+  bool _loadingJogos = false;
 
   @override
   void initState() {
     super.initState();
     _jogosDisponiveis = widget.jogosDisponiveis;
-    // Não inicializa mais _selectedCheckpointId via widget.checkpointId
     fetchCheckpoints().then((checkpoints) {
       setState(() {
         _checkpoints = checkpoints;
       });
-      // Não carrega checkpoint inicialmente
     });
   }
 
@@ -71,36 +68,87 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   }
 
   Future<void> loadJogosFromCheckpoint(Map<String, dynamic> checkpoint) async {
+    setState(() {
+      _loadingJogos = true;
+    });
+
     List<Map<String, dynamic>> jogos = [];
+
     try {
+      print('Loading jogos from checkpoint: ${checkpoint['nome']}');
+      print('jogosRefs: ${checkpoint['jogosRefs']}');
+      print('jogoRef: ${checkpoint['jogoRef']}');
+
+      // Verifica se tem múltiplos jogos (jogosRefs)
       if (checkpoint['jogosRefs'] != null &&
           (checkpoint['jogosRefs'] as List).isNotEmpty) {
         final List<dynamic> refs = checkpoint['jogosRefs'];
+        print('Carregando ${refs.length} jogos de jogosRefs');
+
         for (var ref in refs) {
-          if (ref is DocumentReference) {
-            final doc = await ref.get();
+          try {
+            DocumentSnapshot doc;
+            if (ref is DocumentReference) {
+              doc = await ref.get();
+            } else if (ref is String) {
+              // Se for uma string, pode ser um caminho para o documento
+              doc = await FirebaseFirestore.instance.doc(ref).get();
+            } else {
+              continue;
+            }
+
             if (doc.exists) {
               final data = doc.data() as Map<String, dynamic>;
-              jogos.add({'id': doc.id, 'nome': data['nome'] ?? ''});
+              jogos.add({
+                'id': doc.id,
+                'nome': data['nome'] ?? 'Jogo sem nome',
+                'pontuacaoMax': data['pontuacaoMax'] ?? 100,
+              });
+              print('Jogo carregado: ${data['nome']} (ID: ${doc.id})');
             }
-          }
-        }
-      } else if (checkpoint['jogoRef'] != null) {
-        final ref = checkpoint['jogoRef'];
-        if (ref is DocumentReference) {
-          final doc = await ref.get();
-          if (doc.exists) {
-            final data = doc.data() as Map<String, dynamic>;
-            jogos.add({'id': doc.id, 'nome': data['nome'] ?? ''});
+          } catch (e) {
+            print('Erro ao carregar jogo individual: $e');
           }
         }
       }
-    } catch (_) {
-      // ignore errors loading jogos
+      // Verifica se tem um único jogo (jogoRef)
+      else if (checkpoint['jogoRef'] != null) {
+        print('Carregando jogo único de jogoRef');
+
+        try {
+          DocumentSnapshot doc;
+          final ref = checkpoint['jogoRef'];
+          if (ref is DocumentReference) {
+            doc = await ref.get();
+          } else if (ref is String) {
+            doc = await FirebaseFirestore.instance.doc(ref).get();
+          } else {
+            throw Exception('Tipo de referência inválido');
+          }
+
+          if (doc.exists) {
+            final data = doc.data() as Map<String, dynamic>;
+            jogos.add({
+              'id': doc.id,
+              'nome': data['nome'] ?? 'Jogo sem nome',
+              'pontuacaoMax': data['pontuacaoMax'] ?? 100,
+            });
+            print('Jogo único carregado: ${data['nome']} (ID: ${doc.id})');
+          }
+        } catch (e) {
+          print('Erro ao carregar jogo único: $e');
+        }
+      }
+    } catch (e) {
+      print('Erro geral ao carregar jogos: $e');
     }
+
+    print('Total de jogos carregados: ${jogos.length}');
+
     setState(() {
       _jogosDisponiveis = jogos;
       _selectedJogoId = null;
+      _loadingJogos = false;
     });
   }
 
@@ -234,9 +282,10 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         ),
                       );
                     } catch (e) {
+                      print('Erro ao processar QR: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('QR inválido'),
+                        SnackBar(
+                          content: Text('QR inválido: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -296,7 +345,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
@@ -322,79 +370,47 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                               );
                             }).toList(),
                         value: _selectedCheckpointId,
-                        onChanged:
-                            (_selectedCheckpointId != null)
-                                ? null
-                                : (v) async {
-                                  setState(() {
-                                    _selectedCheckpointId = v;
-                                    _selectedJogoId = null;
-                                    _jogosDisponiveis = [];
-                                  });
-                                  final selectedCheckpoint = _checkpoints
-                                      .firstWhereOrNull((c) => c['id'] == v);
-                                  if (selectedCheckpoint == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Checkpoint ativo não encontrado na lista carregada.',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                    setState(() {
-                                      _qrLido = false;
-                                    });
-                                    return;
-                                  }
-                                  await loadJogosFromCheckpoint(
-                                    selectedCheckpoint,
-                                  );
-                                },
+                        onChanged: (v) async {
+                          if (v == null) return;
+
+                          setState(() {
+                            _selectedCheckpointId = v;
+                            _selectedJogoId = null;
+                            _jogosDisponiveis = [];
+                          });
+
+                          final selectedCheckpoint = _checkpoints
+                              .firstWhereOrNull((c) => c['id'] == v);
+
+                          if (selectedCheckpoint != null) {
+                            await loadJogosFromCheckpoint(selectedCheckpoint);
+                          }
+                        },
                         validator: (v) {
                           if (v == null || v.isEmpty) {
                             return 'Selecione um checkpoint';
                           }
                           return null;
                         },
-                        disabledHint:
-                            _selectedCheckpointId != null
-                                ? Text(
-                                  _checkpoints.firstWhereOrNull(
-                                        (c) => c['id'] == _selectedCheckpointId,
-                                      )?['nome'] ??
-                                      'Checkpoint selecionado',
-                                )
-                                : null,
-                        // Desabilita o dropdown se checkpointAtivo != null e já está pré-selecionado
-                        // (Opcional: pode customizar disabledHint acima)
-                        // ignore: prefer_if_null_operators
-                        // isExpanded: true,
-                        // style: TextStyle(color: Colors.black),
-                        // dropdownColor: Colors.white,
-                        // iconEnabledColor: Colors.black,
-                        // iconDisabledColor: Colors.grey,
-                        // elevation: 2,
-                        // underline: Container(height: 1, color: Colors.grey),
-                        // focusColor: Colors.transparent,
-                        // autofocus: false,
-                        // itemHeight: null,
-                        // value: _selectedCheckpointId,
-                        // onChanged: ...,
-                        // validator: ...,
-                        // disabledHint: ...,
-                        // (outros parâmetros se necessário)
-                        //
-                        // O importante: desabilitar se checkpointAtivo != null
-                        //
-                        // onChanged: _selectedCheckpointId != null ? null : (v) async { ... }
-                        //
-                        // O código acima já faz isso.
                       ),
                       const SizedBox(height: 16),
-                      if (jogosNaoPontuados.isEmpty)
-                        const Text("Nenhum jogo disponível")
-                      else
+                      if (_loadingJogos)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_selectedCheckpointId != null &&
+                          jogosNaoPontuados.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            "Nenhum jogo disponível para este checkpoint",
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        )
+                      else if (_selectedCheckpointId != null)
                         DropdownButtonFormField<String>(
                           decoration: const InputDecoration(
                             labelText: 'Selecione o jogo',
@@ -404,7 +420,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                               jogosNaoPontuados.map((jogo) {
                                 return DropdownMenuItem<String>(
                                   value: jogo['id'],
-                                  child: Text(jogo['nome']),
+                                  child: Text(
+                                    '${jogo['nome']} (Max: ${jogo['pontuacaoMax'] ?? 100} pts)',
+                                  ),
                                 );
                               }).toList(),
                           value: _selectedJogoId,
@@ -421,174 +439,189 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                           },
                         ),
                       const SizedBox(height: 16),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Pontuação',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) {
-                          setState(() {
-                            _pontuacao = int.tryParse(v);
-                          });
-                        },
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Digite a pontuação';
-                          }
-                          final val = int.tryParse(v);
-                          if (val == null) return 'Digite um número válido';
-                          if (val < 0) return 'Pontuação não pode ser negativa';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                      if (_selectedJogoId != null)
+                        TextFormField(
+                          decoration: InputDecoration(
+                            labelText:
+                                'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
+                            border: const OutlineInputBorder(),
                           ),
-                          onPressed:
-                              _loading
-                                  ? null
-                                  : () async {
-                                    final BuildContext scaffoldContext =
-                                        context;
-                                    if (!_formKey.currentState!.validate()) {
-                                      return;
-                                    }
-                                    setState(() {
-                                      _loading = true;
-                                    });
-                                    try {
-                                      final uid =
-                                          widget.participanteData['uid'];
-                                      if (uid == null || uid.isEmpty) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Participante inválido. Por favor escaneie o QR novamente.',
-                                            ),
-                                          ),
-                                        );
-                                        setState(() {
-                                          _loading = false;
-                                        });
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) {
+                            setState(() {
+                              _pontuacao = int.tryParse(v);
+                            });
+                          },
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Digite a pontuação';
+                            }
+                            final val = int.tryParse(v);
+                            if (val == null) return 'Digite um número válido';
+                            if (val < 0)
+                              return 'Pontuação não pode ser negativa';
+                            final maxPontuacao =
+                                jogosNaoPontuados.firstWhereOrNull(
+                                  (j) => j['id'] == _selectedJogoId,
+                                )?['pontuacaoMax'] ??
+                                100;
+                            if (val > maxPontuacao)
+                              return 'Pontuação máxima é $maxPontuacao';
+                            return null;
+                          },
+                        ),
+                      const SizedBox(height: 24),
+                      if (_selectedJogoId != null && _pontuacao != null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            onPressed:
+                                _loading
+                                    ? null
+                                    : () async {
+                                      final BuildContext scaffoldContext =
+                                          context;
+                                      if (!_formKey.currentState!.validate()) {
                                         return;
                                       }
-                                      final docRef = FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(uid)
-                                          .collection('eventos')
-                                          .doc('shell_km_02')
-                                          .collection('pontuacoes')
-                                          .doc(_selectedCheckpointId!);
-                                      await docRef.update({
-                                        'jogoId': _selectedJogoId,
-                                        'pontuacaoJogo': _pontuacao,
-                                        'pontuacaoTotal': FieldValue.increment(
-                                          _pontuacao ?? 0,
-                                        ),
-                                        'timestampPontuacao':
-                                            FieldValue.serverTimestamp(),
-                                      });
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          scaffoldContext,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Pontuação salva com sucesso',
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      if (!mounted) return;
-                                      await showDialog(
-                                        context: context,
-                                        builder:
-                                            (dialogContext) => AlertDialog(
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              content: SizedBox(
-                                                height: 100,
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: const [
-                                                    Icon(
-                                                      Icons.check_circle,
-                                                      color: Colors.green,
-                                                      size: 60,
-                                                    ),
-                                                    SizedBox(height: 12),
-                                                    Text(
-                                                      'Pontuação salva com sucesso!',
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.of(
-                                                      dialogContext,
-                                                    ).pop();
-                                                  },
-                                                  child: const Text('OK'),
-                                                ),
-                                              ],
-                                            ),
-                                      );
                                       setState(() {
-                                        _qrLido = false;
-                                        _selectedCheckpointId = null;
-                                        _selectedJogoId = null;
-                                        _jogosDisponiveis = [];
+                                        _loading = true;
                                       });
-                                      _scannerController.start();
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          scaffoldContext,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Erro ao salvar pontuação',
+                                      try {
+                                        final uid =
+                                            widget.participanteData['uid'];
+                                        if (uid == null || uid.isEmpty) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Participante inválido. Por favor escaneie o QR novamente.',
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      }
-                                    } finally {
-                                      if (mounted) {
-                                        setState(() {
-                                          _loading = false;
+                                          );
+                                          setState(() {
+                                            _loading = false;
+                                          });
+                                          return;
+                                        }
+                                        final docRef = FirebaseFirestore
+                                            .instance
+                                            .collection('users')
+                                            .doc(uid)
+                                            .collection('eventos')
+                                            .doc('shell_km_02')
+                                            .collection('pontuacoes')
+                                            .doc(_selectedCheckpointId!);
+                                        await docRef.update({
+                                          'jogoId': _selectedJogoId,
+                                          'pontuacaoJogo': _pontuacao,
+                                          'pontuacaoTotal':
+                                              FieldValue.increment(
+                                                _pontuacao ?? 0,
+                                              ),
+                                          'timestampPontuacao':
+                                              FieldValue.serverTimestamp(),
                                         });
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            scaffoldContext,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Pontuação salva com sucesso',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        if (!mounted) return;
+                                        await showDialog(
+                                          context: context,
+                                          builder:
+                                              (dialogContext) => AlertDialog(
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                content: SizedBox(
+                                                  height: 100,
+                                                  child: Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: const [
+                                                      Icon(
+                                                        Icons.check_circle,
+                                                        color: Colors.green,
+                                                        size: 60,
+                                                      ),
+                                                      SizedBox(height: 12),
+                                                      Text(
+                                                        'Pontuação salva com sucesso!',
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop();
+                                                    },
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              ),
+                                        );
+                                        setState(() {
+                                          _qrLido = false;
+                                          _selectedCheckpointId = null;
+                                          _selectedJogoId = null;
+                                          _jogosDisponiveis = [];
+                                        });
+                                        _scannerController.start();
+                                      } catch (e) {
+                                        print('Erro ao salvar pontuação: $e');
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            scaffoldContext,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Erro ao salvar pontuação: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() {
+                                            _loading = false;
+                                          });
+                                        }
                                       }
-                                    }
-                                  },
-                          child:
-                              _loading
-                                  ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Text('Salvar Pontuação'),
+                                    },
+                            child:
+                                _loading
+                                    ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                    : const Text('Salvar Pontuação'),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
