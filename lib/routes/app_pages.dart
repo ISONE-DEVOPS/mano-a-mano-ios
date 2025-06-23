@@ -11,6 +11,7 @@ import '../views/staff/checkin_staff_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/profile/profile_view.dart';
+import '../views/staff/staff_profile.dart';
 import '../views/profile/delete_account_view.dart';
 import '../views/checkin/checkin_view.dart';
 //import '../views/main/main_view.dart';
@@ -207,7 +208,7 @@ class AppPages {
     // Staff pages
     GetPage(name: '/staff', page: () => const StaffJogosView()),
     GetPage(name: '/staff/jogos', page: () => const StaffJogosView()),
-    GetPage(name: '/staff/perfil', page: () => const ProfileView()),
+    GetPage(name: '/staff/profile', page: () => const StaffProfileView()),
     GetPage(
       name: '/scan-score',
       page:

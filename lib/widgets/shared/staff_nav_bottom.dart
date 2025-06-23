@@ -8,7 +8,7 @@ class StaffNavBottom extends StatelessWidget {
     final route = Get.currentRoute;
     if (route == '/staff/jogos') return 0;
     if (route == '/scan-score') return 1;
-    if (route == '/staff/perfil') return 2;
+    if (route == '/staff/profile') return 2;
     return 0;
   }
 
@@ -21,7 +21,7 @@ class StaffNavBottom extends StatelessWidget {
         Get.offAllNamed('/scan-score');
         break;
       case 2:
-        Get.offAllNamed('/staff/perfil');
+        Get.offAllNamed('/staff/profile');
         break;
     }
   }
