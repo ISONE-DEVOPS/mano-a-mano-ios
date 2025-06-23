@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -55,11 +56,15 @@ class _CheckinViewState extends State<CheckinView> {
                   controller: _controller,
                   onDetect: (barcode) async {
                     if (isScanned) return;
-                    isScanned = true;
 
                     final code = barcode.barcodes.first.rawValue ?? '';
-                    final parts = code.split('-'); // ex: posto12-entrada
-                    if (parts.length != 2) {
+                    String posto = '';
+                    String tipo = '';
+
+                    try {
+                      final data = jsonDecode(code);
+                      posto = data['checkpoint_id'];
+                    } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -69,9 +74,6 @@ class _CheckinViewState extends State<CheckinView> {
                       );
                       return;
                     }
-
-                    final posto = parts[0];
-                    final tipo = parts[1]; // 'entrada' ou 'saida'
                     final uid = FirebaseAuth.instance.currentUser?.uid;
 
                     if (uid == null) {
@@ -104,6 +106,30 @@ class _CheckinViewState extends State<CheckinView> {
                       return;
                     }
 
+                    final registrosSnapshot = await FirebaseFirestore.instance
+                        .collection('veiculos')
+                        .doc(veiculoId)
+                        .collection('checkpoints')
+                        .doc(posto)
+                        .collection('registros')
+                        .get();
+
+                    final temEntrada = registrosSnapshot.docs.any((doc) => doc['tipo'] == 'entrada');
+                    final temSaida = registrosSnapshot.docs.any((doc) => doc['tipo'] == 'saida');
+
+                    if (temEntrada && temSaida) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Este posto já foi concluído. Não pode registar novamente.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+
+                    tipo = !temEntrada ? 'entrada' : 'saida';
+
                     final now = DateTime.now().toUtc().toIso8601String();
 
                     final registroRef = FirebaseFirestore.instance
@@ -119,6 +145,7 @@ class _CheckinViewState extends State<CheckinView> {
                         'timestamp': now,
                         'posto': posto,
                       });
+                      if (!mounted) return;
 
                       await FirebaseFirestore.instance
                           .collection('veiculos')
@@ -128,6 +155,7 @@ class _CheckinViewState extends State<CheckinView> {
                               posto: {tipo: now, 'ultima_leitura': now},
                             },
                           }, SetOptions(merge: true));
+                      if (!mounted) return;
 
                       const eventId = 'shell_2025';
 
@@ -145,6 +173,7 @@ class _CheckinViewState extends State<CheckinView> {
                         'tempoTotal': 0,
                         'classificacao': 0,
                       }, SetOptions(merge: true));
+                      if (!mounted) return;
 
                       final pontuacaoRef = FirebaseFirestore.instance
                           .collection('users')
@@ -153,31 +182,100 @@ class _CheckinViewState extends State<CheckinView> {
                           .doc(eventId)
                           .collection('pontuacoes')
                           .doc(posto);
+                      late DocumentSnapshot<Map<String, dynamic>>
+                      pontuacaoSnapshot;
+                      pontuacaoSnapshot = await pontuacaoRef.get();
 
-                      final pontuacaoSnapshot = await pontuacaoRef.get();
+                      // Verifica se o usuário tem algum checkpoint anterior incompleto (entrada sem saída)
+                      final userPontuacoesSnapshot =
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(uid)
+                              .collection('eventos')
+                              .doc(eventId)
+                              .collection('pontuacoes')
+                              .get();
+
+                      final temCheckpointIncompleto = userPontuacoesSnapshot
+                          .docs
+                          .any((doc) {
+                            final data = doc.data();
+                            return data['timestampEntrada'] != null &&
+                                data['timestampSaida'] == null &&
+                                doc.id != posto;
+                          });
+
+                      if (tipo == 'entrada' && temCheckpointIncompleto) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Ainda não saiu do último posto visitado.',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (pontuacaoSnapshot.exists) {
+                        final existingData = pontuacaoSnapshot.data();
+                        if (tipo == 'entrada' &&
+                            existingData?['timestampEntrada'] != null) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Entrada já registrada neste posto.',
+                              ),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        if (tipo == 'saida' &&
+                            existingData?['timestampSaida'] != null) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Saída já registrada neste posto.'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                      }
+
                       if (!pontuacaoSnapshot.exists) {
+                        if (tipo == 'saida') {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Não pode registrar saída sem entrada neste posto.',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
                         await pontuacaoRef.set({
                           'checkpointId': posto,
                           'respostaCorreta': false,
                           'pontuacaoJogo': 0,
                           'pontuacaoTotal': 0,
-                          'timestampEntrada': tipo == 'entrada' ? now : null,
-                          'timestampSaida': tipo == 'saida' ? now : null,
+                          'timestampEntrada': now,
+                          'timestampSaida': null,
                         }, SetOptions(merge: true));
-                      } else {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Este checkpoint já foi registrado anteriormente.',
-                            ),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
+                      } else {
                         await pontuacaoRef.set({
-                          'timestampEntrada': tipo == 'entrada' ? now : null,
-                          'timestampSaida': tipo == 'saida' ? now : null,
+                          'checkpointId': posto,
+                          if (tipo == 'entrada') 'timestampEntrada': now,
+                          if (tipo == 'saida') 'timestampSaida': now,
                         }, SetOptions(merge: true));
+                        if (!mounted) return;
                       }
 
                       await FirebaseFirestore.instance
@@ -188,6 +286,10 @@ class _CheckinViewState extends State<CheckinView> {
                               posto,
                             ]),
                           });
+                      if (!mounted) return;
+
+                      // Marca como escaneado apenas após todas as validações e registros serem bem-sucedidos
+                      isScanned = true;
 
                       setState(
                         () =>
@@ -196,17 +298,15 @@ class _CheckinViewState extends State<CheckinView> {
                       );
                       SystemSound.play(SystemSoundType.click);
 
-                      if (mounted) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Check-$tipo registrado com sucesso para $posto',
-                            ),
-                            duration: const Duration(seconds: 2),
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Check-$tipo registrado com sucesso para $posto',
                           ),
-                        );
-                      }
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
                     } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,15 +322,30 @@ class _CheckinViewState extends State<CheckinView> {
 
                     _controller.stop();
 
-                    if (tipo == 'entrada') {
+                    debugPrint('Tipo: $tipo | Posto: $posto');
+
+                    final existingData =
+                        (await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(FirebaseAuth.instance.currentUser?.uid)
+                                .collection('eventos')
+                                .doc('shell_2025')
+                                .collection('pontuacoes')
+                                .doc(posto)
+                                .get())
+                            .data();
+
+                    if (tipo.trim().toLowerCase() == 'entrada') {
                       if (!mounted) return;
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => ResponderPerguntaView(checkpointId: posto),
-                        ),
-                      );
+                      if (existingData?['respostaCorreta'] == null) {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder:
+                                (_) =>
+                                    ResponderPerguntaView(checkpointId: posto),
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
@@ -273,8 +388,7 @@ class _CheckinViewState extends State<CheckinView> {
         onTap: (index) {
           if (index != 2) {
             if (!mounted) return;
-            Navigator.pushReplacementNamed(
-              context,
+            Navigator.of(context).pushReplacementNamed(
               [
                 '/home',
                 '/my-events',

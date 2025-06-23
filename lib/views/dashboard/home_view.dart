@@ -6,6 +6,7 @@ import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
+import 'dart:convert';
 import '../../services/firebase_service.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../widgets/shared/nav_topbar.dart';
@@ -441,31 +442,50 @@ class _HomeViewState extends State<HomeView> {
                             final checkpointDocs =
                                 checkpointSnapshot.data?.docs ?? [];
                             final Map<String, Map<String, dynamic>>
-                            checkpoints = {
-                              for (var doc in checkpointDocs)
-                                doc.id: {
-                                  ...(doc.data() as Map<String, dynamic>),
-                                  '__sort':
-                                      (doc.data()
-                                          as Map<
-                                            String,
-                                            dynamic
-                                          >)['ultima_leitura'] ??
-                                      '',
+                            checkpoints = {};
+                            for (var doc in checkpointDocs) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final tipo = data['tipo'];
+                              final postoId = data['posto'];
+                              final timestamp = data['timestamp'];
+                              final String timestampStr = timestamp is Timestamp
+                                  ? timestamp.toDate().toIso8601String()
+                                  : timestamp?.toString() ?? '';
+                              if (postoId == null ||
+                                  tipo == null ||
+                                  timestamp == null)
+                                continue;
+                              final existing = checkpoints.putIfAbsent(
+                                postoId,
+                                () => {
+                                  'checkpointId': postoId,
+                                  'timestampEntrada': null,
+                                  'timestampSaida': null,
                                 },
-                            };
+                              );
+                              if (tipo == 'entrada') {
+                                existing['timestampEntrada'] = timestampStr;
+                              } else if (tipo == 'saida') {
+                                existing['timestampSaida'] = timestampStr;
+                              }
+                            }
                             final sortedEntries =
-                                checkpoints.entries.toList()..sort(
-                                  (a, b) => (b.value['__sort'] as String)
-                                      .compareTo(a.value['__sort'] as String),
-                                );
+                                checkpoints.entries.toList()..sort((a, b) {
+                                  final aSort =
+                                      (a.value['timestampEntrada'] ?? '')
+                                          as String;
+                                  final bSort =
+                                      (b.value['timestampEntrada'] ?? '')
+                                          as String;
+                                  return bSort.compareTo(aSort);
+                                });
                             final visitedCheckpoints =
                                 checkpoints.entries.where((entry) {
                                   final cp = entry.value;
-                                  return cp.containsKey('entrada') &&
-                                      cp.containsKey('saida');
+                                  return cp['timestampEntrada'] != null &&
+                                      cp['timestampSaida'] != null;
                                 }).length;
-                            final int totalCheckpoints = checkpoints.length;
+                            final int totalCheckpoints = 8;
                             final double progress =
                                 totalCheckpoints > 0
                                     ? (visitedCheckpoints / totalCheckpoints)
@@ -608,7 +628,7 @@ class _HomeViewState extends State<HomeView> {
                                                       dynamic
                                                     >.from(entry.value as Map);
                                                     final rawData =
-                                                        cp['ultima_leitura']
+                                                        cp['timestampEntrada']
                                                             as String?;
                                                     String dataFormatada =
                                                         'Data desconhecida';
@@ -667,13 +687,14 @@ class _HomeViewState extends State<HomeView> {
                                                               final cp =
                                                                   entry.value;
                                                               final entrada =
-                                                                  cp['entrada'] ??
+                                                                  cp['timestampEntrada'] ??
                                                                   '-';
                                                               final saida =
-                                                                  cp['saida'] ??
+                                                                  cp['timestampSaida'] ??
                                                                   '-';
                                                               final ultimaLeitura =
-                                                                  cp['ultima_leitura'];
+                                                                  cp['timestampSaida'] ??
+                                                                  cp['timestampEntrada'];
                                                               String
                                                               ultimaFormatada =
                                                                   '';
@@ -755,12 +776,15 @@ class _HomeViewState extends State<HomeView> {
                                     vertical: 8,
                                   ),
                                   child: QrImageView(
-                                    data:
-                                        'uid=${FirebaseAuth.instance.currentUser?.uid ?? ''};'
-                                        'nome=${userName ?? ''};'
-                                        'matricula=${carData['matricula'] ?? ''};'
-                                        'grupo=${data['grupo'] ?? ''};'
-                                        'pontuacao=${carData['pontuacao_total'] ?? 0};',
+                                    data: jsonEncode({
+                                      'uid':
+                                          FirebaseAuth
+                                              .instance
+                                              .currentUser
+                                              ?.uid ??
+                                          '',
+                                      'nome': userName ?? '',
+                                    }),
                                     version: QrVersions.auto,
                                     size: 200.0,
                                     backgroundColor: Colors.white,

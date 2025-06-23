@@ -1,8 +1,7 @@
-
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mano_mano_dashboard/widgets/shared/staff_app_bar.dart';
+import 'package:mano_mano_dashboard/widgets/shared/staff_nav_bottom.dart';
 
 class PontuacaoQrView extends StatelessWidget {
   const PontuacaoQrView({super.key});
@@ -50,6 +49,7 @@ class PontuacaoQrView extends StatelessWidget {
           );
         },
       ),
+      bottomNavigationBar: const StaffNavBottom(),
     );
   }
 }

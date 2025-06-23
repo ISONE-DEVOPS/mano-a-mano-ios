@@ -1,10 +1,11 @@
-import '../views/staff/staff_home_view.dart';
-import '../views/staff/staff_checkin_view.dart';
-import '../views/staff/staff_pontuacao_view.dart';
-import '../views/staff/pontuacao_qr_view.dart';
+import 'package:mano_mano_dashboard/views/staff/staff_jogos_view.dart';
+
+//import '../views/staff/staff_pontuacao_view.dart';
+//import '../views/staff/pontuacao_qr_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../views/dashboard/home_view.dart';
+import '../views/staff/checkin_staff_view.dart';
 
 ///import '../views/splash/splash_view.dart';
 import '../views/auth/login_view.dart';
@@ -37,7 +38,7 @@ import '../views/pontuacao/pontuacao_detalhada_view.dart';
 import '../views/checkin/conchas_view.dart';
 import '../views/resultados/resultados_finais_view.dart';
 import '../views/profile/team_profile_view.dart';
-import '../views/admin/scan_and_score_view.dart';
+//import '../views/admin/scan_and_score_view.dart';
 import '../views/admin/pontuacoes_view.dart';
 import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
@@ -101,7 +102,6 @@ class AppPages {
       page: () => const ParticipantesView(),
     ),
     // GetPage(name: '/final-activities', page: () => FinalActivitiesView()),
-    GetPage(name: '/scan-score', page: () => const ScanAndScoreView()),
     GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
     GetPage(name: '/participantes', page: () => const ParticipantesView()),
     GetPage(name: '/generate-qr', page: () => const GenerateQrView()),
@@ -205,9 +205,17 @@ class AppPages {
       },
     ),
     // Staff pages
-    GetPage(name: '/staff', page: () => const StaffHomeView()),
-    GetPage(name: '/staff/checkin', page: () => const StaffCheckinView()),
-    GetPage(name: '/staff/jogos', page: () => const PontuacaoQrView()),
-    GetPage(name: '/staff/ver_pontuacao', page: () => const StaffPontuacaoView()),
+    GetPage(name: '/staff', page: () => const StaffJogosView()),
+    GetPage(name: '/staff/jogos', page: () => const StaffJogosView()),
+    GetPage(name: '/staff/perfil', page: () => const ProfileView()),
+    GetPage(
+      name: '/scan-score',
+      page:
+          () => StaffScoreInputView(
+            participanteData: {'uid': '', 'nome': ''},
+            jogosDisponiveis: [],
+            jogosJaPontuados: [],
+          ),
+    ),
   ];
 }

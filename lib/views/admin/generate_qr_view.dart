@@ -85,7 +85,12 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Selecione uma edição')),
+        const SnackBar(
+          content: Text(
+            'Selecione uma edição',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
       );
       return;
     }
@@ -93,7 +98,12 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Selecione um evento')),
+        const SnackBar(
+          content: Text(
+            'Selecione um evento',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
       );
       return;
     }
@@ -101,7 +111,12 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Selecione um posto')),
+        const SnackBar(
+          content: Text(
+            'Selecione um posto',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
       );
       return;
     }
@@ -111,7 +126,12 @@ class _GenerateQrViewState extends State<GenerateQrView> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
-        const SnackBar(content: Text('QR já gerado para esse posto e tipo')),
+        const SnackBar(
+          content: Text(
+            'QR já gerado para esse posto e tipo',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
       );
       return;
     }
@@ -130,7 +150,12 @@ class _GenerateQrViewState extends State<GenerateQrView> {
     if (checkpointData == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dados do checkpoint não encontrados')),
+        const SnackBar(
+          content: Text(
+            'Dados do checkpoint não encontrados',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
       );
       return;
     }
@@ -172,9 +197,14 @@ class _GenerateQrViewState extends State<GenerateQrView> {
         .set({'qrData': qrJson}, SetOptions(merge: true));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('QR Code gerado com sucesso')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'QR Code gerado com sucesso',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+    );
   }
 
   @override
@@ -418,9 +448,41 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                   // Botão para mostrar QR Code em diálogo
                   ElevatedButton.icon(
                     onPressed:
-                        _qrData == null
+                        _postoSelecionado == null
                             ? null
-                            : () {
+                            : () async {
+                              if (_qrData == null) {
+                                final doc =
+                                    await FirebaseFirestore.instance
+                                        .collection('editions')
+                                        .doc(_edicaoSelecionada!)
+                                        .collection('events')
+                                        .doc(_eventoSelecionado!)
+                                        .collection('checkpoints')
+                                        .doc(_postoSelecionado!)
+                                        .get();
+                                final data = doc.data()?['qrData'];
+                                if (data != null && mounted) {
+                                  setState(() {
+                                    _qrData = data.entries
+                                        .map((e) => '"${e.key}": "${e.value}"')
+                                        .join(', ');
+                                    _qrData = '{$_qrData}';
+                                  });
+                                }
+                              }
+                              if (!mounted) return;
+                              if (_qrData == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'QR Code ainda não foi gerado para este posto. Por favor, gere primeiro.',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               showDialog(
                                 context: context,
                                 builder:
@@ -455,19 +517,19 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                                         TextButton(
                                           onPressed:
                                               () => Navigator.pop(context),
-                                          child: const Text('Fechar'),
+                                          child: const Text(
+                                            'Fechar',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
                               );
                             },
                     icon: const Icon(Icons.visibility),
-                    label: Text(
-                      'Mostrar QR Code',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                    ),
+                    label: const Text('Mostrar QR Code'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -475,13 +537,47 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                         horizontal: 20,
                         vertical: 14,
                       ),
+                      disabledBackgroundColor: Colors.black,
+                      disabledForegroundColor: Colors.white,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed:
-                        _qrData == null
+                        _postoSelecionado == null
                             ? null
                             : () async {
+                              if (_qrData == null) {
+                                final doc =
+                                    await FirebaseFirestore.instance
+                                        .collection('editions')
+                                        .doc(_edicaoSelecionada!)
+                                        .collection('events')
+                                        .doc(_eventoSelecionado!)
+                                        .collection('checkpoints')
+                                        .doc(_postoSelecionado!)
+                                        .get();
+                                final data = doc.data()?['qrData'];
+                                if (data != null && mounted) {
+                                  setState(() {
+                                    _qrData = data.entries
+                                        .map((e) => '"${e.key}": "${e.value}"')
+                                        .join(', ');
+                                    _qrData = '{$_qrData}';
+                                  });
+                                }
+                              }
+                              if (!mounted) return;
+                              if (_qrData == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'QR Code ainda não foi gerado para este posto. Por favor, gere primeiro.',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               final image =
                                   await _screenshotController.capture();
                               if (image == null) return;
@@ -502,18 +598,14 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                                   const SnackBar(
                                     content: Text(
                                       'Não foi possível abrir o ficheiro',
+                                      style: TextStyle(color: Colors.black),
                                     ),
                                   ),
                                 );
                               }
                             },
                     icon: const Icon(Icons.share),
-                    label: Text(
-                      'Partilhar',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                    ),
+                    label: const Text('Partilhar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -521,13 +613,47 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                         horizontal: 20,
                         vertical: 14,
                       ),
+                      disabledBackgroundColor: Colors.black,
+                      disabledForegroundColor: Colors.white,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed:
-                        _qrData == null
+                        _postoSelecionado == null
                             ? null
                             : () async {
+                              if (_qrData == null) {
+                                final doc =
+                                    await FirebaseFirestore.instance
+                                        .collection('editions')
+                                        .doc(_edicaoSelecionada!)
+                                        .collection('events')
+                                        .doc(_eventoSelecionado!)
+                                        .collection('checkpoints')
+                                        .doc(_postoSelecionado!)
+                                        .get();
+                                final data = doc.data()?['qrData'];
+                                if (data != null && mounted) {
+                                  setState(() {
+                                    _qrData = data.entries
+                                        .map((e) => '"${e.key}": "${e.value}"')
+                                        .join(', ');
+                                    _qrData = '{$_qrData}';
+                                  });
+                                }
+                              }
+                              if (!mounted) return;
+                              if (_qrData == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'QR Code ainda não foi gerado para este posto. Por favor, gere primeiro.',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               final image =
                                   await _screenshotController.capture();
                               if (image == null) return;
@@ -550,12 +676,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                               }
                             },
                     icon: const Icon(Icons.print),
-                    label: Text(
-                      'Imprimir',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                    ),
+                    label: const Text('Imprimir'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -563,13 +684,47 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                         horizontal: 20,
                         vertical: 14,
                       ),
+                      disabledBackgroundColor: Colors.black,
+                      disabledForegroundColor: Colors.white,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed:
-                        _qrData == null
+                        _postoSelecionado == null
                             ? null
                             : () async {
+                              if (_qrData == null) {
+                                final doc =
+                                    await FirebaseFirestore.instance
+                                        .collection('editions')
+                                        .doc(_edicaoSelecionada!)
+                                        .collection('events')
+                                        .doc(_eventoSelecionado!)
+                                        .collection('checkpoints')
+                                        .doc(_postoSelecionado!)
+                                        .get();
+                                final data = doc.data()?['qrData'];
+                                if (data != null && mounted) {
+                                  setState(() {
+                                    _qrData = data.entries
+                                        .map((e) => '"${e.key}": "${e.value}"')
+                                        .join(', ');
+                                    _qrData = '{$_qrData}';
+                                  });
+                                }
+                              }
+                              if (!mounted) return;
+                              if (_qrData == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'QR Code ainda não foi gerado para este posto. Por favor, gere primeiro.',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               final image =
                                   await _screenshotController.capture();
                               if (image == null) return;
@@ -614,12 +769,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                               );
                             },
                     icon: const Icon(Icons.picture_as_pdf),
-                    label: Text(
-                      'Exportar PDF',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                    ),
+                    label: const Text('Exportar PDF'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepOrange,
                       foregroundColor: Colors.white,
@@ -627,6 +777,8 @@ class _GenerateQrViewState extends State<GenerateQrView> {
                         horizontal: 20,
                         vertical: 14,
                       ),
+                      disabledBackgroundColor: Colors.black,
+                      disabledForegroundColor: Colors.white,
                     ),
                   ),
                 ],

@@ -59,8 +59,18 @@ class _ResponderPerguntaViewState extends State<ResponderPerguntaView> {
             .doc(widget.checkpointId)
             .get();
 
-    final perguntaRef = checkpointDoc.data()?['pergunta1Id'] ?? checkpointDoc.data()?['perguntaRef'];
-    final pergunta1Id = perguntaRef is DocumentReference ? perguntaRef.id : perguntaRef;
+    final perguntaRef =
+        checkpointDoc.data()?['pergunta1Id'] ??
+        checkpointDoc.data()?['perguntaRef'];
+    String? pergunta1Id;
+
+    if (perguntaRef is DocumentReference) {
+      pergunta1Id = perguntaRef.id;
+    } else if (perguntaRef is String && perguntaRef.contains('/')) {
+      pergunta1Id = perguntaRef.split('/').last;
+    } else if (perguntaRef is String) {
+      pergunta1Id = perguntaRef;
+    }
     if (pergunta1Id == null) return;
 
     final perguntaDoc =

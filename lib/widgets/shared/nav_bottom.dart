@@ -33,24 +33,15 @@ class BottomNavBar extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final data = snapshot.data!.data() as Map<String, dynamic>;
-        final isStaff = data['tipo'] == 'staff';
+        final icons = [
+          Icons.home,
+          Icons.event,
+          Icons.qr_code_scanner,
+          Icons.leaderboard,
+          Icons.person,
+        ];
 
-        final icons =
-            isStaff
-                ? [Icons.quiz, Icons.qr_code_scanner, Icons.star, Icons.person]
-                : [
-                  Icons.home,
-                  Icons.event,
-                  Icons.qr_code_scanner,
-                  Icons.leaderboard,
-                  Icons.person,
-                ];
-
-        final labels =
-            isStaff
-                ? ['Jogos', 'Scan QR', 'Pontuação', 'Perfil']
-                : ['Home', 'Eventos', 'CheckPoint', 'Ranking', 'Perfil'];
+        final labels = ['Home', 'Eventos', 'CheckPoint', 'Ranking', 'Perfil'];
 
         return Container(
           decoration: BoxDecoration(
@@ -61,26 +52,7 @@ class BottomNavBar extends StatelessWidget {
           ),
           child: BottomNavigationBar(
             currentIndex: currentIndex,
-            onTap: (index) {
-              if (isStaff) {
-                switch (index) {
-                  case 0:
-                    Navigator.pushNamed(context, '/jogos');
-                    break;
-                  case 1:
-                    Navigator.pushNamed(context, '/scan-score');
-                    break;
-                  case 2:
-                    Navigator.pushNamed(context, '/pontuacao');
-                    break;
-                  case 3:
-                    Navigator.pushNamed(context, '/perfil');
-                    break;
-                }
-              } else {
-                onTap(index);
-              }
-            },
+            onTap: onTap,
             backgroundColor: Colors.transparent,
             selectedItemColor: Colors.white,
             unselectedItemColor: Colors.white70,

@@ -31,6 +31,9 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAxi5pum5PTOEdpY7OPXkHBh0deBYupciY" />
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false"/>
     </application>
 
 </manifest>
