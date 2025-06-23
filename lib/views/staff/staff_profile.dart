@@ -29,11 +29,29 @@ class _StaffProfileViewState extends State<StaffProfileView> {
               .collection('users')
               .doc(user!.uid)
               .get();
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         setState(() {
           userData = doc.data();
           isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao terminar sessão: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -86,11 +104,7 @@ class _StaffProfileViewState extends State<StaffProfileView> {
                     ListTile(
                       leading: const Icon(Icons.logout, color: Colors.red),
                       title: const Text("Terminar sessão"),
-                      onTap: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (!mounted) return;
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      },
+                      onTap: _handleLogout,
                     ),
                   ],
                 ),
