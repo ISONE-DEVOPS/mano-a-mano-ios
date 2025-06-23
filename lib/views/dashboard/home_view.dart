@@ -22,15 +22,47 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   final int _selectedIndex = 0;
   String _location = '...';
-  bool _locationError = false; // To track if location fetching failed
+  bool _locationError = false;
   final FirebaseService firebaseService = FirebaseService();
   String? _eventoAtivoNome;
+  Map<String, String> _checkpointNames = {}; // Cache para nomes dos checkpoints
 
   @override
   void initState() {
     super.initState();
     _determinePosition();
     _loadPercurso();
+    _loadCheckpointNames();
+  }
+
+  // Carrega os nomes dos checkpoints
+  Future<void> _loadCheckpointNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('editions')
+          .doc('shell_2025')
+          .collection('events')
+          .doc('shell_km_02')
+          .collection('checkpoints')
+          .get();
+      
+      final Map<String, String> names = {};
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        names[doc.id] = data['nome'] ?? data['name'] ?? doc.id;
+      }
+      
+      setState(() {
+        _checkpointNames = names;
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar nomes dos checkpoints: $e');
+    }
+  }
+
+  // Função para obter o nome do checkpoint
+  String _getCheckpointName(String checkpointId) {
+    return _checkpointNames[checkpointId] ?? checkpointId;
   }
 
   Future<bool> _hasInternetConnection() async {
@@ -58,27 +90,17 @@ class _HomeViewState extends State<HomeView> {
       return;
     }
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .doc('shell_2025')
-              .collection('events')
-              .where('ativo', isEqualTo: true)
-              .limit(1)
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('editions')
+          .doc('shell_2025')
+          .collection('events')
+          .where('ativo', isEqualTo: true)
+          .limit(1)
+          .get();
 
       if (snapshot.docs.isNotEmpty) {
         final data = snapshot.docs.first.data();
         setState(() {
-          // _percurso =
-          //     pontos
-          //         .map(
-          //           (p) => LatLng(
-          //             (p['lat'] as num).toDouble(),
-          //             (p['lng'] as num).toDouble(),
-          //           ),
-          //         )
-          //         .toList();
           _eventoAtivoNome = data['nome'] ?? 'Evento Ativo';
         });
       }
@@ -93,12 +115,8 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  // Helper method to log info messages (replace with Logger if available)
   void _logInfo(String message) {
-    // final logger = Logger();
-    // logger.i(message);
-    // If logger package is not used, comment above and use print or nothing
-    // print(message);
+    // Logger implementation
   }
 
   void _determinePosition() async {
@@ -141,16 +159,10 @@ class _HomeViewState extends State<HomeView> {
         );
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
-          String? locality =
-              place.locality ??
-              place.subAdministrativeArea ??
-              place.administrativeArea;
+          String? locality = place.locality ?? place.subAdministrativeArea ?? place.administrativeArea;
           String? country = place.country;
           if (locality != null && locality.isNotEmpty) {
-            locationName =
-                country != null && country.isNotEmpty
-                    ? '$locality, $country'
-                    : locality;
+            locationName = country != null && country.isNotEmpty ? '$locality, $country' : locality;
           } else if (country != null && country.isNotEmpty) {
             locationName = country;
           } else {
@@ -191,7 +203,6 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  // Widget to display when location fails, with retry button
   Widget _locationErrorWidget() {
     return Container(
       decoration: const BoxDecoration(
@@ -230,7 +241,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  // Widget to display when no cars are registered, with register button
   Widget _noCarsWidget(String userName) {
     return Column(
       children: [
@@ -255,9 +265,7 @@ class _HomeViewState extends State<HomeView> {
         const Center(child: Text('Nenhum carro registado.')),
         const SizedBox(height: 12),
         ElevatedButton.icon(
-          onPressed: () {
-            // Example visual only, no action implemented
-          },
+          onPressed: () {},
           icon: const Icon(Icons.add),
           label: const Text('Registrar carro'),
         ),
@@ -265,7 +273,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  // Widget to display error fetching cars, with retry button
   Widget _carsErrorWidget(String userName) {
     return Column(
       children: [
@@ -311,7 +318,6 @@ class _HomeViewState extends State<HomeView> {
           );
         }
         if (!snapshot.hasData) {
-          // Usuário não autenticado
           return const Scaffold(
             body: Center(child: Text('Usuário não autenticado')),
           );
@@ -352,156 +358,123 @@ class _HomeViewState extends State<HomeView> {
                         child: Text('Sem conexão com a internet'),
                       );
                     }
-                    // Novo FutureBuilder para buscar user e car por veiculoId
                     return FutureBuilder<Map<String, dynamic>>(
-                      future:
-                          (() async {
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid == null) return <String, dynamic>{};
-                            final userDoc =
-                                await FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(uid)
-                                    .get();
-                            final userData = userDoc.data() ?? {};
-                            final userName = userData['nome'] ?? '';
-                            final veiculoId = userData['veiculoId'];
-                            // Buscar grupo da equipa
-                            final equipaId = userData['equipaId'];
-                            String? grupo;
-                            if (equipaId != null &&
-                                equipaId.toString().isNotEmpty) {
-                              final equipaDoc =
-                                  await FirebaseFirestore.instance
-                                      .collection('equipas')
-                                      .doc(equipaId)
-                                      .get();
-                              if (equipaDoc.exists) {
-                                grupo = equipaDoc.data()?['grupo'];
-                              }
-                            }
-                            if (veiculoId == null ||
-                                veiculoId.toString().isEmpty) {
-                              return {
-                                'userName': userName,
-                                'userData': userData,
-                                'carData': null,
-                                'carId': null,
-                                'grupo': grupo,
-                              };
-                            }
-                            final carDoc =
-                                await FirebaseFirestore.instance
-                                    .collection('veiculos')
-                                    .doc(veiculoId)
-                                    .get();
-                            final carData =
-                                carDoc.exists ? carDoc.data() : null;
-                            return {
-                              'userName': userName,
-                              'userData': userData,
-                              'carData': carData,
-                              'carId': veiculoId,
-                              'grupo': grupo,
-                            };
-                          })(),
+                      future: (() async {
+                        final uid = FirebaseAuth.instance.currentUser?.uid;
+                        if (uid == null) return <String, dynamic>{};
+                        final userDoc = await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .get();
+                        final userData = userDoc.data() ?? {};
+                        final userName = userData['nome'] ?? '';
+                        final veiculoId = userData['veiculoId'];
+                        final equipaId = userData['equipaId'];
+                        String? grupo;
+                        if (equipaId != null && equipaId.toString().isNotEmpty) {
+                          final equipaDoc = await FirebaseFirestore.instance
+                              .collection('equipas')
+                              .doc(equipaId)
+                              .get();
+                          if (equipaDoc.exists) {
+                            grupo = equipaDoc.data()?['grupo'];
+                          }
+                        }
+                        if (veiculoId == null || veiculoId.toString().isEmpty) {
+                          return {
+                            'userName': userName,
+                            'userData': userData,
+                            'carData': null,
+                            'carId': null,
+                            'grupo': grupo,
+                          };
+                        }
+                        final carDoc = await FirebaseFirestore.instance
+                            .collection('veiculos')
+                            .doc(veiculoId)
+                            .get();
+                        final carData = carDoc.exists ? carDoc.data() : null;
+                        return {
+                          'userName': userName,
+                          'userData': userData,
+                          'carData': carData,
+                          'carId': veiculoId,
+                          'grupo': grupo,
+                        };
+                      })(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
                         }
                         if (snapshot.hasError) {
-                          final userNameFallback = '';
+                          const userNameFallback = '';
                           return _carsErrorWidget(userNameFallback);
                         }
                         final data = snapshot.data ?? {};
                         final userName = data['userName'] ?? '';
-                        final carData =
-                            data['carData'] as Map<String, dynamic>?;
+                        final carData = data['carData'] as Map<String, dynamic>?;
                         final carId = data['carId'] as String?;
                         if (carData == null || carId == null) {
                           return _noCarsWidget(userName);
                         }
-                        // Widget principal com dados do carro
+
+                        // Buscar checkpoints do veículo
                         return FutureBuilder<QuerySnapshot>(
-                          future:
-                              FirebaseFirestore.instance
-                                  .collection('veiculos')
-                                  .doc(carId)
-                                  .collection('checkpoints')
-                                  .get(),
+                          future: FirebaseFirestore.instance
+                              .collection('veiculos')
+                              .doc(carId)
+                              .collection('checkpoints')
+                              .get(),
                           builder: (context, checkpointSnapshot) {
-                            if (checkpointSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
+                            if (checkpointSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
                             }
-                            final checkpointDocs =
-                                checkpointSnapshot.data?.docs ?? [];
-                            final Map<String, Map<String, dynamic>>
-                            checkpoints = {};
+
+                            final checkpointDocs = checkpointSnapshot.data?.docs ?? [];
+                            
+                            // Processar dados dos checkpoints
+                            final Map<String, Map<String, dynamic>> processedCheckpoints = {};
+                            
                             for (var doc in checkpointDocs) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              final tipo = data['tipo'];
-                              final postoId = data['posto'];
-                              final timestamp = data['timestamp'];
-                              final String timestampStr =
-                                  timestamp is Timestamp
-                                      ? timestamp.toDate().toIso8601String()
-                                      : timestamp?.toString() ?? '';
-                              if (postoId == null ||
-                                  tipo == null ||
-                                  timestamp == null) {
-                                continue;
-                              }
-                              final existing = checkpoints.putIfAbsent(
-                                postoId,
-                                () => {
-                                  'checkpointId': postoId,
-                                  'timestampEntrada': null,
-                                  'timestampSaida': null,
-                                },
-                              );
-                              if (tipo == 'entrada') {
-                                existing['timestampEntrada'] = timestampStr;
-                              } else if (tipo == 'saida') {
-                                existing['timestampSaida'] = timestampStr;
-                              }
+                              final checkpointId = doc.id;
+                              final checkpointData = doc.data() as Map<String, dynamic>;
+                              
+                              // Buscar registros deste checkpoint
+                              processedCheckpoints[checkpointId] = {
+                                'checkpointId': checkpointId,
+                                'nome': _getCheckpointName(checkpointId),
+                                'timestampEntrada': checkpointData['entrada'],
+                                'timestampSaida': checkpointData['saida'],
+                                'ultima_leitura': checkpointData['ultima_leitura'],
+                              };
                             }
-                            final sortedEntries =
-                                checkpoints.entries.toList()..sort((a, b) {
-                                  final aSort =
-                                      (a.value['timestampEntrada'] ?? '')
-                                          as String;
-                                  final bSort =
-                                      (b.value['timestampEntrada'] ?? '')
-                                          as String;
-                                  return bSort.compareTo(aSort);
-                                });
-                            final visitedCheckpoints =
-                                checkpoints.entries.where((entry) {
-                                  final cp = entry.value;
-                                  return cp['timestampEntrada'] != null &&
-                                      cp['timestampSaida'] != null;
-                                }).length;
-                            final int totalCheckpoints = 8;
-                            final double progress =
-                                totalCheckpoints > 0
-                                    ? (visitedCheckpoints / totalCheckpoints)
-                                        .clamp(0.0, 1.0)
-                                    : 0.0;
+
+                            // Ordenar por data de entrada (mais recente primeiro)
+                            final sortedEntries = processedCheckpoints.entries.toList()
+                              ..sort((a, b) {
+                                final aTime = a.value['timestampEntrada'] as String? ?? '';
+                                final bTime = b.value['timestampEntrada'] as String? ?? '';
+                                return bTime.compareTo(aTime);
+                              });
+
+                            // Calcular postos completos (com entrada E saída)
+                            final visitedCheckpoints = processedCheckpoints.values
+                                .where((cp) => 
+                                    cp['timestampEntrada'] != null && 
+                                    cp['timestampSaida'] != null)
+                                .length;
+
+                            final int totalCheckpoints = 8; // ou obter do Firestore
+                            final double progress = totalCheckpoints > 0
+                                ? (visitedCheckpoints / totalCheckpoints).clamp(0.0, 1.0)
+                                : 0.0;
+
                             return Column(
                               children: [
                                 Container(
                                   decoration: const BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [
-                                        AppColors.primary,
-                                        AppColors.primary,
-                                      ],
+                                      colors: [AppColors.primary, AppColors.primary],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
@@ -522,27 +495,20 @@ class _HomeViewState extends State<HomeView> {
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
                                   child: Column(
                                     children: [
                                       Card(
                                         color: AppColors.background,
-                                        margin: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
+                                        margin: const EdgeInsets.symmetric(vertical: 12),
                                         elevation: 3,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
                                         child: Padding(
                                           padding: const EdgeInsets.all(20),
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 '${(carData['nome_condutor'] != null && carData['nome_condutor'].toString().trim().isNotEmpty) ? carData['nome_condutor'] : userName} - ${carData['matricula'] ?? 'Matrícula desconhecida'}',
@@ -553,217 +519,160 @@ class _HomeViewState extends State<HomeView> {
                                                 ),
                                               ),
                                               const SizedBox(height: 12),
-                                              // Text('Marca: ${carData['marca'] ?? '-'}'),
-                                              Text(
-                                                'Modelo: ${carData['modelo'] ?? '-'}',
-                                              ),
-                                              Text(
-                                                'Dístico: ${carData['distico'] ?? '-'}',
-                                              ),
-                                              Text(
-                                                'Grupo: ${data['grupo'] ?? '-'}',
-                                              ),
+                                              Text('Modelo: ${carData['modelo'] ?? '-'}'),
+                                              Text('Dístico: ${carData['distico'] ?? '-'}'),
+                                              Text('Grupo: ${data['grupo'] ?? '-'}'),
                                               if (_eventoAtivoNome != null)
-                                                Text(
-                                                  'Evento: $_eventoAtivoNome',
-                                                ),
+                                                Text('Evento: $_eventoAtivoNome'),
                                               Text(
                                                 'Pontuação Total: ${carData['pontuacao_total'] ?? 0}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                                style: const TextStyle(fontWeight: FontWeight.bold),
                                               ),
                                               const Divider(height: 24),
                                               const Text(
                                                 'RESUMO',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                                style: TextStyle(fontWeight: FontWeight.bold),
                                               ),
                                               const SizedBox(height: 4),
-                                              Text(
-                                                'Postos completos: $visitedCheckpoints de $totalCheckpoints',
-                                              ),
+                                              Text('Postos completos: $visitedCheckpoints de $totalCheckpoints'),
                                               const SizedBox(height: 8),
                                               LinearProgressIndicator(
                                                 value: progress,
-                                                backgroundColor: Colors.white
-                                                    .withAlpha(61),
-                                                color:
-                                                    progress >= 1.0
-                                                        ? Colors.green
-                                                        : (progress >= 0.5
-                                                            ? Colors.orange
-                                                            : Colors.red),
+                                                backgroundColor: Colors.white.withAlpha(61),
+                                                color: progress >= 1.0
+                                                    ? Colors.green
+                                                    : (progress >= 0.5 ? Colors.orange : Colors.red),
                                                 minHeight: 8,
                                               ),
                                               Text(
                                                 'Postos restantes: ${totalCheckpoints - visitedCheckpoints}',
-                                                style: TextStyle(
-                                                  color: Colors.grey[700],
-                                                ),
+                                                style: TextStyle(color: Colors.grey[700]),
                                               ),
                                               const Divider(height: 24),
                                               const Text(
                                                 'Checkpoints:',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                style: TextStyle(fontWeight: FontWeight.w600),
                                               ),
                                               const SizedBox(height: 6),
-                                              if (checkpoints.isNotEmpty)
+                                              if (processedCheckpoints.isNotEmpty)
                                                 ...(() {
-                                                  Map<
-                                                    String,
-                                                    List<
-                                                      MapEntry<
-                                                        String,
-                                                        Map<String, dynamic>
-                                                      >
-                                                    >
-                                                  >
-                                                  agrupadoPorData = {};
-                                                  for (var entry
-                                                      in sortedEntries) {
-                                                    final cp = Map<
-                                                      String,
-                                                      dynamic
-                                                    >.from(entry.value as Map);
-                                                    final rawData =
-                                                        cp['timestampEntrada']
-                                                            as String?;
-                                                    String dataFormatada =
-                                                        'Data desconhecida';
-                                                    if (rawData != null) {
-                                                      final data =
-                                                          DateTime.tryParse(
-                                                            rawData,
-                                                          );
+                                                  // Agrupar por data
+                                                  Map<String, List<MapEntry<String, Map<String, dynamic>>>> agrupadoPorData = {};
+                                                  
+                                                  for (var entry in sortedEntries) {
+                                                    final cp = entry.value;
+                                                    final rawData = cp['timestampEntrada'] as String?;
+                                                    String dataFormatada = 'Data desconhecida';
+                                                    
+                                                    if (rawData != null && rawData.isNotEmpty) {
+                                                      final data = DateTime.tryParse(rawData);
                                                       if (data != null) {
-                                                        dataFormatada =
-                                                            '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}';
+                                                        dataFormatada = '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}';
                                                       }
                                                     }
-                                                    agrupadoPorData
-                                                        .putIfAbsent(
-                                                          dataFormatada,
-                                                          () => [],
-                                                        )
-                                                        .add(
-                                                          MapEntry(
-                                                            entry.key,
-                                                            cp,
-                                                          ),
-                                                        );
+                                                    
+                                                    agrupadoPorData.putIfAbsent(dataFormatada, () => []).add(entry);
                                                   }
-                                                  return agrupadoPorData.entries
-                                                      .map<Widget>(
-                                                        (grupo) => Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            const Divider(
-                                                              height: 24,
-                                                            ),
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    bottom: 8,
-                                                                  ),
-                                                              child: Text(
-                                                                grupo.key,
-                                                                style: const TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 14,
-                                                                ),
+
+                                                  return agrupadoPorData.entries.map<Widget>((grupo) => Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      const Divider(height: 24),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(bottom: 8),
+                                                        child: Text(
+                                                          grupo.key,
+                                                          style: const TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      ...grupo.value.map((entry) {
+                                                        final cp = entry.value;
+                                                        final nomeCheckpoint = cp['nome'] ?? entry.key;
+                                                        final entrada = cp['timestampEntrada'];
+                                                        final saida = cp['timestampSaida'];
+                                                        
+                                                        // Formatação de horários
+                                                        String entradaFormatada = '-';
+                                                        String saidaFormatada = '-';
+                                                        
+                                                        if (entrada != null && entrada is String && entrada.isNotEmpty) {
+                                                          final dataEntrada = DateTime.tryParse(entrada);
+                                                          if (dataEntrada != null) {
+                                                            entradaFormatada = '${dataEntrada.hour.toString().padLeft(2, '0')}:${dataEntrada.minute.toString().padLeft(2, '0')}';
+                                                          }
+                                                        }
+                                                        
+                                                        if (saida != null && saida is String && saida.isNotEmpty) {
+                                                          final dataSaida = DateTime.tryParse(saida);
+                                                          if (dataSaida != null) {
+                                                            saidaFormatada = '${dataSaida.hour.toString().padLeft(2, '0')}:${dataSaida.minute.toString().padLeft(2, '0')}';
+                                                          }
+                                                        }
+                                                        
+                                                        return Padding(
+                                                          padding: const EdgeInsets.only(top: 4),
+                                                          child: Row(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Icon(
+                                                                entrada != null && entrada.toString().isNotEmpty &&
+                                                                saida != null && saida.toString().isNotEmpty
+                                                                    ? Icons.check_circle
+                                                                    : (entrada != null && entrada.toString().isNotEmpty
+                                                                        ? Icons.login
+                                                                        : Icons.radio_button_unchecked),
+                                                                size: 18,
+                                                                color: entrada != null && entrada.toString().isNotEmpty &&
+                                                                       saida != null && saida.toString().isNotEmpty
+                                                                    ? Colors.green
+                                                                    : (entrada != null && entrada.toString().isNotEmpty
+                                                                        ? Colors.orange
+                                                                        : Colors.grey),
                                                               ),
-                                                            ),
-                                                            ...grupo.value.map((
-                                                              entry,
-                                                            ) {
-                                                              final posto =
-                                                                  entry.key;
-                                                              final cp =
-                                                                  entry.value;
-                                                              final entrada =
-                                                                  cp['timestampEntrada'] ??
-                                                                  '-';
-                                                              final saida =
-                                                                  cp['timestampSaida'] ??
-                                                                  '-';
-                                                              final ultimaLeitura =
-                                                                  cp['timestampSaida'] ??
-                                                                  cp['timestampEntrada'];
-                                                              String
-                                                              ultimaFormatada =
-                                                                  '';
-                                                              if (ultimaLeitura !=
-                                                                      null &&
-                                                                  ultimaLeitura
-                                                                      is String) {
-                                                                final data =
-                                                                    DateTime.tryParse(
-                                                                      ultimaLeitura,
-                                                                    );
-                                                                if (data !=
-                                                                    null) {
-                                                                  ultimaFormatada =
-                                                                      '${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
-                                                                }
-                                                              }
-                                                              return Padding(
-                                                                padding:
-                                                                    const EdgeInsets.only(
-                                                                      top: 4,
-                                                                    ),
-                                                                child: Row(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
+                                                              const SizedBox(width: 6),
+                                                              Expanded(
+                                                                child: Column(
+                                                                  crossAxisAlignment: CrossAxisAlignment.start,
                                                                   children: [
-                                                                    Icon(
-                                                                      entrada !=
-                                                                                  '-' &&
-                                                                              saida !=
-                                                                                  '-'
-                                                                          ? Icons
-                                                                              .check_circle
-                                                                          : (entrada !=
-                                                                                  '-'
-                                                                              ? Icons.login
-                                                                              : Icons.logout),
-                                                                      size: 18,
-                                                                      color:
-                                                                          entrada !=
-                                                                                      '-' &&
-                                                                                  saida !=
-                                                                                      '-'
-                                                                              ? Colors.green
-                                                                              : (entrada !=
-                                                                                      '-'
-                                                                                  ? Colors.orange
-                                                                                  : Colors.red),
+                                                                    Text(
+                                                                      nomeCheckpoint,
+                                                                      style: const TextStyle(
+                                                                        fontWeight: FontWeight.w600,
+                                                                        fontSize: 14,
+                                                                      ),
                                                                     ),
-                                                                    const SizedBox(
-                                                                      width: 6,
-                                                                    ),
-                                                                    Expanded(
-                                                                      child: Text(
-                                                                        '$posto → Entrada: $entrada | Saída: $saida${ultimaFormatada.isNotEmpty ? ' | Hora: $ultimaFormatada' : ''}',
+                                                                    const SizedBox(height: 2),
+                                                                    Text(
+                                                                      'Entrada: $entradaFormatada | Saída: $saidaFormatada',
+                                                                      style: TextStyle(
+                                                                        fontSize: 12,
+                                                                        color: Colors.grey[600],
                                                                       ),
                                                                     ),
                                                                   ],
                                                                 ),
-                                                              );
-                                                            }),
-                                                          ],
-                                                        ),
-                                                      )
-                                                      .toList();
-                                                })(),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }),
+                                                    ],
+                                                  )).toList();
+                                                })()
+                                              else
+                                                const Padding(
+                                                  padding: EdgeInsets.only(top: 8),
+                                                  child: Text(
+                                                    'Nenhum checkpoint visitado ainda.',
+                                                    style: TextStyle(
+                                                      fontStyle: FontStyle.italic,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ),
                                             ],
                                           ),
                                         ),
@@ -771,7 +680,7 @@ class _HomeViewState extends State<HomeView> {
                                     ],
                                   ),
                                 ),
-                                // Substituição: Exibe QR Code com dados relevantes para leitura pelo Admin
+                                // QR Code
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -779,12 +688,7 @@ class _HomeViewState extends State<HomeView> {
                                   ),
                                   child: QrImageView(
                                     data: jsonEncode({
-                                      'uid':
-                                          FirebaseAuth
-                                              .instance
-                                              .currentUser
-                                              ?.uid ??
-                                          '',
+                                      'uid': FirebaseAuth.instance.currentUser?.uid ?? '',
                                       'nome': userName ?? '',
                                     }),
                                     version: QrVersions.auto,
@@ -804,21 +708,13 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ),
-      // floatingActionButton removido conforme solicitado.
       bottomNavigationBar: BottomNavBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          // Atualize conforme necessário
           if (index != _selectedIndex) {
             Navigator.pushReplacementNamed(
               context,
-              [
-                '/home',
-                '/my-events',
-                '/checkin',
-                '/ranking',
-                '/profile',
-              ][index],
+              ['/home', '/my-events', '/checkin', '/ranking', '/profile'][index],
             );
           }
         },

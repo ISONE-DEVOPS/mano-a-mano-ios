@@ -275,7 +275,27 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => Get.toNamed('/register'),
+                  /*onPressed: () {
+                    Get.toNamed('/register');
+                  },*/
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (context) => AlertDialog(
+                            title: const Text('Inscrições Encerradas'),
+                            content: const Text(
+                              'Inscrições encerradas para esta Edição de Shell ao Km by Mano a Mano.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                    );
+                  },
                   child: Text(
                     'Não tem uma conta? Registre-se',
                     style: textTheme.bodyMedium?.copyWith(

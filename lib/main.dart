@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'routes/app_pages.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
@@ -15,6 +16,14 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  final firestore = FirebaseFirestore.instance;
+  final configDoc = await firestore.collection('config').doc('evento2025').get();
+  final inscricoesAbertas = configDoc.data()?['inscricoesAbertas'] ?? false;
+
+  final initialRoute = kIsWeb
+      ? (inscricoesAbertas ? '/login' : '/closed')
+      : '/splash';
+
   Get.put(AuthService());
 
   runApp(
@@ -22,7 +31,7 @@ void main() async {
       onPointerSignal: (event) {
         if (event.kind.toString() == 'PointerDeviceKind.trackpad') return;
       },
-      child: const ManoManoDashboard(),
+      child: ManoManoDashboard(initialRoute: initialRoute),
     ),
   );
 }
@@ -37,15 +46,18 @@ class MyCustomScrollBehavior extends MaterialScrollBehavior {
 }
 
 class ManoManoDashboard extends StatelessWidget {
-  const ManoManoDashboard({super.key});
+  final String initialRoute;
+
+  const ManoManoDashboard({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Dashboard Mano Mano',
-      //initialRoute: kIsWeb ? '/loading-admin' : '/splash',
-      initialRoute: kIsWeb ? '/closed' : '/splash',
+      // Inicialização dinâmica da rota com base no estado das inscrições no Firestore
+      // (Veja abaixo como buscar essa flag antes de runApp)
+      initialRoute: initialRoute,
       getPages: AppPages.routes,
       theme: AppTheme.theme,
       darkTheme: AppTheme.darkTheme,

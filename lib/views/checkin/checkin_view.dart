@@ -107,22 +107,29 @@ class _CheckinViewState extends State<CheckinView> {
                       return;
                     }
 
-                    final registrosSnapshot = await FirebaseFirestore.instance
-                        .collection('veiculos')
-                        .doc(veiculoId)
-                        .collection('checkpoints')
-                        .doc(posto)
-                        .collection('registros')
-                        .get();
+                    final registrosSnapshot =
+                        await FirebaseFirestore.instance
+                            .collection('veiculos')
+                            .doc(veiculoId)
+                            .collection('checkpoints')
+                            .doc(posto)
+                            .collection('registros')
+                            .get();
 
-                    final temEntrada = registrosSnapshot.docs.any((doc) => doc['tipo'] == 'entrada');
-                    final temSaida = registrosSnapshot.docs.any((doc) => doc['tipo'] == 'saida');
+                    final temEntrada = registrosSnapshot.docs.any(
+                      (doc) => doc['tipo'] == 'entrada',
+                    );
+                    final temSaida = registrosSnapshot.docs.any(
+                      (doc) => doc['tipo'] == 'saida',
+                    );
 
                     if (temEntrada && temSaida) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Este posto já foi concluído. Não pode registar novamente.'),
+                          content: Text(
+                            'Este posto já foi concluído. Não pode registar novamente.',
+                          ),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -268,6 +275,8 @@ class _CheckinViewState extends State<CheckinView> {
                           'pontuacaoTotal': 0,
                           'timestampEntrada': now,
                           'timestampSaida': null,
+                          'perguntaRespondida':
+                              false, // Adiciona flag para controlar se já respondeu
                         }, SetOptions(merge: true));
                         if (!mounted) return;
                       } else {
@@ -325,20 +334,23 @@ class _CheckinViewState extends State<CheckinView> {
 
                     debugPrint('Tipo: $tipo | Posto: $posto');
 
-                    final existingData =
-                        (await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(FirebaseAuth.instance.currentUser?.uid)
-                                .collection('eventos')
-                                .doc('shell_2025')
-                                .collection('pontuacoes')
-                                .doc(posto)
-                                .get())
-                            .data();
-
+                    // Navegar para a tela de pergunta apenas se for entrada e ainda não respondeu
                     if (tipo.trim().toLowerCase() == 'entrada') {
-                      if (!mounted) return;
-                      if (existingData?['respostaCorreta'] == null) {
+                      // Verifica novamente os dados após o registro
+                      final existingData =
+                          (await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                                  .collection('eventos')
+                                  .doc('shell_2025')
+                                  .collection('pontuacoes')
+                                  .doc(posto)
+                                  .get())
+                              .data();
+
+                      // Navega se ainda não respondeu a pergunta
+                      if (existingData?['perguntaRespondida'] != true) {
+                        if (!mounted) return;
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder:
@@ -405,7 +417,6 @@ class _CheckinViewState extends State<CheckinView> {
       ),
     );
   }
-
 
   @override
   void dispose() {
