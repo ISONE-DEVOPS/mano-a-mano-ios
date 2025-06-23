@@ -21,6 +21,7 @@ class _CheckinViewState extends State<CheckinView> {
   final MobileScannerController _controller = MobileScannerController();
   bool isScanned = false;
   String? resultMessage;
+  bool isProcessing = false;
 
   @override
   void reassemble() {
@@ -347,6 +348,8 @@ class _CheckinViewState extends State<CheckinView> {
                         );
                       }
                     }
+                    // Substituir print por debugPrint para QR detectado
+                    debugPrint('QR Code detected: $code');
                   },
                 ),
               ),
@@ -402,6 +405,7 @@ class _CheckinViewState extends State<CheckinView> {
       ),
     );
   }
+
 
   @override
   void dispose() {

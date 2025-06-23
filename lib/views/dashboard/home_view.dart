@@ -448,13 +448,15 @@ class _HomeViewState extends State<HomeView> {
                               final tipo = data['tipo'];
                               final postoId = data['posto'];
                               final timestamp = data['timestamp'];
-                              final String timestampStr = timestamp is Timestamp
-                                  ? timestamp.toDate().toIso8601String()
-                                  : timestamp?.toString() ?? '';
+                              final String timestampStr =
+                                  timestamp is Timestamp
+                                      ? timestamp.toDate().toIso8601String()
+                                      : timestamp?.toString() ?? '';
                               if (postoId == null ||
                                   tipo == null ||
-                                  timestamp == null)
+                                  timestamp == null) {
                                 continue;
+                              }
                               final existing = checkpoints.putIfAbsent(
                                 postoId,
                                 () => {
