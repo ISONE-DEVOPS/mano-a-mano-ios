@@ -1,3 +1,4 @@
+import 'package:mano_mano_dashboard/views/events/doacao_web_view.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,6 +46,40 @@ class EventDetailsView extends StatelessWidget {
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
+            const SizedBox(height: 24),
+            const Text(
+              'Juntos, podemos transformar quilómetros em esperança.',
+              style: TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.italic,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFdd1d21), // Shell Red
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              icon: const Icon(Icons.favorite),
+              label: const Text('Contribuir com Doação'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const DoacaoWebView(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),

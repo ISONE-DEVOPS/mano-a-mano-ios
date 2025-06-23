@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -75,15 +76,19 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     List<Map<String, dynamic>> jogos = [];
 
     try {
-      print('Loading jogos from checkpoint: ${checkpoint['nome']}');
-      print('jogosRefs: ${checkpoint['jogosRefs']}');
-      print('jogoRef: ${checkpoint['jogoRef']}');
+      developer.log(
+        'Loading jogos from checkpoint: ${checkpoint['nome']}',
+        name: 'StaffScoreInput',
+      );
 
       // Verifica se tem múltiplos jogos (jogosRefs)
       if (checkpoint['jogosRefs'] != null &&
           (checkpoint['jogosRefs'] as List).isNotEmpty) {
         final List<dynamic> refs = checkpoint['jogosRefs'];
-        print('Carregando ${refs.length} jogos de jogosRefs');
+        developer.log(
+          'Loading ${refs.length} jogos from jogosRefs',
+          name: 'StaffScoreInput',
+        );
 
         for (var ref in refs) {
           try {
@@ -104,16 +109,26 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 'nome': data['nome'] ?? 'Jogo sem nome',
                 'pontuacaoMax': data['pontuacaoMax'] ?? 100,
               });
-              print('Jogo carregado: ${data['nome']} (ID: ${doc.id})');
+              developer.log(
+                'Jogo loaded: ${data['nome']} (ID: ${doc.id})',
+                name: 'StaffScoreInput',
+              );
             }
           } catch (e) {
-            print('Erro ao carregar jogo individual: $e');
+            developer.log(
+              'Error loading individual jogo: $e',
+              name: 'StaffScoreInput',
+              error: e,
+            );
           }
         }
       }
       // Verifica se tem um único jogo (jogoRef)
       else if (checkpoint['jogoRef'] != null) {
-        print('Carregando jogo único de jogoRef');
+        developer.log(
+          'Loading single jogo from jogoRef',
+          name: 'StaffScoreInput',
+        );
 
         try {
           DocumentSnapshot doc;
@@ -123,7 +138,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
           } else if (ref is String) {
             doc = await FirebaseFirestore.instance.doc(ref).get();
           } else {
-            throw Exception('Tipo de referência inválido');
+            throw Exception('Invalid reference type');
           }
 
           if (doc.exists) {
@@ -133,17 +148,31 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
               'nome': data['nome'] ?? 'Jogo sem nome',
               'pontuacaoMax': data['pontuacaoMax'] ?? 100,
             });
-            print('Jogo único carregado: ${data['nome']} (ID: ${doc.id})');
+            developer.log(
+              'Single jogo loaded: ${data['nome']} (ID: ${doc.id})',
+              name: 'StaffScoreInput',
+            );
           }
         } catch (e) {
-          print('Erro ao carregar jogo único: $e');
+          developer.log(
+            'Error loading single jogo: $e',
+            name: 'StaffScoreInput',
+            error: e,
+          );
         }
       }
     } catch (e) {
-      print('Erro geral ao carregar jogos: $e');
+      developer.log(
+        'General error loading jogos: $e',
+        name: 'StaffScoreInput',
+        error: e,
+      );
     }
 
-    print('Total de jogos carregados: ${jogos.length}');
+    developer.log(
+      'Total jogos loaded: ${jogos.length}',
+      name: 'StaffScoreInput',
+    );
 
     setState(() {
       _jogosDisponiveis = jogos;
@@ -175,9 +204,13 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 child: MobileScanner(
                   controller: _scannerController,
                   onDetect: (barcodeCapture) async {
-                    if (_qrLido) return;
+                    if (_qrLido) {
+                      return;
+                    }
                     final qr = barcodeCapture.barcodes.first.rawValue;
-                    if (qr == null) return;
+                    if (qr == null) {
+                      return;
+                    }
 
                     try {
                       await _scannerController.stop();
@@ -282,10 +315,14 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         ),
                       );
                     } catch (e) {
-                      print('Erro ao processar QR: $e');
+                      developer.log(
+                        'Error processing QR: $e',
+                        name: 'StaffScoreInput',
+                        error: e,
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('QR inválido: $e'),
+                        const SnackBar(
+                          content: Text('QR inválido'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -371,7 +408,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                             }).toList(),
                         value: _selectedCheckpointId,
                         onChanged: (v) async {
-                          if (v == null) return;
+                          if (v == null) {
+                            return;
+                          }
 
                           setState(() {
                             _selectedCheckpointId = v;
@@ -457,16 +496,20 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                               return 'Digite a pontuação';
                             }
                             final val = int.tryParse(v);
-                            if (val == null) return 'Digite um número válido';
-                            if (val < 0)
+                            if (val == null) {
+                              return 'Digite um número válido';
+                            }
+                            if (val < 0) {
                               return 'Pontuação não pode ser negativa';
+                            }
                             final maxPontuacao =
                                 jogosNaoPontuados.firstWhereOrNull(
                                   (j) => j['id'] == _selectedJogoId,
                                 )?['pontuacaoMax'] ??
                                 100;
-                            if (val > maxPontuacao)
+                            if (val > maxPontuacao) {
                               return 'Pontuação máxima é $maxPontuacao';
+                            }
                             return null;
                           },
                         ),
@@ -540,7 +583,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                                             ),
                                           );
                                         }
-                                        if (!mounted) return;
+                                        if (!mounted) {
+                                          return;
+                                        }
                                         await showDialog(
                                           context: context,
                                           builder:
@@ -590,14 +635,18 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                                         });
                                         _scannerController.start();
                                       } catch (e) {
-                                        print('Erro ao salvar pontuação: $e');
+                                        developer.log(
+                                          'Error saving score: $e',
+                                          name: 'StaffScoreInput',
+                                          error: e,
+                                        );
                                         if (mounted) {
                                           ScaffoldMessenger.of(
                                             scaffoldContext,
                                           ).showSnackBar(
-                                            SnackBar(
+                                            const SnackBar(
                                               content: Text(
-                                                'Erro ao salvar pontuação: $e',
+                                                'Erro ao salvar pontuação',
                                               ),
                                             ),
                                           );

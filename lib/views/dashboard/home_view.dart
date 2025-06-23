@@ -560,8 +560,8 @@ class _HomeViewState extends State<HomeView> {
                             final pontuacaoTotal = processedCheckpoints.values
                                 .fold<int>(
                                   0,
-                                  (sum, cp) =>
-                                      sum + (cp['pontuacaoTotal'] as int? ?? 0),
+                                  (total, cp) =>
+                                      total + (cp['pontuacaoTotal'] as int? ?? 0),
                                 );
 
                             return Column(
