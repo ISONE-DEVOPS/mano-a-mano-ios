@@ -69,7 +69,7 @@ class ParticipantesView extends StatelessWidget {
                                   label: const Text('Participante'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.secondary,
-                                    foregroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                     minimumSize: const Size(130, 36),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -83,7 +83,7 @@ class ParticipantesView extends StatelessWidget {
                                   label: const Text('Participantes CSV'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                     minimumSize: const Size(130, 36),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -152,7 +152,7 @@ class ParticipantesView extends StatelessWidget {
                                   label: const Text('Lista Completa'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.teal,
-                                    foregroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
                                     minimumSize: const Size(130, 36),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -422,12 +422,26 @@ class ParticipantesView extends StatelessWidget {
                                                           Row(
                                                             children: [
                                                               IconButton(
-                                                                icon: const Icon(Icons.edit, color: Colors.orange),
-                                                                tooltip: 'Editar Participante',
+                                                                icon: const Icon(
+                                                                  Icons.edit,
+                                                                  color:
+                                                                      Colors
+                                                                          .orange,
+                                                                ),
+                                                                tooltip:
+                                                                    'Editar Participante',
                                                                 onPressed: () {
-                                                                  Navigator.of(context).push(
+                                                                  Navigator.of(
+                                                                    context,
+                                                                  ).push(
                                                                     MaterialPageRoute(
-                                                                      builder: (_) => EditParticipantesView(userId: doc.id),
+                                                                      builder:
+                                                                          (
+                                                                            _,
+                                                                          ) => EditParticipantesView(
+                                                                            userId:
+                                                                                doc.id,
+                                                                          ),
                                                                     ),
                                                                   );
                                                                 },
@@ -469,6 +483,7 @@ class ParticipantesView extends StatelessWidget {
                                                                     );
                                                                     return;
                                                                   }
+
                                                                   final veiculoDoc =
                                                                       await FirebaseFirestore
                                                                           .instance
@@ -480,85 +495,126 @@ class ParticipantesView extends StatelessWidget {
                                                                           )
                                                                           .get();
                                                                   if (!context
-                                                                      .mounted) {
+                                                                      .mounted)
                                                                     return;
-                                                                  }
+
                                                                   final veiculo =
                                                                       veiculoDoc
                                                                           .data();
                                                                   final acompanhantes =
                                                                       veiculo?['passageiros'] ??
                                                                       [];
+
                                                                   showDialog(
                                                                     context:
                                                                         context,
                                                                     builder: (
                                                                       _,
                                                                     ) {
+                                                                      // Controllers para cada acompanhante
+                                                                      final List<
+                                                                        TextEditingController
+                                                                      >
+                                                                      nomeControllers = List.generate(
+                                                                        acompanhantes
+                                                                            .length,
+                                                                        (
+                                                                          i,
+                                                                        ) => TextEditingController(
+                                                                          text:
+                                                                              acompanhantes[i]['nome'] ??
+                                                                              '',
+                                                                        ),
+                                                                      );
+                                                                      final List<
+                                                                        TextEditingController
+                                                                      >
+                                                                      telefoneControllers = List.generate(
+                                                                        acompanhantes
+                                                                            .length,
+                                                                        (
+                                                                          i,
+                                                                        ) => TextEditingController(
+                                                                          text:
+                                                                              acompanhantes[i]['telefone'] ??
+                                                                              '',
+                                                                        ),
+                                                                      );
+                                                                      final List<
+                                                                        TextEditingController
+                                                                      >
+                                                                      tshirtControllers = List.generate(
+                                                                        acompanhantes
+                                                                            .length,
+                                                                        (
+                                                                          i,
+                                                                        ) => TextEditingController(
+                                                                          text:
+                                                                              acompanhantes[i]['tshirt'] ??
+                                                                              '',
+                                                                        ),
+                                                                      );
                                                                       return AlertDialog(
                                                                         title: const Text(
-                                                                          'Acompanhantes',
+                                                                          'Editar Acompanhantes',
                                                                           style: TextStyle(
                                                                             color:
                                                                                 Colors.black,
                                                                           ),
                                                                         ),
-                                                                        content:
-                                                                            acompanhantes.isEmpty
-                                                                                ? const Text(
-                                                                                  'Nenhum acompanhante encontrado.',
-                                                                                  style: TextStyle(
-                                                                                    color:
-                                                                                        Colors.black,
-                                                                                  ),
-                                                                                )
-                                                                                : Column(
-                                                                                  mainAxisSize:
-                                                                                      MainAxisSize.min,
+                                                                        content: SizedBox(
+                                                                          width:
+                                                                              400,
+                                                                          child: Column(
+                                                                            mainAxisSize:
+                                                                                MainAxisSize.min,
+                                                                            children: List.generate(
+                                                                              acompanhantes.length,
+                                                                              (
+                                                                                index,
+                                                                              ) {
+                                                                                return Column(
                                                                                   crossAxisAlignment:
                                                                                       CrossAxisAlignment.start,
-                                                                                  children:
-                                                                                      (acompanhantes
-                                                                                              as List)
-                                                                                          .map<
-                                                                                            Widget
-                                                                                          >(
-                                                                                            (
-                                                                                              p,
-                                                                                            ) {
-                                                                                              return ListTile(
-                                                                                                title: Text(
-                                                                                                  'Nome: ${p['nome'] ?? ''}',
-                                                                                                  style: const TextStyle(
-                                                                                                    color:
-                                                                                                        Colors.black,
-                                                                                                  ),
-                                                                                                ),
-                                                                                                subtitle: Column(
-                                                                                                  crossAxisAlignment:
-                                                                                                      CrossAxisAlignment.start,
-                                                                                                  children: [
-                                                                                                    Text(
-                                                                                                      'Telefone: ${p['telefone'] ?? ''}',
-                                                                                                      style: const TextStyle(
-                                                                                                        color:
-                                                                                                            Colors.black,
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                    Text(
-                                                                                                      'T-Shirt: ${p['tshirt'] ?? ''}',
-                                                                                                      style: const TextStyle(
-                                                                                                        color:
-                                                                                                            Colors.black,
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ],
-                                                                                                ),
-                                                                                              );
-                                                                                            },
-                                                                                          )
-                                                                                          .toList(),
-                                                                                ),
+                                                                                  children: [
+                                                                                    Text(
+                                                                                      'Acompanhante ${index + 1}',
+                                                                                      style: const TextStyle(
+                                                                                        fontWeight:
+                                                                                            FontWeight.bold,
+                                                                                      ),
+                                                                                    ),
+                                                                                    TextField(
+                                                                                      controller:
+                                                                                          nomeControllers[index],
+                                                                                      decoration: const InputDecoration(
+                                                                                        labelText:
+                                                                                            'Nome',
+                                                                                      ),
+                                                                                    ),
+                                                                                    TextField(
+                                                                                      controller:
+                                                                                          telefoneControllers[index],
+                                                                                      decoration: const InputDecoration(
+                                                                                        labelText:
+                                                                                            'Telefone',
+                                                                                      ),
+                                                                                    ),
+                                                                                    TextField(
+                                                                                      controller:
+                                                                                          tshirtControllers[index],
+                                                                                      decoration: const InputDecoration(
+                                                                                        labelText:
+                                                                                            'T-Shirt',
+                                                                                      ),
+                                                                                    ),
+                                                                                    const Divider(),
+                                                                                  ],
+                                                                                );
+                                                                              },
+                                                                            ),
+                                                                          ),
+                                                                        ),
                                                                         actions: [
                                                                           TextButton(
                                                                             onPressed:
@@ -566,11 +622,45 @@ class ParticipantesView extends StatelessWidget {
                                                                                   context,
                                                                                 ),
                                                                             child: const Text(
-                                                                              'Fechar',
-                                                                              style: TextStyle(
-                                                                                color:
-                                                                                    Colors.black,
-                                                                              ),
+                                                                              'Cancelar',
+                                                                            ),
+                                                                          ),
+                                                                          ElevatedButton(
+                                                                            onPressed: () async {
+                                                                              final updated = List.generate(
+                                                                                acompanhantes.length,
+                                                                                (
+                                                                                  index,
+                                                                                ) {
+                                                                                  return {
+                                                                                    'nome':
+                                                                                        nomeControllers[index].text,
+                                                                                    'telefone':
+                                                                                        telefoneControllers[index].text,
+                                                                                    'tshirt':
+                                                                                        tshirtControllers[index].text,
+                                                                                  };
+                                                                                },
+                                                                              );
+                                                                              await FirebaseFirestore.instance
+                                                                                  .collection(
+                                                                                    'veiculos',
+                                                                                  )
+                                                                                  .doc(
+                                                                                    veiculoId,
+                                                                                  )
+                                                                                  .update(
+                                                                                    {
+                                                                                      'passageiros':
+                                                                                          updated,
+                                                                                    },
+                                                                                  );
+                                                                              Navigator.pop(
+                                                                                context,
+                                                                              );
+                                                                            },
+                                                                            child: const Text(
+                                                                              'Salvar',
                                                                             ),
                                                                           ),
                                                                         ],
@@ -665,6 +755,11 @@ class ParticipantesView extends StatelessWidget {
                                                                             veiculo?['registro'] ??
                                                                             '',
                                                                       );
+                                                                      final modeloController = TextEditingController(
+                                                                        text:
+                                                                            veiculo?['modelo'] ??
+                                                                            '',
+                                                                      );
                                                                       return AlertDialog(
                                                                         title: const Text(
                                                                           'Veículo',
@@ -692,151 +787,136 @@ class ParticipantesView extends StatelessWidget {
                                                                                     Text(
                                                                                       'Marca: ${veiculo['marca'] ?? ''}',
                                                                                       style: const TextStyle(
-                                                                                        color:
-                                                                                            Colors.black,
+                                                                                        color: Colors.black,
                                                                                       ),
                                                                                     ),
-                                                                                    Text(
-                                                                                      'Modelo: ${veiculo['modelo'] ?? ''}',
-                                                                                      style: const TextStyle(
-                                                                                        color:
-                                                                                            Colors.black,
+                                                                                    // Modelo editável
+                                                                                    TextField(
+                                                                                      controller: modeloController,
+                                                                                      decoration: const InputDecoration(
+                                                                                        labelText: 'Modelo',
                                                                                       ),
+                                                                                      onSubmitted: (value) {
+                                                                                        FirebaseFirestore.instance
+                                                                                            .collection('veiculos')
+                                                                                            .doc(veiculoId)
+                                                                                            .update({
+                                                                                          'modelo': value,
+                                                                                        });
+                                                                                      },
                                                                                     ),
                                                                                     Text(
                                                                                       'Matrícula: ${veiculo['matricula'] ?? ''}',
                                                                                       style: const TextStyle(
-                                                                                        color:
-                                                                                            Colors.black,
+                                                                                        color: Colors.black,
                                                                                       ),
                                                                                     ),
                                                                                     const SizedBox(
-                                                                                      height:
-                                                                                          10,
+                                                                                      height: 10,
                                                                                     ),
                                                                                     TextField(
-                                                                                      controller:
-                                                                                          controller,
+                                                                                      controller: controller,
                                                                                       decoration: const InputDecoration(
-                                                                                        labelText:
-                                                                                            'Distíco',
+                                                                                        labelText: 'Distíco',
                                                                                         labelStyle: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
+                                                                                          color: Colors.black,
                                                                                         ),
                                                                                         enabledBorder: UnderlineInputBorder(
                                                                                           borderSide: BorderSide(
-                                                                                            color:
-                                                                                                Colors.black,
+                                                                                            color: Colors.black,
                                                                                           ),
                                                                                         ),
                                                                                       ),
                                                                                       style: const TextStyle(
-                                                                                        color:
-                                                                                            Colors.black,
+                                                                                        color: Colors.black,
                                                                                       ),
-                                                                                      onSubmitted: (
-                                                                                        value,
-                                                                                      ) async {
+                                                                                      onSubmitted: (value) async {
                                                                                         await FirebaseFirestore.instance
-                                                                                            .collection(
-                                                                                              'veiculos',
-                                                                                            )
-                                                                                            .doc(
-                                                                                              veiculoId,
-                                                                                            )
-                                                                                            .update(
-                                                                                              {
-                                                                                                'distico':
-                                                                                                    value,
-                                                                                              },
-                                                                                            );
+                                                                                            .collection('veiculos')
+                                                                                            .doc(veiculoId)
+                                                                                            .update({
+                                                                                              'distico': value,
+                                                                                            });
                                                                                       },
                                                                                     ),
                                                                                     const SizedBox(
-                                                                                      height:
-                                                                                          10,
+                                                                                      height: 10,
                                                                                     ),
-                                                                                    DropdownButtonFormField<
-                                                                                      String
-                                                                                    >(
-                                                                                      value:
-                                                                                          (equipa !=
-                                                                                                      null &&
-                                                                                                  equipa['grupo'] !=
-                                                                                                      null &&
-                                                                                                  [
-                                                                                                    'A',
-                                                                                                    'B',
-                                                                                                  ].contains(
-                                                                                                    equipa['grupo'],
-                                                                                                  ))
-                                                                                              ? equipa['grupo']
-                                                                                                  as String
-                                                                                              : null,
-                                                                                      decoration: const InputDecoration(
-                                                                                        labelText:
-                                                                                            'Grupo',
-                                                                                        labelStyle: TextStyle(
-                                                                                          color:
-                                                                                              Colors.black,
-                                                                                        ),
-                                                                                        enabledBorder: UnderlineInputBorder(
-                                                                                          borderSide: BorderSide(
-                                                                                            color:
-                                                                                                Colors.black,
+                                                                                    Row(
+                                                                                      children: [
+                                                                                        Expanded(
+                                                                                          child: DropdownButtonFormField<String>(
+                                                                                            value: (equipa != null && equipa['grupo'] != null && ['A', 'B'].contains(equipa['grupo']))
+                                                                                                ? equipa['grupo'] as String
+                                                                                                : null,
+                                                                                            decoration: const InputDecoration(
+                                                                                              labelText: 'Grupo',
+                                                                                              labelStyle: TextStyle(
+                                                                                                color: Colors.black,
+                                                                                              ),
+                                                                                              enabledBorder: UnderlineInputBorder(
+                                                                                                borderSide: BorderSide(
+                                                                                                  color: Colors.black,
+                                                                                                ),
+                                                                                              ),
+                                                                                            ),
+                                                                                            items: ['A', 'B'].map(
+                                                                                              (String value) {
+                                                                                                return DropdownMenuItem<String>(
+                                                                                                  value: value,
+                                                                                                  child: Text(
+                                                                                                    value,
+                                                                                                    style: const TextStyle(
+                                                                                                      color: Colors.black,
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                );
+                                                                                              },
+                                                                                            ).toList(),
+                                                                                            onChanged: (String? newValue) async {
+                                                                                              if (newValue != null) {
+                                                                                                await FirebaseFirestore.instance
+                                                                                                    .collection('veiculos')
+                                                                                                    .doc(veiculoId)
+                                                                                                    .update({
+                                                                                                      'grupo': newValue,
+                                                                                                    });
+                                                                                              }
+                                                                                            },
+                                                                                            style: const TextStyle(
+                                                                                              color: Colors.black,
+                                                                                            ),
+                                                                                            dropdownColor: Colors.black,
                                                                                           ),
                                                                                         ),
+                                                                                        // Botão de edição ao lado do Dropdown de Grupo
+                                                                                        IconButton(
+                                                                                          icon: const Icon(
+                                                                                            Icons.edit,
+                                                                                            color: Colors.orange,
+                                                                                          ),
+                                                                                          tooltip: 'Editar Modelo',
+                                                                                          onPressed: () {
+                                                                                            // Foca o campo modelo para edição
+                                                                                          },
+                                                                                        ),
+                                                                                      ],
+                                                                                    ),
+                                                                                    // --- Adicionado botão "Salvar" aqui ---
+                                                                                    const SizedBox(height: 20),
+                                                                                    Align(
+                                                                                      alignment: Alignment.centerRight,
+                                                                                      child: ElevatedButton(
+                                                                                        onPressed: () async {
+                                                                                          await FirebaseFirestore.instance.collection('veiculos').doc(veiculoId).update({
+                                                                                            'modelo': modeloController.text,
+                                                                                            'distico': controller.text,
+                                                                                            'grupo': equipa?['grupo'],
+                                                                                          });
+                                                                                          Navigator.pop(ctx);
+                                                                                        },
+                                                                                        child: const Text('Salvar'),
                                                                                       ),
-                                                                                      items:
-                                                                                          [
-                                                                                            'A',
-                                                                                            'B',
-                                                                                          ].map(
-                                                                                            (
-                                                                                              String value,
-                                                                                            ) {
-                                                                                              return DropdownMenuItem<
-                                                                                                String
-                                                                                              >(
-                                                                                                value:
-                                                                                                    value,
-                                                                                                child: Text(
-                                                                                                  value,
-                                                                                                  style: const TextStyle(
-                                                                                                    color:
-                                                                                                        Colors.black,
-                                                                                                  ),
-                                                                                                ),
-                                                                                              );
-                                                                                            },
-                                                                                          ).toList(),
-                                                                                      onChanged: (
-                                                                                        String? newValue,
-                                                                                      ) async {
-                                                                                        if (newValue !=
-                                                                                            null) {
-                                                                                          await FirebaseFirestore.instance
-                                                                                              .collection(
-                                                                                                'veiculos',
-                                                                                              )
-                                                                                              .doc(
-                                                                                                veiculoId,
-                                                                                              )
-                                                                                              .update(
-                                                                                                {
-                                                                                                  'grupo':
-                                                                                                      newValue,
-                                                                                                },
-                                                                                              );
-                                                                                        }
-                                                                                      },
-                                                                                      style: const TextStyle(
-                                                                                        color:
-                                                                                            Colors.black,
-                                                                                      ),
-                                                                                      dropdownColor:
-                                                                                          Colors.white,
                                                                                     ),
                                                                                   ],
                                                                                 ),
@@ -851,18 +931,6 @@ class ParticipantesView extends StatelessWidget {
                                                                               style: TextStyle(
                                                                                 color:
                                                                                     Colors.black,
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                          TextButton(
-                                                                            onPressed: () {
-                                                                              // lógica de edição do veículo (se necessário)
-                                                                            },
-                                                                            child: const Text(
-                                                                              'Editar',
-                                                                              style: TextStyle(
-                                                                                color:
-                                                                                    Colors.orange,
                                                                               ),
                                                                             ),
                                                                           ),
