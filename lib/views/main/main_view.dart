@@ -41,33 +41,39 @@ class _MainViewState extends State<MainView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: isAdmin ? _pages[_selectedIndex] : const ProfileView(),
-      bottomNavigationBar:
-          isAdmin
-              ? BottomNavigationBar(
-                currentIndex: _selectedIndex,
-                onTap: (index) => setState(() => _selectedIndex = index),
-                backgroundColor: const Color(0xFF0E0E2C),
-                selectedItemColor: Colors.white,
-                unselectedItemColor: Colors.white54,
-                type: BottomNavigationBarType.fixed,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.qr_code_scanner),
-                    label: 'QR Scan',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person),
-                    label: 'Profile',
-                  ),
-                ],
-              )
-              : null,
+      body: isAdmin
+          ? _pages[_selectedIndex]
+          : const Center(
+              child: Text(
+                "Acesso restrito ao perfil.",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+      bottomNavigationBar: isAdmin
+          ? BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) => setState(() => _selectedIndex = index),
+              backgroundColor: const Color(0xFF0E0E2C),
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.white54,
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.qr_code_scanner),
+                  label: 'QR Scan',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

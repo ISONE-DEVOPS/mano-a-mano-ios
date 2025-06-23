@@ -548,11 +548,37 @@ class _HomeViewState extends State<HomeView> {
                                     )
                                     .length;
 
-                            final int totalCheckpoints =
-                                8; // ou obter do Firestore
+                            // Calcular perguntas respondidas corretamente
+                            final perguntasRespondidas =
+                                processedCheckpoints.values
+                                    .where(
+                                      (cp) =>
+                                          cp['timestampEntrada'] != null &&
+                                          cp['timestampEntrada']
+                                              .toString()
+                                              .isNotEmpty,
+                                    )
+                                    .length;
+
+                            final perguntasCorretas =
+                                processedCheckpoints.values
+                                    .where(
+                                      (cp) => cp['respostaCorreta'] == true,
+                                    )
+                                    .length;
+
+                            final int totalCheckpoints = 8;
+                            final int totalPerguntas = 8;
+
                             final double progress =
                                 totalCheckpoints > 0
                                     ? (visitedCheckpoints / totalCheckpoints)
+                                        .clamp(0.0, 1.0)
+                                    : 0.0;
+
+                            final double perguntasProgress =
+                                totalPerguntas > 0
+                                    ? (perguntasCorretas / totalPerguntas)
                                         .clamp(0.0, 1.0)
                                     : 0.0;
 
@@ -561,7 +587,8 @@ class _HomeViewState extends State<HomeView> {
                                 .fold<int>(
                                   0,
                                   (total, cp) =>
-                                      total + (cp['pontuacaoTotal'] as int? ?? 0),
+                                      total +
+                                      (cp['pontuacaoTotal'] as int? ?? 0),
                                 );
 
                             return Column(
@@ -650,7 +677,9 @@ class _HomeViewState extends State<HomeView> {
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
+                                              const SizedBox(height: 8),
+
+                                              // Progress dos Postos Completos
                                               Text(
                                                 'Postos completos: $visitedCheckpoints de $totalCheckpoints',
                                               ),
@@ -667,12 +696,44 @@ class _HomeViewState extends State<HomeView> {
                                                             : Colors.red),
                                                 minHeight: 8,
                                               ),
+                                              const SizedBox(height: 4),
                                               Text(
                                                 'Postos restantes: ${totalCheckpoints - visitedCheckpoints}',
                                                 style: TextStyle(
                                                   color: Colors.grey[700],
+                                                  fontSize: 12,
                                                 ),
                                               ),
+
+                                              const SizedBox(height: 16),
+
+                                              // Progress das Perguntas Acertadas
+                                              Text(
+                                                'Perguntas acertadas: $perguntasCorretas de $perguntasRespondidas respondidas',
+                                              ),
+                                              const SizedBox(height: 8),
+                                              LinearProgressIndicator(
+                                                value: perguntasProgress,
+                                                backgroundColor: Colors.white
+                                                    .withAlpha(61),
+                                                color:
+                                                    perguntasProgress >= 0.8
+                                                        ? Colors.green
+                                                        : (perguntasProgress >=
+                                                                0.5
+                                                            ? Colors.orange
+                                                            : Colors.red),
+                                                minHeight: 8,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Taxa de acerto: ${perguntasRespondidas > 0 ? ((perguntasCorretas / perguntasRespondidas) * 100).toStringAsFixed(1) : "0.0"}%',
+                                                style: TextStyle(
+                                                  color: Colors.grey[700],
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+
                                               const Divider(height: 24),
                                               const Text(
                                                 'Checkpoints:',
@@ -765,6 +826,9 @@ class _HomeViewState extends State<HomeView> {
                                                               final pontuacaoTotal =
                                                                   cp['pontuacaoTotal'] ??
                                                                   0;
+                                                              final respostaCorreta =
+                                                                  cp['respostaCorreta'] ??
+                                                                  false;
 
                                                               // Formatação de horários
                                                               String
@@ -855,14 +919,35 @@ class _HomeViewState extends State<HomeView> {
                                                                         crossAxisAlignment:
                                                                             CrossAxisAlignment.start,
                                                                         children: [
-                                                                          Text(
-                                                                            nomeCheckpoint,
-                                                                            style: const TextStyle(
-                                                                              fontWeight:
-                                                                                  FontWeight.w600,
-                                                                              fontSize:
-                                                                                  14,
-                                                                            ),
+                                                                          Row(
+                                                                            children: [
+                                                                              Expanded(
+                                                                                child: Text(
+                                                                                  nomeCheckpoint,
+                                                                                  style: const TextStyle(
+                                                                                    fontWeight:
+                                                                                        FontWeight.w600,
+                                                                                    fontSize:
+                                                                                        14,
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                              // Ícone da pergunta
+                                                                              if (entrada !=
+                                                                                      null &&
+                                                                                  entrada.toString().isNotEmpty)
+                                                                                Icon(
+                                                                                  respostaCorreta
+                                                                                      ? Icons.check_circle_outline
+                                                                                      : Icons.cancel_outlined,
+                                                                                  size:
+                                                                                      16,
+                                                                                  color:
+                                                                                      respostaCorreta
+                                                                                          ? Colors.green
+                                                                                          : Colors.red,
+                                                                                ),
+                                                                            ],
                                                                           ),
                                                                           const SizedBox(
                                                                             height:
@@ -877,19 +962,50 @@ class _HomeViewState extends State<HomeView> {
                                                                                   Colors.grey[600],
                                                                             ),
                                                                           ),
-                                                                          if (pontuacaoTotal >
-                                                                              0)
-                                                                            Text(
-                                                                              'Pontos: $pontuacaoTotal',
-                                                                              style: const TextStyle(
-                                                                                fontSize:
-                                                                                    12,
-                                                                                color:
-                                                                                    Colors.green,
-                                                                                fontWeight:
-                                                                                    FontWeight.w600,
-                                                                              ),
-                                                                            ),
+                                                                          Row(
+                                                                            children: [
+                                                                              if (pontuacaoTotal >
+                                                                                  0)
+                                                                                Text(
+                                                                                  'Pontos: $pontuacaoTotal',
+                                                                                  style: const TextStyle(
+                                                                                    fontSize:
+                                                                                        12,
+                                                                                    color:
+                                                                                        Colors.green,
+                                                                                    fontWeight:
+                                                                                        FontWeight.w600,
+                                                                                  ),
+                                                                                ),
+                                                                              if (entrada !=
+                                                                                      null &&
+                                                                                  entrada.toString().isNotEmpty)
+                                                                                Padding(
+                                                                                  padding: EdgeInsets.only(
+                                                                                    left:
+                                                                                        pontuacaoTotal >
+                                                                                                0
+                                                                                            ? 8
+                                                                                            : 0,
+                                                                                  ),
+                                                                                  child: Text(
+                                                                                    respostaCorreta
+                                                                                        ? 'Pergunta ✓'
+                                                                                        : 'Pergunta ✗',
+                                                                                    style: TextStyle(
+                                                                                      fontSize:
+                                                                                          12,
+                                                                                      color:
+                                                                                          respostaCorreta
+                                                                                              ? Colors.green
+                                                                                              : Colors.red,
+                                                                                      fontWeight:
+                                                                                          FontWeight.w500,
+                                                                                    ),
+                                                                                  ),
+                                                                                ),
+                                                                            ],
+                                                                          ),
                                                                         ],
                                                                       ),
                                                                     ),

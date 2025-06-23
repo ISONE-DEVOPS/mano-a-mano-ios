@@ -57,7 +57,7 @@ class AppPages {
   static final routes = [
     // Splash e Autenticação
     //GetPage(name: '/', page: () => const SplashView()),
-    GetPage(name: '/', page: () => const ClosedRegistrationView()),
+    GetPage(name: '/', page: () => const LoginView()),
     GetPage(name: '/loading-admin', page: () => const LoadingAdminView()),
     GetPage(name: '/splash', page: () => const IntroSplashView()),
     GetPage(name: '/login', page: () => const LoginView()),
