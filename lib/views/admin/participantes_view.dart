@@ -591,6 +591,10 @@ class ParticipantesView extends StatelessWidget {
                                                                                         labelText:
                                                                                             'Nome',
                                                                                       ),
+                                                                                      style: TextStyle(
+                                                                                        color:
+                                                                                            Colors.black,
+                                                                                      ),
                                                                                     ),
                                                                                     TextField(
                                                                                       controller:
@@ -599,6 +603,10 @@ class ParticipantesView extends StatelessWidget {
                                                                                         labelText:
                                                                                             'Telefone',
                                                                                       ),
+                                                                                      style: TextStyle(
+                                                                                        color:
+                                                                                            Colors.black,
+                                                                                      ),
                                                                                     ),
                                                                                     TextField(
                                                                                       controller:
@@ -606,6 +614,10 @@ class ParticipantesView extends StatelessWidget {
                                                                                       decoration: const InputDecoration(
                                                                                         labelText:
                                                                                             'T-Shirt',
+                                                                                      ),
+                                                                                      style: TextStyle(
+                                                                                        color:
+                                                                                            Colors.black,
                                                                                       ),
                                                                                     ),
                                                                                     const Divider(),
@@ -787,115 +799,184 @@ class ParticipantesView extends StatelessWidget {
                                                                                     Text(
                                                                                       'Marca: ${veiculo['marca'] ?? ''}',
                                                                                       style: const TextStyle(
-                                                                                        color: Colors.black,
+                                                                                        color:
+                                                                                            Colors.black,
                                                                                       ),
                                                                                     ),
                                                                                     // Modelo editável
                                                                                     TextField(
-                                                                                      controller: modeloController,
+                                                                                      controller:
+                                                                                          modeloController,
                                                                                       decoration: const InputDecoration(
-                                                                                        labelText: 'Modelo',
+                                                                                        labelText:
+                                                                                            'Modelo',
                                                                                       ),
-                                                                                      onSubmitted: (value) {
+                                                                                      onSubmitted: (
+                                                                                        value,
+                                                                                      ) {
                                                                                         FirebaseFirestore.instance
-                                                                                            .collection('veiculos')
-                                                                                            .doc(veiculoId)
-                                                                                            .update({
-                                                                                          'modelo': value,
-                                                                                        });
+                                                                                            .collection(
+                                                                                              'veiculos',
+                                                                                            )
+                                                                                            .doc(
+                                                                                              veiculoId,
+                                                                                            )
+                                                                                            .update(
+                                                                                              {
+                                                                                                'modelo':
+                                                                                                    value,
+                                                                                              },
+                                                                                            );
                                                                                       },
                                                                                     ),
                                                                                     Text(
                                                                                       'Matrícula: ${veiculo['matricula'] ?? ''}',
                                                                                       style: const TextStyle(
-                                                                                        color: Colors.black,
+                                                                                        color:
+                                                                                            Colors.black,
                                                                                       ),
                                                                                     ),
                                                                                     const SizedBox(
-                                                                                      height: 10,
+                                                                                      height:
+                                                                                          10,
                                                                                     ),
                                                                                     TextField(
-                                                                                      controller: controller,
+                                                                                      controller:
+                                                                                          controller,
                                                                                       decoration: const InputDecoration(
-                                                                                        labelText: 'Distíco',
+                                                                                        labelText:
+                                                                                            'Distíco',
                                                                                         labelStyle: TextStyle(
-                                                                                          color: Colors.black,
+                                                                                          color:
+                                                                                              Colors.black,
                                                                                         ),
                                                                                         enabledBorder: UnderlineInputBorder(
                                                                                           borderSide: BorderSide(
-                                                                                            color: Colors.black,
+                                                                                            color:
+                                                                                                Colors.black,
                                                                                           ),
                                                                                         ),
                                                                                       ),
                                                                                       style: const TextStyle(
-                                                                                        color: Colors.black,
+                                                                                        color:
+                                                                                            Colors.black,
                                                                                       ),
-                                                                                      onSubmitted: (value) async {
+                                                                                      onSubmitted: (
+                                                                                        value,
+                                                                                      ) async {
                                                                                         await FirebaseFirestore.instance
-                                                                                            .collection('veiculos')
-                                                                                            .doc(veiculoId)
-                                                                                            .update({
-                                                                                              'distico': value,
-                                                                                            });
+                                                                                            .collection(
+                                                                                              'veiculos',
+                                                                                            )
+                                                                                            .doc(
+                                                                                              veiculoId,
+                                                                                            )
+                                                                                            .update(
+                                                                                              {
+                                                                                                'distico':
+                                                                                                    value,
+                                                                                              },
+                                                                                            );
                                                                                       },
                                                                                     ),
                                                                                     const SizedBox(
-                                                                                      height: 10,
+                                                                                      height:
+                                                                                          10,
                                                                                     ),
                                                                                     Row(
                                                                                       children: [
                                                                                         Expanded(
-                                                                                          child: DropdownButtonFormField<String>(
-                                                                                            value: (equipa != null && equipa['grupo'] != null && ['A', 'B'].contains(equipa['grupo']))
-                                                                                                ? equipa['grupo'] as String
-                                                                                                : null,
+                                                                                          child: DropdownButtonFormField<
+                                                                                            String
+                                                                                          >(
+                                                                                            value:
+                                                                                                (equipa !=
+                                                                                                            null &&
+                                                                                                        equipa['grupo'] !=
+                                                                                                            null &&
+                                                                                                        [
+                                                                                                          'A',
+                                                                                                          'B',
+                                                                                                        ].contains(
+                                                                                                          equipa['grupo'],
+                                                                                                        ))
+                                                                                                    ? equipa['grupo']
+                                                                                                        as String
+                                                                                                    : null,
                                                                                             decoration: const InputDecoration(
-                                                                                              labelText: 'Grupo',
+                                                                                              labelText:
+                                                                                                  'Grupo',
                                                                                               labelStyle: TextStyle(
-                                                                                                color: Colors.black,
+                                                                                                color:
+                                                                                                    Colors.black,
                                                                                               ),
                                                                                               enabledBorder: UnderlineInputBorder(
                                                                                                 borderSide: BorderSide(
-                                                                                                  color: Colors.black,
+                                                                                                  color:
+                                                                                                      Colors.black,
                                                                                                 ),
                                                                                               ),
                                                                                             ),
-                                                                                            items: ['A', 'B'].map(
-                                                                                              (String value) {
-                                                                                                return DropdownMenuItem<String>(
-                                                                                                  value: value,
-                                                                                                  child: Text(
-                                                                                                    value,
-                                                                                                    style: const TextStyle(
-                                                                                                      color: Colors.black,
-                                                                                                    ),
-                                                                                                  ),
-                                                                                                );
-                                                                                              },
-                                                                                            ).toList(),
-                                                                                            onChanged: (String? newValue) async {
-                                                                                              if (newValue != null) {
+                                                                                            items:
+                                                                                                [
+                                                                                                  'A',
+                                                                                                  'B',
+                                                                                                ].map(
+                                                                                                  (
+                                                                                                    String value,
+                                                                                                  ) {
+                                                                                                    return DropdownMenuItem<
+                                                                                                      String
+                                                                                                    >(
+                                                                                                      value:
+                                                                                                          value,
+                                                                                                      child: Text(
+                                                                                                        value,
+                                                                                                        style: const TextStyle(
+                                                                                                          color:
+                                                                                                              Colors.black,
+                                                                                                        ),
+                                                                                                      ),
+                                                                                                    );
+                                                                                                  },
+                                                                                                ).toList(),
+                                                                                            onChanged: (
+                                                                                              String? newValue,
+                                                                                            ) async {
+                                                                                              if (newValue !=
+                                                                                                  null) {
                                                                                                 await FirebaseFirestore.instance
-                                                                                                    .collection('veiculos')
-                                                                                                    .doc(veiculoId)
-                                                                                                    .update({
-                                                                                                      'grupo': newValue,
-                                                                                                    });
+                                                                                                    .collection(
+                                                                                                      'veiculos',
+                                                                                                    )
+                                                                                                    .doc(
+                                                                                                      veiculoId,
+                                                                                                    )
+                                                                                                    .update(
+                                                                                                      {
+                                                                                                        'grupo':
+                                                                                                            newValue,
+                                                                                                      },
+                                                                                                    );
                                                                                               }
                                                                                             },
                                                                                             style: const TextStyle(
-                                                                                              color: Colors.black,
+                                                                                              color:
+                                                                                                  Colors.black,
                                                                                             ),
-                                                                                            dropdownColor: Colors.black,
+                                                                                            dropdownColor:
+                                                                                                Colors.black,
                                                                                           ),
                                                                                         ),
                                                                                         // Botão de edição ao lado do Dropdown de Grupo
                                                                                         IconButton(
                                                                                           icon: const Icon(
                                                                                             Icons.edit,
-                                                                                            color: Colors.orange,
+                                                                                            color:
+                                                                                                Colors.orange,
                                                                                           ),
-                                                                                          tooltip: 'Editar Modelo',
+                                                                                          tooltip:
+                                                                                              'Editar Modelo',
                                                                                           onPressed: () {
                                                                                             // Foca o campo modelo para edição
                                                                                           },
@@ -903,19 +984,39 @@ class ParticipantesView extends StatelessWidget {
                                                                                       ],
                                                                                     ),
                                                                                     // --- Adicionado botão "Salvar" aqui ---
-                                                                                    const SizedBox(height: 20),
+                                                                                    const SizedBox(
+                                                                                      height:
+                                                                                          20,
+                                                                                    ),
                                                                                     Align(
-                                                                                      alignment: Alignment.centerRight,
+                                                                                      alignment:
+                                                                                          Alignment.centerRight,
                                                                                       child: ElevatedButton(
                                                                                         onPressed: () async {
-                                                                                          await FirebaseFirestore.instance.collection('veiculos').doc(veiculoId).update({
-                                                                                            'modelo': modeloController.text,
-                                                                                            'distico': controller.text,
-                                                                                            'grupo': equipa?['grupo'],
-                                                                                          });
-                                                                                          Navigator.pop(ctx);
+                                                                                          await FirebaseFirestore.instance
+                                                                                              .collection(
+                                                                                                'veiculos',
+                                                                                              )
+                                                                                              .doc(
+                                                                                                veiculoId,
+                                                                                              )
+                                                                                              .update(
+                                                                                                {
+                                                                                                  'modelo':
+                                                                                                      modeloController.text,
+                                                                                                  'distico':
+                                                                                                      controller.text,
+                                                                                                  'grupo':
+                                                                                                      equipa?['grupo'],
+                                                                                                },
+                                                                                              );
+                                                                                          Navigator.pop(
+                                                                                            ctx,
+                                                                                          );
                                                                                         },
-                                                                                        child: const Text('Salvar'),
+                                                                                        child: const Text(
+                                                                                          'Salvar',
+                                                                                        ),
                                                                                       ),
                                                                                     ),
                                                                                   ],
