@@ -582,14 +582,28 @@ class _HomeViewState extends State<HomeView> {
                                         .clamp(0.0, 1.0)
                                     : 0.0;
 
-                            // Calcular pontuação total
+                            // CORREÇÃO: Calcular pontuação total somando pergunta + jogo
                             final pontuacaoTotal = processedCheckpoints.values
-                                .fold<int>(
-                                  0,
-                                  (total, cp) =>
-                                      total +
-                                      (cp['pontuacaoTotal'] as int? ?? 0),
-                                );
+                                .fold<int>(0, (total, cp) {
+                                  final pontuacaoPergunta =
+                                      cp['pontuacaoPergunta'] as int? ?? 0;
+                                  final pontuacaoJogo =
+                                      cp['pontuacaoJogo'] as int? ?? 0;
+
+                                  // Se pontuacaoTotal existe e é maior que a soma individual, usa ele
+                                  // Caso contrário, soma pergunta + jogo
+                                  final pontuacaoTotalCheckpoint =
+                                      cp['pontuacaoTotal'] as int? ?? 0;
+                                  final somaIndividual =
+                                      pontuacaoPergunta + pontuacaoJogo;
+
+                                  final pontuacaoFinal =
+                                      pontuacaoTotalCheckpoint > somaIndividual
+                                          ? pontuacaoTotalCheckpoint
+                                          : somaIndividual;
+
+                                  return total + pontuacaoFinal;
+                                });
 
                             return Column(
                               children: [
@@ -823,9 +837,30 @@ class _HomeViewState extends State<HomeView> {
                                                                   cp['timestampEntrada'];
                                                               final saida =
                                                                   cp['timestampSaida'];
-                                                              final pontuacaoTotal =
-                                                                  cp['pontuacaoTotal'] ??
+
+                                                              // CORREÇÃO: Calcular pontuação individual
+                                                              final pontuacaoPerguntaIndividual =
+                                                                  cp['pontuacaoPergunta']
+                                                                      as int? ??
                                                                   0;
+                                                              final pontuacaoJogoIndividual =
+                                                                  cp['pontuacaoJogo']
+                                                                      as int? ??
+                                                                  0;
+                                                              final pontuacaoTotalIndividual =
+                                                                  cp['pontuacaoTotal']
+                                                                      as int? ??
+                                                                  0;
+
+                                                              // Calcula a pontuação efetiva do checkpoint
+                                                              final pontuacaoEfetiva =
+                                                                  pontuacaoTotalIndividual >
+                                                                          (pontuacaoPerguntaIndividual +
+                                                                              pontuacaoJogoIndividual)
+                                                                      ? pontuacaoTotalIndividual
+                                                                      : (pontuacaoPerguntaIndividual +
+                                                                          pontuacaoJogoIndividual);
+
                                                               final respostaCorreta =
                                                                   cp['respostaCorreta'] ??
                                                                   false;
@@ -962,50 +997,71 @@ class _HomeViewState extends State<HomeView> {
                                                                                   Colors.grey[600],
                                                                             ),
                                                                           ),
-                                                                          Row(
-                                                                            children: [
-                                                                              if (pontuacaoTotal >
-                                                                                  0)
-                                                                                Text(
-                                                                                  'Pontos: $pontuacaoTotal',
-                                                                                  style: const TextStyle(
-                                                                                    fontSize:
-                                                                                        12,
-                                                                                    color:
-                                                                                        Colors.green,
-                                                                                    fontWeight:
-                                                                                        FontWeight.w600,
-                                                                                  ),
+                                                                          // CORREÇÃO: Mostrar detalhamento da pontuação
+                                                                          if (pontuacaoEfetiva >
+                                                                              0)
+                                                                            Column(
+                                                                              crossAxisAlignment:
+                                                                                  CrossAxisAlignment.start,
+                                                                              children: [
+                                                                                const SizedBox(
+                                                                                  height:
+                                                                                      2,
                                                                                 ),
-                                                                              if (entrada !=
-                                                                                      null &&
-                                                                                  entrada.toString().isNotEmpty)
-                                                                                Padding(
-                                                                                  padding: EdgeInsets.only(
-                                                                                    left:
-                                                                                        pontuacaoTotal >
-                                                                                                0
-                                                                                            ? 8
-                                                                                            : 0,
-                                                                                  ),
-                                                                                  child: Text(
-                                                                                    respostaCorreta
-                                                                                        ? 'Pergunta ✓'
-                                                                                        : 'Pergunta ✗',
+                                                                                Row(
+                                                                                  children: [
+                                                                                    Text(
+                                                                                      'Jogos: $pontuacaoEfetiva',
+                                                                                      style: const TextStyle(
+                                                                                        fontSize:
+                                                                                            12,
+                                                                                        color:
+                                                                                            Colors.green,
+                                                                                        fontWeight:
+                                                                                            FontWeight.w600,
+                                                                                      ),
+                                                                                    ),
+                                                                                    if (entrada !=
+                                                                                            null &&
+                                                                                        entrada.toString().isNotEmpty)
+                                                                                      Padding(
+                                                                                        padding: const EdgeInsets.only(
+                                                                                          left:
+                                                                                              8,
+                                                                                        ),
+                                                                                        child: Text(
+                                                                                          respostaCorreta
+                                                                                              ? 'Pergunta ✓'
+                                                                                              : 'Pergunta ✗',
+                                                                                          style: TextStyle(
+                                                                                            fontSize:
+                                                                                                12,
+                                                                                            color:
+                                                                                                respostaCorreta
+                                                                                                    ? Colors.green
+                                                                                                    : Colors.red,
+                                                                                            fontWeight:
+                                                                                                FontWeight.w500,
+                                                                                          ),
+                                                                                        ),
+                                                                                      ),
+                                                                                  ],
+                                                                                ),
+                                                                                if (pontuacaoPerguntaIndividual >
+                                                                                        0 ||
+                                                                                    pontuacaoJogoIndividual >
+                                                                                        0)
+                                                                                  Text(
+                                                                                    'Pergunta: $pontuacaoPerguntaIndividual | Jogo: $pontuacaoJogoIndividual',
                                                                                     style: TextStyle(
                                                                                       fontSize:
-                                                                                          12,
+                                                                                          10,
                                                                                       color:
-                                                                                          respostaCorreta
-                                                                                              ? Colors.green
-                                                                                              : Colors.red,
-                                                                                      fontWeight:
-                                                                                          FontWeight.w500,
+                                                                                          Colors.grey[600],
                                                                                     ),
                                                                                   ),
-                                                                                ),
-                                                                            ],
-                                                                          ),
+                                                                              ],
+                                                                            ),
                                                                         ],
                                                                       ),
                                                                     ),

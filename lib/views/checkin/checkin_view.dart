@@ -27,6 +27,9 @@ class _CheckinViewState extends State<CheckinView> {
   bool isScanned = false;
   String? resultMessage;
   bool isProcessing = false;
+  final List<bool> _toggleSelections = [true, false];
+
+  String get _selectedTipo => _toggleSelections[0] ? 'entrada' : 'saida';
 
   @override
   void initState() {
@@ -87,7 +90,7 @@ class _CheckinViewState extends State<CheckinView> {
                       const Icon(Icons.group, color: AppColors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Equipa: ${_authService.userData['equipaId'] ?? 'N/A'}',
+                        'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -101,6 +104,45 @@ class _CheckinViewState extends State<CheckinView> {
             ),
 
             const SizedBox(height: 16),
+
+            // ToggleButtons para Entrada/Saída
+            Column(
+              children: [
+                ToggleButtons(
+                  isSelected: _toggleSelections,
+                  borderRadius: BorderRadius.circular(8),
+                  selectedColor: Colors.white,
+                  fillColor: AppColors.primary,
+                  color: AppColors.primary,
+                  borderColor: AppColors.primary,
+                  selectedBorderColor: AppColors.primary,
+                  onPressed: (int index) {
+                    setState(() {
+                      for (int i = 0; i < _toggleSelections.length; i++) {
+                        _toggleSelections[i] = i == index;
+                      }
+                    });
+                  },
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 8.0,
+                      ),
+                      child: Text('Entrada', style: TextStyle(fontSize: 16)),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 8.0,
+                      ),
+                      child: Text('Saída', style: TextStyle(fontSize: 16)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
 
             const Text(
               'Escaneie o QR Code do posto',
@@ -234,13 +276,10 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       log(
-        '>>> Checkpoint encontrado: ${checkpointData['checkpointId']}, Tipo: ${checkpointData['tipo']}',
+        '>>> Checkpoint encontrado: ${checkpointData['checkpointId']}, Tipo selecionado: $_selectedTipo',
       );
 
-      await _processCheckpoint(
-        checkpointData['checkpointId']!,
-        checkpointData['tipo']!,
-      );
+      await _processCheckpoint(checkpointData['checkpointId']!, _selectedTipo);
     } catch (e) {
       log('>>> Erro no handleQRScan: $e');
       _showError('Erro ao processar QR Code: $e');
@@ -253,24 +292,22 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<Map<String, String>?> _getCheckpointData(String qrCode) async {
     try {
-      // Primeiro, tentar como JSON
+      // Extrai checkpointId diretamente do QR code, seja ele puro, JSON ou com hífen.
+      // 1. Se for JSON, extrai checkpoint_id.
       try {
         final jsonData = jsonDecode(qrCode);
-        return {
-          'checkpointId': jsonData['checkpoint_id'] ?? '',
-          'tipo': jsonData['type'] ?? 'entrada',
-        };
+        return {'checkpointId': jsonData['checkpoint_id'] ?? ''};
       } catch (_) {}
 
-      // Tentar formato simples (checkpoint-tipo)
+      // 2. Se contiver hífen, extrai antes do hífen.
       if (qrCode.contains('-')) {
         List<String> parts = qrCode.split('-');
-        if (parts.length >= 2) {
-          return {'checkpointId': parts[0], 'tipo': parts[1].toLowerCase()};
+        if (parts.isNotEmpty) {
+          return {'checkpointId': parts[0]};
         }
       }
 
-      // Se não for nenhum dos formatos acima, buscar no Firestore
+      // 3. Caso contrário, tenta buscar pelo QR code puro no Firestore.
       log('>>> Buscando no Firestore: $qrCode');
 
       final checkpointDoc =
@@ -289,19 +326,10 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       final data = checkpointDoc.data()!;
-      log('>>> Dados do checkpoint: $data');
+      log('>>> Dados do checkpoint encontrado: $data');
 
       String checkpointId = data['name'] ?? qrCode;
-      String tipo = 'entrada';
-
-      // Determinar tipo baseado na estrutura do documento
-      if (data.containsKey('qrData.saida')) {
-        tipo = 'saida';
-      } else if (data.containsKey('qrData')) {
-        tipo = 'entrada';
-      }
-
-      return {'checkpointId': checkpointId, 'tipo': tipo};
+      return {'checkpointId': checkpointId};
     } catch (e) {
       log('>>> Erro ao buscar checkpoint: $e');
       return null;
@@ -404,7 +432,6 @@ class _CheckinViewState extends State<CheckinView> {
       _showError('Erro ao registrar checkpoint: $e');
     }
   }
-
 
   Future<void> _registerCheckpoint(
     String uid,

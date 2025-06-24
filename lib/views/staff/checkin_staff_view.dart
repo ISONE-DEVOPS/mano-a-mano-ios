@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/shared/staff_nav_bottom.dart';
 
 class StaffScoreInputView extends StatefulWidget {
   const StaffScoreInputView({super.key});
@@ -212,6 +213,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 ),
               ),
             ),
+            const StaffNavBottom(),
           ],
         ),
       ),
@@ -302,7 +304,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
             // Scanner com overlay melhorado
             Container(
-              height: 300,
+              height: 200,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.blue[200]!, width: 2),
@@ -318,8 +320,8 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                     // Overlay de foco
                     Center(
                       child: Container(
-                        width: 200,
-                        height: 200,
+                        width: 160,
+                        height: 160,
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.white, width: 3),
                           borderRadius: BorderRadius.circular(15),
@@ -1060,7 +1062,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         };
       });
 
-      await _detectActiveCheckpoint(uid, userData['veiculoId']);
+      // Apenas exibe o formulário, não define checkpoint automaticamente.
 
       Get.snackbar(
         'Sucesso',
@@ -1086,59 +1088,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
       );
 
       _resetScanner();
-    }
-  }
-
-  Future<void> _detectActiveCheckpoint(String uid, String? veiculoId) async {
-    if (veiculoId == null) return;
-
-    try {
-      final veiculoCheckpointSnapshot =
-          await FirebaseFirestore.instance
-              .collection('veiculos')
-              .doc(veiculoId)
-              .collection('checkpoints')
-              .get();
-
-      String? checkpointAtivo;
-      for (var doc in veiculoCheckpointSnapshot.docs) {
-        final data = doc.data();
-        final tipo = data['tipo'];
-        final posto = data['posto'];
-
-        if (tipo == 'entrada' && posto != null) {
-          final saidaRegistrada = veiculoCheckpointSnapshot.docs.any((d) {
-            final dData = d.data();
-            return dData['posto']?.toString().trim() ==
-                    posto.toString().trim() &&
-                dData['tipo'] == 'saida';
-          });
-
-          if (!saidaRegistrada) {
-            checkpointAtivo = posto.toString().trim();
-            break;
-          }
-        }
-      }
-
-      if (checkpointAtivo != null) {
-        setState(() {
-          _selectedCheckpointId = checkpointAtivo;
-        });
-
-        final selectedCheckpoint = _checkpoints.firstWhereOrNull(
-          (c) => c['id'] == checkpointAtivo,
-        );
-
-        if (selectedCheckpoint != null) {
-          await _loadJogosFromCheckpoint(selectedCheckpoint);
-        }
-      }
-    } catch (e) {
-      developer.log(
-        'Error detecting active checkpoint: $e',
-        name: 'StaffScoreInput',
-      );
     }
   }
 
@@ -1181,6 +1130,14 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
           .doc('shell_km_02')
           .collection('pontuacoes')
           .doc(_selectedCheckpointId!);
+
+      // Garante que o documento do checkpoint existe e cria timestampEntrada se ainda não existir o documento
+      final docSnapshot = await docRef.get();
+      if (!docSnapshot.exists) {
+        await docRef.set({
+          'timestampEntrada': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
 
       await docRef.update({
         'jogosPontuados.$_selectedJogoId': _pontuacao,
