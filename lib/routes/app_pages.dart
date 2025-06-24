@@ -7,7 +7,7 @@ import '../views/dashboard/home_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
-import '../views/auth/closed_registration_view.dart';
+// Removido: closed_registration_view
 
 // Views Splash
 import '../views/splash/intro_splash_view.dart';
@@ -26,7 +26,6 @@ import '../views/staff/staff_profile.dart';
 // Views Admin
 import '../views/admin/admin_view.dart';
 import '../views/admin/edition_view.dart';
-//import '../views/admin/add_checkpoints_view.dart';
 import '../views/admin/challenge_view.dart';
 import '../views/admin/ranking_detailed_view.dart';
 import '../views/admin/loading_admin_view.dart';
@@ -35,8 +34,6 @@ import '../views/admin/pontuacoes_view.dart';
 import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
 import '../views/admin/perguntas_view.dart';
-//import '../views/admin/checkpoints_list_dialog.dart';
-//import '../views/admin/register_participant_view.dart';
 import '../views/admin/create_user_view.dart';
 import '../views/admin/report_geral_view.dart';
 
@@ -48,12 +45,6 @@ import '../views/checkin/conchas_view.dart';
 // Views Events
 import '../views/events/user_events_view.dart';
 import '../views/events/event_details_view.dart';
-
-// Views Payment
-//import '../views/payment/payment_view.dart';
-
-// Views Map
-//import '../views/map/route_map_view.dart';
 
 // Views Ranking
 import '../views/ranking/ranking_view.dart';
@@ -104,11 +95,7 @@ class AppPages {
       page: () => const ForgotPasswordView(),
       transition: Transition.rightToLeft,
     ),
-    GetPage(
-      name: '/closed',
-      page: () => const ClosedRegistrationView(),
-      transition: Transition.fadeIn,
-    ),
+    // Removido: rota '/closed'
 
     // =================== DASHBOARD ===================
     GetPage(
@@ -127,76 +114,91 @@ class AppPages {
       name: '/admin',
       page: () => const AdminView(),
       transition: Transition.fadeIn,
+      middlewares: [AdminMiddleware()], // Adicionar middleware para proteção
     ),
     GetPage(
       name: '/editions',
       page: () => const EditionView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/add-checkpoints',
       page: () => RouteHelpers.buildAddCheckpointsView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/challenges',
       page: () => ChallengeView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/jogos',
       page: () => ChallengeView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/ranking-detailed',
       page: () => const RankingDetailedView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/gestao-utilizadores',
       page: () => const CreateUserView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/gestao-reports',
       page: () => const ReportsView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/gestao-participantes',
       page: () => const ParticipantesView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/pontuacoes',
       page: () => const PontuacoesView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/participantes',
       page: () => const ParticipantesView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/generate-qr',
       page: () => const GenerateQrView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/perguntas',
       page: () => const PerguntasView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/register-participant',
       page: () => RouteHelpers.buildRegisterParticipantView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/admin/scan-score',
       page: () => const ScanAndScoreView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
 
     // =================== STAFF ===================
@@ -204,26 +206,31 @@ class AppPages {
       name: '/staff',
       page: () => const StaffJogosView(),
       transition: Transition.fadeIn,
+      middlewares: [StaffMiddleware()],
     ),
     GetPage(
       name: '/staff/jogos',
       page: () => const StaffJogosView(),
       transition: Transition.rightToLeft,
+      middlewares: [StaffMiddleware()],
     ),
     GetPage(
       name: '/staff/profile',
       page: () => const StaffProfileView(),
       transition: Transition.rightToLeft,
+      middlewares: [StaffMiddleware()],
     ),
     GetPage(
       name: '/staff/checkin',
-      page: () =>  StaffScoreInputView(),
+      page: () => StaffScoreInputView(),
       transition: Transition.rightToLeft,
+      middlewares: [StaffMiddleware()],
     ),
     GetPage(
       name: '/scan-score',
       page: () => const ScanAndScoreView(),
       transition: Transition.rightToLeft,
+      middlewares: [StaffMiddleware()],
     ),
 
     // =================== PAGAMENTO ===================
@@ -243,6 +250,7 @@ class AppPages {
       name: '/route-editor',
       page: () => RouteHelpers.buildRouteEditorView(),
       transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
 
     // =================== CHECK-INS E PONTUAÇÃO ===================
@@ -339,4 +347,24 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
   ];
+}
+
+// Middleware para proteção de rotas admin
+class AdminMiddleware extends GetMiddleware {
+  @override
+  redirect(String? route) {
+    // Implementar verificação de permissão admin
+    // Por enquanto, retorna null para permitir acesso
+    return null;
+  }
+}
+
+// Middleware para proteção de rotas staff
+class StaffMiddleware extends GetMiddleware {
+  @override
+  redirect(String? route) {
+    // Implementar verificação de permissão staff
+    // Por enquanto, retorna null para permitir acesso
+    return null;
+  }
 }

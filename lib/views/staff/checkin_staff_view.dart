@@ -20,6 +20,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService.to;
   final MobileScannerController _scannerController = MobileScannerController();
+  final TextEditingController _pontuacaoController = TextEditingController();
 
   // Estado do formulário
   String? _selectedJogoId;
@@ -44,6 +45,478 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     _loadCheckpoints();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    // Filtrar jogos que já foram pontuados
+    final jogosNaoPontuados =
+        _jogosDisponiveis
+            .where((j) => !_jogosJaPontuados.contains(j['id']))
+            .toList();
+
+    // DEBUG: Imprimir estado atual
+    developer.log('BUILD - QR Lido: $_qrLido', name: 'StaffScoreInput');
+    developer.log(
+      'BUILD - Checkpoint: $_selectedCheckpointId',
+      name: 'StaffScoreInput',
+    );
+    developer.log('BUILD - Jogo: $_selectedJogoId', name: 'StaffScoreInput');
+    developer.log('BUILD - Pontuação: $_pontuacao', name: 'StaffScoreInput');
+    developer.log(
+      'BUILD - Jogos disponíveis: ${jogosNaoPontuados.length}',
+      name: 'StaffScoreInput',
+    );
+
+    return PopScope(
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (!didPop) {
+          final canExit = await _showExitConfirmation();
+          if (canExit) Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Inserir Pontuação'),
+          backgroundColor: Colors.blue[700],
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: _safeNavigateBack,
+          ),
+          actions: [
+            // Botão Home
+            IconButton(
+              icon: const Icon(Icons.home, color: Colors.white),
+              onPressed: _safeNavigateHome,
+              tooltip: 'Voltar ao Início',
+            ),
+            const SizedBox(width: 8),
+            // Nome do Staff
+            Obx(
+              () => Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: Center(
+                  child: Text(
+                    'Staff: ${_authService.userData['nome'] ?? 'N/A'}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Instruções
+              Card(
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info, color: Colors.blue[700]),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Escaneie o QR Code do participante para começar',
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Botões de navegação
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.arrow_back, size: 16),
+                              label: const Text('Voltar'),
+                              onPressed: _safeNavigateBack,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue[700],
+                                side: BorderSide(color: Colors.blue[700]!),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.home, size: 16),
+                              label: const Text('Menu Staff'),
+                              onPressed: _safeNavigateHome,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.green[700],
+                                side: BorderSide(color: Colors.green[700]!),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // QR Scanner
+              if (!_qrLido)
+                Card(
+                  elevation: 4,
+                  child: SizedBox(
+                    height: 280,
+                    width: double.infinity,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: MobileScanner(
+                        controller: _scannerController,
+                        onDetect: _handleParticipantQRScan,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Dados do participante escaneado
+              if (_qrLido) ...[
+                Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person,
+                              size: 24,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _participanteData['nome'] ??
+                                  'Nome não encontrado',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_participanteData['grupo'] != null)
+                          Text(
+                            'Grupo: ${_participanteData['grupo']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            icon: const Icon(Icons.restart_alt),
+                            label: const Text('Escanear outro participante'),
+                            onPressed: _resetScanner,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Formulário de pontuação
+                if (_checkpoints.isEmpty)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Dropdown de checkpoint
+                        DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: 'Selecione o checkpoint',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.location_on),
+                          ),
+                          items:
+                              _checkpoints.map((checkpoint) {
+                                return DropdownMenuItem<String>(
+                                  value: checkpoint['id'],
+                                  child: Text(checkpoint['nome'] ?? 'Sem nome'),
+                                );
+                              }).toList(),
+                          value: _selectedCheckpointId,
+                          onChanged: _onCheckpointChanged,
+                          validator:
+                              (v) =>
+                                  v == null ? 'Selecione um checkpoint' : null,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Loading de jogos
+                        if (_loadingJogos)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Column(
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 8),
+                                  Text('Carregando jogos...'),
+                                ],
+                              ),
+                            ),
+                          )
+                        // Dropdown de jogos
+                        else if (_selectedCheckpointId != null &&
+                            jogosNaoPontuados.isEmpty)
+                          Card(
+                            color: Colors.orange[50],
+                            child: const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.orange),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "Nenhum jogo disponível para este checkpoint",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else if (_selectedCheckpointId != null)
+                          DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(
+                              labelText: 'Selecione o jogo',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.sports_esports),
+                            ),
+                            items:
+                                jogosNaoPontuados.map((jogo) {
+                                  return DropdownMenuItem<String>(
+                                    value: jogo['id'],
+                                    child: Text(
+                                      '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                                    ),
+                                  );
+                                }).toList(),
+                            value: _selectedJogoId,
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedJogoId = v;
+                                _pontuacaoController.clear();
+                                _pontuacao = null;
+                              });
+                              developer.log(
+                                'Jogo selecionado: $v',
+                                name: 'StaffScoreInput',
+                              );
+                            },
+                            validator:
+                                (v) => v == null ? 'Selecione um jogo' : null,
+                          ),
+
+                        const SizedBox(height: 16),
+
+                        // Campo de pontuação
+                        if (_selectedJogoId != null) ...[
+                          Builder(
+                            builder: (_) {
+                              developer.log(
+                                'Mostrar botão de salvar - ID do jogo: $_selectedJogoId',
+                                name: 'StaffScoreInput',
+                              );
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                          TextFormField(
+                            controller: _pontuacaoController,
+                            decoration: InputDecoration(
+                              labelText:
+                                  'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.score),
+                            ),
+                            keyboardType: TextInputType.number,
+                            onChanged: (v) {
+                              setState(() {
+                                _pontuacao = int.tryParse(v);
+                              });
+                              developer.log(
+                                'Pontuação digitada: $_pontuacao',
+                                name: 'StaffScoreInput',
+                              ); // DEBUG
+                            },
+                            validator: _validatePontuacao,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Botão SEMPRE visível quando jogo selecionado
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 4,
+                              ),
+                              onPressed: _loading ? null : _savePontuacao,
+                              child:
+                                  _loading
+                                      ? const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text('Salvando...'),
+                                        ],
+                                      )
+                                      : const Text(
+                                        'Salvar Pontuação',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                            ),
+                          ),
+
+                          // Debug info - REMOVER DEPOIS
+                          if (_selectedJogoId != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'DEBUG: Jogo: $_selectedJogoId, Pontos: $_pontuacao',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                        ],
+
+                        const Spacer(),
+                      ],
+                    ),
+                  ),
+                // Botão de teste - sempre visível para debug
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: () {
+                      developer.log(
+                        'Botão de teste clicado',
+                        name: 'StaffScoreInput',
+                      );
+                    },
+                    child: Text(
+                      'Botão de Teste - Sempre visível',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        bottomNavigationBar: const StaffNavBottom(),
+      ),
+    );
+  }
+
+  // MÉTODOS DE NAVEGAÇÃO
+  Future<bool> _showExitConfirmation() async {
+    if (!_qrLido && _selectedCheckpointId == null && _selectedJogoId == null) {
+      return true; // Pode sair sem confirmação se não há dados
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirmar Saída'),
+            content: const Text(
+              'Há dados preenchidos que serão perdidos. Deseja realmente sair?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Sair'),
+              ),
+            ],
+          ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<void> _safeNavigateBack() async {
+    final canExit = await _showExitConfirmation();
+    if (canExit) {
+      Get.back();
+    }
+  }
+
+  Future<void> _safeNavigateHome() async {
+    final canExit = await _showExitConfirmation();
+    if (canExit) {
+      Get.offAllNamed('/staff-home');
+    }
+  }
+
+  // MÉTODOS DE VALIDAÇÃO E PERMISSÃO
   Future<void> _checkStaffPermission() async {
     if (!_authService.isStaff && !_authService.isAdmin) {
       Get.back();
@@ -57,6 +530,34 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
+  String? _validatePontuacao(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Digite a pontuação';
+    }
+
+    final val = int.tryParse(value);
+    if (val == null) {
+      return 'Digite um número válido';
+    }
+
+    if (val < 0) {
+      return 'Pontuação não pode ser negativa';
+    }
+
+    final maxPontuacao =
+        _jogosDisponiveis.firstWhereOrNull(
+          (j) => j['id'] == _selectedJogoId,
+        )?['pontuacaoMax'] ??
+        100;
+
+    if (val > maxPontuacao) {
+      return 'Pontuação máxima é $maxPontuacao';
+    }
+
+    return null;
+  }
+
+  // MÉTODOS DE CARREGAMENTO DE DADOS
   Future<void> _loadCheckpoints() async {
     try {
       final QuerySnapshot snapshot =
@@ -206,300 +707,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Filtrar jogos que já foram pontuados
-    final jogosNaoPontuados =
-        _jogosDisponiveis
-            .where((j) => !_jogosJaPontuados.contains(j['id']))
-            .toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inserir Pontuação'),
-        backgroundColor: Colors.blue[700],
-        actions: [
-          Obx(
-            () => Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Center(
-                child: Text(
-                  'Staff: ${_authService.userData['nome'] ?? 'N/A'}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Instruções
-            Card(
-              color: Colors.blue[50],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue[700]),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Escaneie o QR Code do participante para começar',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // QR Scanner
-            if (!_qrLido)
-              Card(
-                elevation: 4,
-                child: SizedBox(
-                  height: 280,
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: MobileScanner(
-                      controller: _scannerController,
-                      onDetect: _handleParticipantQRScan,
-                    ),
-                  ),
-                ),
-              ),
-
-            // Dados do participante escaneado
-            if (_qrLido) ...[
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.person,
-                            size: 24,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _participanteData['nome'] ?? 'Nome não encontrado',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (_participanteData['grupo'] != null)
-                        Text(
-                          'Grupo: ${_participanteData['grupo']}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.restart_alt),
-                          label: const Text('Escanear outro participante'),
-                          onPressed: _resetScanner,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Formulário de pontuação
-              if (_checkpoints.isEmpty)
-                const Center(child: CircularProgressIndicator())
-              else
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // Dropdown de checkpoint
-                        DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'Selecione o checkpoint',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on),
-                          ),
-                          items:
-                              _checkpoints.map((checkpoint) {
-                                return DropdownMenuItem<String>(
-                                  value: checkpoint['id'],
-                                  child: Text(checkpoint['nome'] ?? 'Sem nome'),
-                                );
-                              }).toList(),
-                          value: _selectedCheckpointId,
-                          onChanged: _onCheckpointChanged,
-                          validator:
-                              (v) =>
-                                  v == null ? 'Selecione um checkpoint' : null,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Loading de jogos
-                        if (_loadingJogos)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 8),
-                                  Text('Carregando jogos...'),
-                                ],
-                              ),
-                            ),
-                          )
-                        // Dropdown de jogos
-                        else if (_selectedCheckpointId != null &&
-                            jogosNaoPontuados.isEmpty)
-                          Card(
-                            color: Colors.orange[50],
-                            child: const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.warning, color: Colors.orange),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    "Nenhum jogo disponível para este checkpoint",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        else if (_selectedCheckpointId != null)
-                          DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'Selecione o jogo',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.sports_esports),
-                            ),
-                            items:
-                                jogosNaoPontuados.map((jogo) {
-                                  return DropdownMenuItem<String>(
-                                    value: jogo['id'],
-                                    child: Text(
-                                      '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
-                                    ),
-                                  );
-                                }).toList(),
-                            value: _selectedJogoId,
-                            onChanged:
-                                (v) => setState(() => _selectedJogoId = v),
-                            validator:
-                                (v) => v == null ? 'Selecione um jogo' : null,
-                          ),
-
-                        const SizedBox(height: 16),
-
-                        // Campo de pontuação
-                        if (_selectedJogoId != null)
-                          TextFormField(
-                            decoration: InputDecoration(
-                              labelText:
-                                  'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
-                              border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.score),
-                            ),
-                            keyboardType: TextInputType.number,
-                            onChanged:
-                                (v) => setState(
-                                  () => _pontuacao = int.tryParse(v),
-                                ),
-                            validator: _validatePontuacao,
-                          ),
-
-                        const Spacer(),
-
-                        // Botão de salvar
-                        if (_selectedJogoId != null && _pontuacao != null)
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 4,
-                              ),
-                              onPressed: _loading ? null : _savePontuacao,
-                              child:
-                                  _loading
-                                      ? const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text('Salvando...'),
-                                        ],
-                                      )
-                                      : const Text(
-                                        'Salvar Pontuação',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: const StaffNavBottom(),
-    );
-  }
-
+  // MÉTODOS DE HANDLING DE EVENTOS
   Future<void> _handleParticipantQRScan(BarcodeCapture capture) async {
     if (_qrLido) return;
 
@@ -628,6 +836,8 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
       _selectedJogoId = null;
       _jogosDisponiveis = [];
       _jogosJaPontuados = [];
+      _pontuacaoController.clear();
+      _pontuacao = null;
     });
 
     final selectedCheckpoint = _checkpoints.firstWhereOrNull(
@@ -639,33 +849,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  String? _validatePontuacao(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Digite a pontuação';
-    }
-
-    final val = int.tryParse(value);
-    if (val == null) {
-      return 'Digite um número válido';
-    }
-
-    if (val < 0) {
-      return 'Pontuação não pode ser negativa';
-    }
-
-    final maxPontuacao =
-        _jogosDisponiveis.firstWhereOrNull(
-          (j) => j['id'] == _selectedJogoId,
-        )?['pontuacaoMax'] ??
-        100;
-
-    if (val > maxPontuacao) {
-      return 'Pontuação máxima é $maxPontuacao';
-    }
-
-    return null;
-  }
-
+  // MÉTODOS DE SALVAMENTO
   Future<void> _savePontuacao() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -746,6 +930,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     );
   }
 
+  // MÉTODOS DE RESET E CLEANUP
   void _resetScanner() {
     setState(() {
       _qrLido = false;
@@ -757,11 +942,13 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
       _participanteData = {};
     });
 
+    _pontuacaoController.clear();
     _scannerController.start();
   }
 
   @override
   void dispose() {
+    _pontuacaoController.dispose();
     _scannerController.dispose();
     super.dispose();
   }

@@ -194,7 +194,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
         .doc(_eventoSelecionado!)
         .collection('checkpoints')
         .doc(_postoSelecionado!)
-        .set({'qrData': qrJson}, SetOptions(merge: true));
+        .set({'qrData.$_tipo': qrJson}, SetOptions(merge: true));
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

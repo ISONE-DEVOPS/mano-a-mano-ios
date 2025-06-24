@@ -96,8 +96,8 @@ class AuthService extends GetxService {
         _userData.value = data;
         _userRole.value = data['role'] ?? 'user';
 
-        // Verificar se usuário está ativo
-        if (data['ativo'] != true) {
+        // Verificar se usuário está ativo apenas se for participante
+        if (_userRole.value == 'user' && data['ativo'] != true) {
           await logout();
           Get.snackbar(
             'Conta Inativa',
