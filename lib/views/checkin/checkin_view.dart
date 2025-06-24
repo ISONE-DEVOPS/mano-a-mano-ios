@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:developer';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,6 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _checkPermissions() async {
-    // Verificar se pode usar scanner
     bool canUse = await _authService.canUseScanner();
     if (!canUse) {
       Get.back();
@@ -55,7 +55,6 @@ class _CheckinViewState extends State<CheckinView> {
         title: const Text('Leitura de QR Code'),
         backgroundColor: AppColors.primary,
         actions: [
-          // Botão de info do usuário
           Obx(
             () => Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -125,7 +124,6 @@ class _CheckinViewState extends State<CheckinView> {
                       onDetect: (barcode) => _handleQRScan(barcode),
                     ),
 
-                    // Overlay de loading se estiver processando
                     if (isProcessing)
                       Container(
                         color: Colors.black54,
@@ -212,47 +210,39 @@ class _CheckinViewState extends State<CheckinView> {
       isProcessing = true;
     });
 
-    final code = barcode.barcodes.first.rawValue ?? '';
+    final qrCode = barcode.barcodes.first.rawValue ?? '';
+    log('>>> QR Code detectado: $qrCode');
 
     try {
-      // Pausar scanner
       await _controller.stop();
 
-      // Validar formato do QR
-      Map<String, dynamic> qrData = _parseQRCode(code);
-      if (qrData.isEmpty) {
-        _showError('QR Code inválido');
-        return;
-      }
-
-      String checkpointId = qrData['checkpoint_id'];
-      // Novo bloco para tratar tipo com fallback seguro e print de debug
-      String tipo = '';
-      if (qrData.containsKey('type')) {
-        tipo = qrData['type'].toString().toLowerCase();
-        if (tipo != 'entrada' && tipo != 'saida') {
-          tipo = 'entrada'; // fallback seguro
-        }
-      } else {
-        tipo = 'entrada'; // fallback se não existir
-      }
-      print('>>> QR lido: checkpoint=${qrData['checkpoint_id']}, tipo=$tipo');
-
-      // Verificar se usuário está autenticado
       if (!_authService.isLoggedIn) {
         _showError('Usuário não autenticado');
         return;
       }
 
-      // Verificar se tem veículo atribuído
       if (_authService.userData['veiculoId'] == null) {
         _showError('Veículo não atribuído ao usuário');
         return;
       }
 
-      // Verificar estado atual do checkpoint
-      await _processCheckpoint(checkpointId, tipo);
+      // Buscar dados do checkpoint
+      final checkpointData = await _getCheckpointData(qrCode);
+      if (checkpointData == null) {
+        _showError('QR Code inválido ou checkpoint não encontrado');
+        return;
+      }
+
+      log(
+        '>>> Checkpoint encontrado: ${checkpointData['checkpointId']}, Tipo: ${checkpointData['tipo']}',
+      );
+
+      await _processCheckpoint(
+        checkpointData['checkpointId']!,
+        checkpointData['tipo']!,
+      );
     } catch (e) {
+      log('>>> Erro no handleQRScan: $e');
       _showError('Erro ao processar QR Code: $e');
     } finally {
       setState(() {
@@ -261,21 +251,60 @@ class _CheckinViewState extends State<CheckinView> {
     }
   }
 
-  Map<String, dynamic> _parseQRCode(String code) {
+  Future<Map<String, String>?> _getCheckpointData(String qrCode) async {
     try {
-      return jsonDecode(code);
-    } catch (e) {
-      // Se não for JSON, tentar formato simples
-      if (code.contains('-')) {
-        List<String> parts = code.split('-');
+      // Primeiro, tentar como JSON
+      try {
+        final jsonData = jsonDecode(qrCode);
+        return {
+          'checkpointId': jsonData['checkpoint_id'] ?? '',
+          'tipo': jsonData['type'] ?? 'entrada',
+        };
+      } catch (_) {}
+
+      // Tentar formato simples (checkpoint-tipo)
+      if (qrCode.contains('-')) {
+        List<String> parts = qrCode.split('-');
         if (parts.length >= 2) {
-          return {
-            'checkpoint_id': parts[0],
-            'type': parts[1], // entrada ou saida
-          };
+          return {'checkpointId': parts[0], 'tipo': parts[1].toLowerCase()};
         }
       }
-      return {};
+
+      // Se não for nenhum dos formatos acima, buscar no Firestore
+      log('>>> Buscando no Firestore: $qrCode');
+
+      final checkpointDoc =
+          await FirebaseFirestore.instance
+              .collection('editions')
+              .doc('shell_2025')
+              .collection('events')
+              .doc('shell_km_02')
+              .collection('checkpoints')
+              .doc(qrCode)
+              .get();
+
+      if (!checkpointDoc.exists) {
+        log('>>> Checkpoint não encontrado no Firestore');
+        return null;
+      }
+
+      final data = checkpointDoc.data()!;
+      log('>>> Dados do checkpoint: $data');
+
+      String checkpointId = data['name'] ?? qrCode;
+      String tipo = 'entrada';
+
+      // Determinar tipo baseado na estrutura do documento
+      if (data.containsKey('qrData.saida')) {
+        tipo = 'saida';
+      } else if (data.containsKey('qrData')) {
+        tipo = 'entrada';
+      }
+
+      return {'checkpointId': checkpointId, 'tipo': tipo};
+    } catch (e) {
+      log('>>> Erro ao buscar checkpoint: $e');
+      return null;
     }
   }
 
@@ -284,24 +313,35 @@ class _CheckinViewState extends State<CheckinView> {
       final uid = _authService.currentUser!.uid;
       final veiculoId = _authService.userData['veiculoId'];
 
-      // Verificar registros existentes
-      final registrosSnapshot =
+      log('>>> Processando: $checkpointId ($tipo) - User: $uid');
+
+      // Verificar estado atual usando a coleção de pontuações do usuário
+      final pontuacaoDoc =
           await FirebaseFirestore.instance
-              .collection('veiculos')
-              .doc(veiculoId)
-              .collection('checkpoints')
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc('shell_2025')
+              .collection('pontuacoes')
               .doc(checkpointId)
-              .collection('registros')
               .get();
 
-      final temEntrada = registrosSnapshot.docs.any(
-        (doc) => doc['tipo'] == 'entrada',
-      );
-      final temSaida = registrosSnapshot.docs.any(
-        (doc) => doc['tipo'] == 'saida',
+      bool temEntrada = false;
+      bool temSaida = false;
+      bool perguntaRespondida = false;
+
+      if (pontuacaoDoc.exists) {
+        final data = pontuacaoDoc.data()!;
+        temEntrada = data['timestampEntrada'] != null;
+        temSaida = data['timestampSaida'] != null;
+        perguntaRespondida = data['perguntaRespondida'] ?? false;
+      }
+
+      log(
+        '>>> Estado atual - Entrada: $temEntrada, Saída: $temSaida, Pergunta: $perguntaRespondida',
       );
 
-      // NOVO bloco de verificação do tipo
+      // Validações
       if (tipo == 'entrada') {
         if (temEntrada && !temSaida) {
           _showError(
@@ -315,15 +355,7 @@ class _CheckinViewState extends State<CheckinView> {
           );
           return;
         }
-
-        bool hasIncompleteCheckpoint = await _hasIncompleteCheckpoint(
-          uid,
-          checkpointId,
-        );
-        if (hasIncompleteCheckpoint) {
-          _showError('Ainda não saíste do último posto visitado.');
-          return;
-        }
+        // (Removido: Não bloqueia mais se houver outro checkpoint incompleto)
       } else if (tipo == 'saida') {
         if (!temEntrada) {
           _showError('Precisas fazer check-in neste posto antes de sair.');
@@ -335,30 +367,31 @@ class _CheckinViewState extends State<CheckinView> {
           return;
         }
 
-        bool canCheckOut = await _authService.canCheckOut(checkpointId);
-        if (!canCheckOut) {
-          _showError('Complete todas as atividades antes do check-out!');
+        // Verificar se a pergunta foi respondida
+        if (!perguntaRespondida) {
+          _showError('Deves responder à pergunta antes de fazer check-out.');
           return;
         }
+
+        // Verificar se pode fazer checkout (opcional - comentado por enquanto)
+        // bool canCheckOut = await _canCheckOut(checkpointId);
+        // if (!canCheckOut) {
+        //   _showError('Complete todas as atividades antes do check-out!');
+        //   return;
+        // }
       }
 
       // Registrar checkpoint
       await _registerCheckpoint(uid, veiculoId, checkpointId, tipo);
 
-      // Marcar como escaneado
       isScanned = true;
-
       setState(() {
         resultMessage = 'Check-$tipo registrado para $checkpointId';
       });
 
       SystemSound.play(SystemSoundType.click);
+      _showSuccessMessage('Check-$tipo registrado com sucesso!');
 
-      _showSuccessMessage(
-        'Check-$tipo registrado com sucesso para $checkpointId',
-      );
-
-      // Aguardar e navegar
       await Future.delayed(const Duration(seconds: 2));
 
       if (tipo == 'entrada') {
@@ -367,30 +400,11 @@ class _CheckinViewState extends State<CheckinView> {
         _navigateToNextHint(checkpointId);
       }
     } catch (e) {
+      log('>>> Erro em _processCheckpoint: $e');
       _showError('Erro ao registrar checkpoint: $e');
     }
   }
 
-  Future<bool> _hasIncompleteCheckpoint(
-    String uid,
-    String currentCheckpointId,
-  ) async {
-    final userPontuacoesSnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('eventos')
-            .doc('shell_2025')
-            .collection('pontuacoes')
-            .get();
-
-    return userPontuacoesSnapshot.docs.any((doc) {
-      final data = doc.data();
-      return data['timestampEntrada'] != null &&
-          data['timestampSaida'] == null &&
-          doc.id != currentCheckpointId;
-    });
-  }
 
   Future<void> _registerCheckpoint(
     String uid,
@@ -400,67 +414,82 @@ class _CheckinViewState extends State<CheckinView> {
   ) async {
     final now = DateTime.now().toUtc().toIso8601String();
 
-    // Registrar no veículo
-    final registroRef = FirebaseFirestore.instance
-        .collection('veiculos')
-        .doc(veiculoId)
-        .collection('checkpoints')
-        .doc(checkpointId)
-        .collection('registros');
+    log('>>> Registrando: $checkpointId ($tipo)');
 
-    await registroRef.add({
-      'tipo': tipo,
-      'timestamp': now,
-      'posto': checkpointId,
-    });
+    try {
+      // Registrar no veículo
+      final registroRef = FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .collection('checkpoints')
+          .doc(checkpointId)
+          .collection('registros');
 
-    // Atualizar veículo
-    await FirebaseFirestore.instance.collection('veiculos').doc(veiculoId).set({
-      'checkpoints': {
-        checkpointId: {tipo: now, 'ultima_leitura': now},
-      },
-    }, SetOptions(merge: true));
+      await registroRef.add({
+        'tipo': tipo,
+        'timestamp': now,
+        'posto': checkpointId,
+        'userId': uid,
+      });
 
-    // Criar/atualizar evento do usuário
-    const eventId = 'shell_2025';
-    final eventoDocRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('eventos')
-        .doc(eventId);
+      // Atualizar veículo
+      await FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .set({
+            'checkpoints': {
+              checkpointId: {tipo: now, 'ultima_leitura': now},
+            },
+          }, SetOptions(merge: true));
 
-    await eventoDocRef.set({
-      'editionId': eventId,
-      'grupo': _authService.userData['grupo'] ?? 'A',
-      'checkpointsVisitados': [],
-      'pontuacaoTotal': 0,
-      'tempoTotal': 0,
-      'classificacao': 0,
-    }, SetOptions(merge: true));
+      // Criar/atualizar evento do usuário
+      const eventId = 'shell_2025';
+      final eventoDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc(eventId);
 
-    // Registrar pontuação
-    final pontuacaoRef = eventoDocRef
-        .collection('pontuacoes')
-        .doc(checkpointId);
-
-    if (tipo == 'entrada') {
-      await pontuacaoRef.set({
-        'checkpointId': checkpointId,
-        'respostaCorreta': false,
-        'pontuacaoJogo': 0,
+      await eventoDocRef.set({
+        'editionId': eventId,
+        'grupo': _authService.userData['grupo'] ?? 'A',
+        'checkpointsVisitados': [],
         'pontuacaoTotal': 0,
-        'timestampEntrada': now,
-        'timestampSaida': null,
-        'perguntaRespondida': false,
+        'tempoTotal': 0,
+        'classificacao': 0,
       }, SetOptions(merge: true));
-    } else {
-      await pontuacaoRef.update({'timestampSaida': now});
-    }
 
-    // Atualizar checkpoints visitados
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'checkpointsVisitados': FieldValue.arrayUnion([checkpointId]),
-    });
+      // Registrar pontuação
+      final pontuacaoRef = eventoDocRef
+          .collection('pontuacoes')
+          .doc(checkpointId);
+
+      if (tipo == 'entrada') {
+        await pontuacaoRef.set({
+          'checkpointId': checkpointId,
+          'respostaCorreta': false,
+          'pontuacaoPergunta': 0,
+          'pontuacaoJogo': 0,
+          'pontuacaoTotal': 0,
+          'timestampEntrada': now,
+          'timestampSaida': null,
+          'perguntaRespondida': false,
+          'jogosPontuados': {},
+        }, SetOptions(merge: true));
+      } else {
+        await pontuacaoRef.update({'timestampSaida': now});
+      }
+
+      // Atualizar checkpoints visitados
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'checkpointsVisitados': FieldValue.arrayUnion([checkpointId]),
+      });
+
+      log('>>> Checkpoint registrado com sucesso!');
+    } catch (e) {
+      log('>>> Erro ao registrar: $e');
+      rethrow;
+    }
   }
 
   void _navigateToQuestion(String checkpointId) {
@@ -472,17 +501,13 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   void _navigateToNextHint(String checkpointId) {
-    // Aqui você pode carregar a próxima pista (concha) do Firestore
-    // e mostrar no HintPopup
     _loadAndShowNextHint(checkpointId);
   }
 
   Future<void> _loadAndShowNextHint(String checkpointId) async {
     try {
-      // Carregar próxima pista baseada no grupo da equipa
       String grupo = _authService.userData['grupo'] ?? 'A';
 
-      // Buscar pista no Firestore
       final conchaSnapshot =
           await FirebaseFirestore.instance
               .collection('conchas')
@@ -497,44 +522,56 @@ class _CheckinViewState extends State<CheckinView> {
         pistaTexto = conchaSnapshot.docs.first.data()['texto'] ?? pistaTexto;
       }
 
-      showDialog(
-        context: context,
-        builder: (context) => HintPopup(clueText: pistaTexto),
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => HintPopup(clueText: pistaTexto),
+        );
+      }
     } catch (e) {
-      showDialog(
-        context: context,
-        builder:
-            (context) =>
-                HintPopup(clueText: 'Parabéns! Continue para o próximo posto.'),
-      );
+      log('>>> Erro ao carregar pista: $e');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (context) => HintPopup(
+                clueText: 'Parabéns! Continue para o próximo posto.',
+              ),
+        );
+      }
     }
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    log('>>> ERRO: $message');
 
-    // Retomar scanner após erro
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         _controller.start();
         setState(() {
           isProcessing = false;
+          isScanned = false;
         });
       }
     });
   }
 
   void _showSuccessMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override

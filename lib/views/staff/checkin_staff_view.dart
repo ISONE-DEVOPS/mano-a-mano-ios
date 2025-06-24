@@ -129,7 +129,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(51),
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: const Icon(
@@ -226,9 +226,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withAlpha((0.15 * 255).round()),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        border: Border.all(color: Colors.white.withAlpha((0.3 * 255).round())),
       ),
       child: Material(
         color: Colors.transparent,
@@ -424,7 +424,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withAlpha(179),
                             ],
                           ),
                         ),
@@ -553,7 +553,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withAlpha((0.7 * 255).round()),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.green[200]!),
                 ),
