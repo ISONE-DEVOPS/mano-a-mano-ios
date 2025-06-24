@@ -226,6 +226,7 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       String checkpointId = qrData['checkpoint_id'];
+      String tipo = qrData['type'] ?? 'entrada';
 
       // Verificar se usuário está autenticado
       if (!_authService.isLoggedIn) {
@@ -240,7 +241,7 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       // Verificar estado atual do checkpoint
-      await _processCheckpoint(checkpointId);
+      await _processCheckpoint(checkpointId, tipo);
     } catch (e) {
       _showError('Erro ao processar QR Code: $e');
     } finally {
@@ -268,7 +269,7 @@ class _CheckinViewState extends State<CheckinView> {
     }
   }
 
-  Future<void> _processCheckpoint(String checkpointId) async {
+  Future<void> _processCheckpoint(String checkpointId, String tipo) async {
     try {
       final uid = _authService.currentUser!.uid;
       final veiculoId = _authService.userData['veiculoId'];
@@ -290,29 +291,40 @@ class _CheckinViewState extends State<CheckinView> {
         (doc) => doc['tipo'] == 'saida',
       );
 
-      // Verificar se checkpoint já foi concluído
-      if (temEntrada && temSaida) {
-        _showError('Este posto já foi concluído. Não pode registar novamente.');
-        return;
-      }
-
-      // Determinar tipo de registro
-      String tipo = !temEntrada ? 'entrada' : 'saida';
-
-      // Verificar checkpoint incompleto anterior (apenas para entrada)
+      // NOVO bloco de verificação do tipo
       if (tipo == 'entrada') {
+        if (temEntrada && !temSaida) {
+          _showError(
+            'Já fizeste check-in neste posto. Agora deves fazer check-out.',
+          );
+          return;
+        }
+        if (temEntrada && temSaida) {
+          _showError(
+            'Este posto já foi concluído. Não pode registar novamente.',
+          );
+          return;
+        }
+
         bool hasIncompleteCheckpoint = await _hasIncompleteCheckpoint(
           uid,
           checkpointId,
         );
         if (hasIncompleteCheckpoint) {
-          _showError('Ainda não saiu do último posto visitado.');
+          _showError('Ainda não saíste do último posto visitado.');
           return;
         }
-      }
+      } else if (tipo == 'saida') {
+        if (!temEntrada) {
+          _showError('Precisas fazer check-in neste posto antes de sair.');
+          return;
+        }
 
-      // Verificar se pode fazer saída
-      if (tipo == 'saida') {
+        if (temSaida) {
+          _showError('Já fizeste check-out neste posto.');
+          return;
+        }
+
         bool canCheckOut = await _authService.canCheckOut(checkpointId);
         if (!canCheckOut) {
           _showError('Complete todas as atividades antes do check-out!');

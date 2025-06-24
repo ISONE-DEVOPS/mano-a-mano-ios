@@ -168,19 +168,29 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
               // QR Scanner
               if (!_qrLido)
-                Card(
-                  elevation: 4,
-                  child: SizedBox(
-                    height: 280,
-                    width: double.infinity,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: MobileScanner(
-                        controller: _scannerController,
-                        onDetect: _handleParticipantQRScan,
+                Stack(
+                  children: [
+                    Card(
+                      elevation: 4,
+                      child: SizedBox(
+                        height: 280,
+                        width: double.infinity,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: MobileScanner(
+                            controller: _scannerController,
+                            onDetect: _handleParticipantQRScan,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: StaffNavBottom(),
+                    ),
+                  ],
                 ),
 
               // Dados do participante escaneado
@@ -466,7 +476,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             ],
           ),
         ),
-        bottomNavigationBar: const StaffNavBottom(),
+        // bottomNavigationBar removido, pois StaffNavBottom está agora no Stack do scanner.
       ),
     );
   }
@@ -877,11 +887,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
 
-      // Mostrar sucesso
+      // Mostrar sucesso e redirecionar para a página de jogos do staff
       await _showSuccessDialog();
-
-      // Reset para próximo participante
-      _resetScanner();
+      Get.offAllNamed('/staff/jogos');
     } catch (e) {
       developer.log('Error saving score: $e', name: 'StaffScoreInput');
 
