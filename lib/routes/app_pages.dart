@@ -1,223 +1,342 @@
-import 'package:mano_mano_dashboard/views/staff/staff_jogos_view.dart';
-
-//import '../views/staff/staff_pontuacao_view.dart';
-//import '../views/staff/pontuacao_qr_view.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../views/dashboard/home_view.dart';
-import '../views/staff/checkin_staff_view.dart';
 
-///import '../views/splash/splash_view.dart';
+// Views Dashboard
+import '../views/dashboard/home_view.dart';
+
+// Views Auth
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
+import '../views/auth/forgot_password_view.dart';
+import '../views/auth/closed_registration_view.dart';
+
+// Views Splash
+import '../views/splash/intro_splash_view.dart';
+
+// Views Profile
 import '../views/profile/profile_view.dart';
-import '../views/staff/staff_profile.dart';
 import '../views/profile/delete_account_view.dart';
-import '../views/checkin/checkin_view.dart';
-//import '../views/main/main_view.dart';
+import '../views/profile/team_customization_view.dart';
+import '../views/profile/team_profile_view.dart';
+
+// Views Staff
+import '../views/staff/staff_jogos_view.dart';
+import '../views/staff/checkin_staff_view.dart';
+import '../views/staff/staff_profile.dart';
+
+// Views Admin
 import '../views/admin/admin_view.dart';
 import '../views/admin/edition_view.dart';
-import '../views/payment/payment_view.dart';
-import '../views/map/route_map_view.dart';
-//import '../views/map/event_route_view.dart';
-import '../views/admin/route_editor_view.dart';
-import '../views/events/user_events_view.dart';
-import '../views/auth/forgot_password_view.dart';
-import '../views/events/event_details_view.dart';
-import '../views/admin/add_checkpoints_view.dart';
-import '../views/terms/terms_screen.dart';
-import '../views/privacy/privacy_policy_screen.dart';
+//import '../views/admin/add_checkpoints_view.dart';
 import '../views/admin/challenge_view.dart';
-import '../views/checkin/checkpoint_questions_view.dart';
 import '../views/admin/ranking_detailed_view.dart';
-//import '../views/admin/final_activities_view.dart';
-import '../views/profile/team_customization_view.dart';
 import '../views/admin/loading_admin_view.dart';
-import '../views/splash/intro_splash_view.dart';
-import '../views/ranking/ranking_view.dart';
-import '../views/pontuacao/pontuacao_detalhada_view.dart';
-import '../views/checkin/conchas_view.dart';
-import '../views/resultados/resultados_finais_view.dart';
-import '../views/profile/team_profile_view.dart';
-import '../views/admin/scan_and_score_view.dart'; // ✅ Descomente esta linha
+import '../views/admin/scan_and_score_view.dart';
 import '../views/admin/pontuacoes_view.dart';
 import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
 import '../views/admin/perguntas_view.dart';
-//import '../views/admin/jogos_create_view.dart';
-import '../views/admin/checkpoints_list_dialog.dart';
-import '../views/admin/register_participant_view.dart';
+//import '../views/admin/checkpoints_list_dialog.dart';
+//import '../views/admin/register_participant_view.dart';
 import '../views/admin/create_user_view.dart';
 import '../views/admin/report_geral_view.dart';
-import '../views/auth/closed_registration_view.dart';
+
+// Views Check-in
+import '../views/checkin/checkin_view.dart';
+import '../views/checkin/checkpoint_questions_view.dart';
+import '../views/checkin/conchas_view.dart';
+
+// Views Events
+import '../views/events/user_events_view.dart';
+import '../views/events/event_details_view.dart';
+
+// Views Payment
+//import '../views/payment/payment_view.dart';
+
+// Views Map
+//import '../views/map/route_map_view.dart';
+
+// Views Ranking
+import '../views/ranking/ranking_view.dart';
+
+// Views Pontuacao
+import '../views/pontuacao/pontuacao_detalhada_view.dart';
+
+// Views Resultados
+import '../views/resultados/resultados_finais_view.dart';
+
+// Views Terms
+import '../views/terms/terms_screen.dart';
+import '../views/privacy/privacy_policy_screen.dart';
+
+// Views Error
+import '../views/error/not_found_page.dart';
+
+// Utils
+import '../utils/route_helpers.dart';
 
 class AppPages {
-  static const initial = '/';
+  static const initial = '/splash';
 
   static final routes = [
-    // Splash e Autenticação
-    //GetPage(name: '/', page: () => const SplashView()),
-    GetPage(name: '/', page: () => const LoginView()),
-    GetPage(name: '/loading-admin', page: () => const LoadingAdminView()),
-    GetPage(name: '/splash', page: () => const IntroSplashView()),
-    GetPage(name: '/login', page: () => const LoginView()),
-    GetPage(name: '/register', page: () => const RegisterView()),
-    GetPage(name: '/closed', page: () => const ClosedRegistrationView()),
-    GetPage(name: '/home', page: () => const HomeView()),
-    GetPage(name: '/forgot-password', page: () => const ForgotPasswordView()),
+    // =================== SPLASH E AUTENTICAÇÃO ===================
+    GetPage(
+      name: '/',
+      page: () => const LoginView(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: '/splash',
+      page: () => const IntroSplashView(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: '/login',
+      page: () => const LoginView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/register',
+      page: () => const RegisterView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/forgot-password',
+      page: () => const ForgotPasswordView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/closed',
+      page: () => const ClosedRegistrationView(),
+      transition: Transition.fadeIn,
+    ),
 
-    // Administração
-    GetPage(name: '/admin', page: () => const AdminView()),
-    GetPage(name: '/editions', page: () => const EditionView()),
+    // =================== DASHBOARD ===================
+    GetPage(
+      name: '/home',
+      page: () => const HomeView(),
+      transition: Transition.fadeIn,
+    ),
+
+    // =================== ADMINISTRAÇÃO ===================
+    GetPage(
+      name: '/loading-admin',
+      page: () => const LoadingAdminView(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: '/admin',
+      page: () => const AdminView(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: '/editions',
+      page: () => const EditionView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/add-checkpoints',
-      page:
-          () => Builder(
-            builder: (_) {
-              final args = Get.arguments;
-              if (args == null ||
-                  args is! Map ||
-                  !args.containsKey('edicaoId') ||
-                  !args.containsKey('eventId')) {
-                return Scaffold(
-                  body: SafeArea(
-                    child: Center(
-                      child: Text(
-                        'Argumentos inválidos ou ausentes para AddCheckpointsView',
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return const AddCheckpointsView();
-            },
-          ),
+      page: () => RouteHelpers.buildAddCheckpointsView(),
+      transition: Transition.rightToLeft,
     ),
-    GetPage(name: '/challenges', page: () => ChallengeView()),
-    GetPage(name: '/jogos', page: () => ChallengeView()),
-    GetPage(name: '/ranking-detailed', page: () => const RankingDetailedView()),
-    GetPage(name: '/gestao-utilizadores', page: () => const CreateUserView()),
-    GetPage(name: '/gestao-reports', page: () => const ReportsView()),
+    GetPage(
+      name: '/challenges',
+      page: () => ChallengeView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/jogos',
+      page: () => ChallengeView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/ranking-detailed',
+      page: () => const RankingDetailedView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/gestao-utilizadores',
+      page: () => const CreateUserView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/gestao-reports',
+      page: () => const ReportsView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/gestao-participantes',
       page: () => const ParticipantesView(),
+      transition: Transition.rightToLeft,
     ),
-    // GetPage(name: '/final-activities', page: () => FinalActivitiesView()),
-    GetPage(name: '/pontuacoes', page: () => const PontuacoesView()),
-    GetPage(name: '/participantes', page: () => const ParticipantesView()),
-    GetPage(name: '/generate-qr', page: () => const GenerateQrView()),
-    GetPage(name: '/perguntas', page: () => const PerguntasView()),
+    GetPage(
+      name: '/pontuacoes',
+      page: () => const PontuacoesView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/participantes',
+      page: () => const ParticipantesView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/generate-qr',
+      page: () => const GenerateQrView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/perguntas',
+      page: () => const PerguntasView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/register-participant',
-      page: () {
-        final userId = Get.arguments as String?;
-        return RegisterParticipantView(userId: userId);
-      },
+      page: () => RouteHelpers.buildRegisterParticipantView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/admin/scan-score',
+      page: () => const ScanAndScoreView(),
+      transition: Transition.rightToLeft,
     ),
 
-    // Mapas e Percursos
+    // =================== STAFF ===================
+    GetPage(
+      name: '/staff',
+      page: () => const StaffJogosView(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: '/staff/jogos',
+      page: () => const StaffJogosView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/staff/profile',
+      page: () => const StaffProfileView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/staff/checkin',
+      page: () =>  StaffScoreInputView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/scan-score',
+      page: () => const ScanAndScoreView(),
+      transition: Transition.rightToLeft,
+    ),
+
+    // =================== PAGAMENTO ===================
     GetPage(
       name: '/payment',
-      page: () {
-        final args = Get.arguments;
-        if (args == null ||
-            args is! Map<String, dynamic> ||
-            !args.containsKey('eventId') ||
-            !args.containsKey('amount')) {
-          return const Scaffold(
-            body: Center(child: Text('Dados de pagamento inválidos')),
-          );
-        }
-        return PaymentView(
-          eventId: args['eventId'] as String,
-          amount: args['amount'] as double,
-        );
-      },
-    ),
-    GetPage(
-      name: '/route-map',
-      page: () {
-        final eventId = Get.arguments;
-        if (eventId == null || eventId is! String) {
-          return const Scaffold(
-            body: Center(child: Text('Evento não selecionado')),
-          );
-        }
-        return RouteMapView(eventId: eventId);
-      },
-    ),
-    // GetPage(name: '/event-route', page: () => const EventRouteView()),
-    GetPage(
-      name: '/route-editor',
-      page: () {
-        final eventId = Get.arguments;
-        if (eventId == null || eventId is! String) {
-          return const Scaffold(
-            body: Center(child: Text('Evento não selecionado')),
-          );
-        }
-        return RouteEditorView(eventId: eventId);
-      },
+      page: () => RouteHelpers.buildPaymentView(),
+      transition: Transition.rightToLeft,
     ),
 
-    // Check-ins e Pontuação
-    GetPage(name: '/checkin', page: () => const CheckinView()),
+    // =================== MAPAS E PERCURSOS ===================
+    GetPage(
+      name: '/route-map',
+      page: () => RouteHelpers.buildRouteMapView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/route-editor',
+      page: () => RouteHelpers.buildRouteEditorView(),
+      transition: Transition.rightToLeft,
+    ),
+
+    // =================== CHECK-INS E PONTUAÇÃO ===================
+    GetPage(
+      name: '/checkin',
+      page: () => const CheckinView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/checkpoint-questions',
       page: () => const CheckpointQuestionsView(),
+      transition: Transition.rightToLeft,
     ),
     GetPage(
       name: '/pontuacao-detalhada',
       page: () => const PontuacaoDetalhadaView(),
+      transition: Transition.rightToLeft,
     ),
-    GetPage(name: '/conchas', page: () => const ConchasView()),
+    GetPage(
+      name: '/conchas',
+      page: () => const ConchasView(),
+      transition: Transition.rightToLeft,
+    ),
 
-    // Perfil e Equipa
-    GetPage(name: '/profile', page: () => const ProfileView()),
-    GetPage(name: '/delete-account', page: () => const DeleteAccountView()),
+    // =================== PERFIL E EQUIPA ===================
+    GetPage(
+      name: '/profile',
+      page: () => const ProfileView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/delete-account',
+      page: () => const DeleteAccountView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/team-customization',
       page: () => const TeamCustomizationView(),
+      transition: Transition.rightToLeft,
     ),
-    GetPage(name: '/team-profile', page: () => const TeamProfileView()),
+    GetPage(
+      name: '/team-profile',
+      page: () => const TeamProfileView(),
+      transition: Transition.rightToLeft,
+    ),
 
-    // Ranking e Resultados
-    GetPage(name: '/ranking', page: () => const RankingView()),
+    // =================== RANKING E RESULTADOS ===================
+    GetPage(
+      name: '/ranking',
+      page: () => const RankingView(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: '/resultados-finais',
       page: () => const ResultadosFinaisView(),
+      transition: Transition.rightToLeft,
     ),
-    GetPage(name: '/my-events', page: () => const UserEventsView()),
-    GetPage(name: '/event-details', page: () => const EventDetailsView()),
 
-    // Configurações e Legais
-    GetPage(name: '/terms', page: () => const TermsScreen()),
-    GetPage(name: '/privacy', page: () => const PrivacyPolicyScreen()),
+    // =================== EVENTOS ===================
+    GetPage(
+      name: '/my-events',
+      page: () => const UserEventsView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/event-details',
+      page: () => const EventDetailsView(),
+      transition: Transition.rightToLeft,
+    ),
 
-    // Componentes Dialog
+    // =================== CONFIGURAÇÕES E LEGAIS ===================
+    GetPage(
+      name: '/terms',
+      page: () => const TermsScreen(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/privacy',
+      page: () => const PrivacyPolicyScreen(),
+      transition: Transition.rightToLeft,
+    ),
+
+    // =================== DIALOGS E COMPONENTES ===================
     GetPage(
       name: '/checkpoints-list',
-      page: () {
-        final args = Get.arguments as Map<String, dynamic>;
-        return CheckpointsListDialog(
-          edicaoId: args['edicaoId'] as String,
-          eventId: args['eventId'] as String,
-        );
-      },
+      page: () => RouteHelpers.buildCheckpointsListDialog(),
+      transition: Transition.fadeIn,
     ),
 
-    // Staff pages - ✅ CORRIGIDO
-    GetPage(name: '/staff', page: () => const StaffJogosView()),
-    GetPage(name: '/staff/jogos', page: () => const StaffJogosView()),
-    GetPage(name: '/staff/profile', page: () => const StaffProfileView()),
+    // =================== PÁGINA 404 ===================
     GetPage(
-      name: '/scan-score',
-      page:
-          () =>
-              const StaffScoreInputView(), // ✅ Removidos parâmetros desnecessários
+      name: '/not-found',
+      page: () => const NotFoundPage(),
+      transition: Transition.fadeIn,
     ),
-
-    // Admin Scan & Score - ✅ ADICIONADO
-    GetPage(name: '/admin/scan-score', page: () => const ScanAndScoreView()),
   ];
 }
