@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/shared/staff_nav_bottom.dart';
 
 class StaffScoreInputView extends StatefulWidget {
   const StaffScoreInputView({super.key});
@@ -53,19 +52,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             .where((j) => !_jogosJaPontuados.contains(j['id']))
             .toList();
 
-    // DEBUG: Imprimir estado atual
-    developer.log('BUILD - QR Lido: $_qrLido', name: 'StaffScoreInput');
-    developer.log(
-      'BUILD - Checkpoint: $_selectedCheckpointId',
-      name: 'StaffScoreInput',
-    );
-    developer.log('BUILD - Jogo: $_selectedJogoId', name: 'StaffScoreInput');
-    developer.log('BUILD - Pontuação: $_pontuacao', name: 'StaffScoreInput');
-    developer.log(
-      'BUILD - Jogos disponíveis: ${jogosNaoPontuados.length}',
-      name: 'StaffScoreInput',
-    );
-
     return PopScope(
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (!didPop) {
@@ -74,19 +60,30 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.grey[50],
         appBar: AppBar(
-          title: const Text('Inserir Pontuação'),
+          title: const Text(
+            'Inserir Pontuação',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           backgroundColor: Colors.blue[700],
+          elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: _safeNavigateBack,
           ),
           actions: [
+            // Botão para voltar aos Jogos
+            IconButton(
+              icon: const Icon(Icons.sports_esports, color: Colors.white),
+              onPressed: () => Get.offNamed('/staff/jogos'),
+              tooltip: 'Voltar aos Jogos',
+            ),
             // Botão Home
             IconButton(
               icon: const Icon(Icons.home, color: Colors.white),
               onPressed: _safeNavigateHome,
-              tooltip: 'Voltar ao Início',
+              tooltip: 'Menu Staff',
             ),
             const SizedBox(width: 8),
             // Nome do Staff
@@ -99,6 +96,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -106,377 +104,693 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             ),
           ],
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Instruções
-              Card(
-                color: Colors.blue[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+        body: Column(
+          children: [
+            // Header com instruções
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.blue[700]!, Colors.blue[500]!],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 25),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_scanner,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Scanner QR Code',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Aponte a câmera para o QR do participante',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Botões de navegação rápida
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildHeaderButton(
+                            'Jogos',
+                            Icons.sports_esports,
+                            () => Get.offNamed('/staff/jogos'),
+                            Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildHeaderButton(
+                            'Menu Staff',
+                            Icons.home,
+                            _safeNavigateHome,
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Conteúdo principal
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // QR Scanner melhorado
+                    if (!_qrLido) _buildQRScannerSection(),
+
+                    // Dados do participante escaneado
+                    if (_qrLido) ...[
+                      _buildParticipantCard(),
+                      const SizedBox(height: 16),
+                      _buildScoreForm(jogosNaoPontuados),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton(
+    String text,
+    IconData icon,
+    VoidCallback onPressed,
+    Color color,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRScannerSection() {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Título da seção
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.qr_code_scanner, color: Colors.blue[700]),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info, color: Colors.blue[700]),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Escaneie o QR Code do participante para começar',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Digitalizar QR Code',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      // Botões de navegação
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.arrow_back, size: 16),
-                              label: const Text('Voltar'),
-                              onPressed: _safeNavigateBack,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.blue[700],
-                                side: BorderSide(color: Colors.blue[700]!),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.home, size: 16),
-                              label: const Text('Menu Staff'),
-                              onPressed: _safeNavigateHome,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.green[700],
-                                side: BorderSide(color: Colors.green[700]!),
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Aponte para o código do participante',
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     ],
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Scanner com overlay melhorado
+            Container(
+              height: 300,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.blue[200]!, width: 2),
               ),
-
-              const SizedBox(height: 16),
-
-              // QR Scanner
-              if (!_qrLido)
-                Stack(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: Stack(
                   children: [
-                    Card(
-                      elevation: 4,
-                      child: SizedBox(
-                        height: 280,
-                        width: double.infinity,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: MobileScanner(
-                            controller: _scannerController,
-                            onDetect: _handleParticipantQRScan,
-                          ),
+                    MobileScanner(
+                      controller: _scannerController,
+                      onDetect: _handleParticipantQRScan,
+                    ),
+                    // Overlay de foco
+                    Center(
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white, width: 3),
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                      ),
-                    ),
-                    const Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: StaffNavBottom(),
-                    ),
-                  ],
-                ),
-
-              // Dados do participante escaneado
-              if (_qrLido) ...[
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                        child: Stack(
                           children: [
-                            const Icon(
-                              Icons.person,
-                              size: 24,
-                              color: Colors.green,
+                            // Cantos do scanner
+                            Positioned(
+                              top: 10,
+                              left: 10,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                    left: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _participanteData['nome'] ??
-                                  'Nome não encontrado',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                    right: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 10,
+                              left: 10,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                    left: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 10,
+                              right: 10,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                    right: BorderSide(
+                                      color: Colors.green,
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        if (_participanteData['grupo'] != null)
-                          Text(
-                            'Grupo: ${_participanteData['grupo']}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            icon: const Icon(Icons.restart_alt),
-                            label: const Text('Escanear outro participante'),
-                            onPressed: _resetScanner,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Formulário de pontuação
-                if (_checkpoints.isEmpty)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // Dropdown de checkpoint
-                        DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'Selecione o checkpoint',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on),
-                          ),
-                          items:
-                              _checkpoints.map((checkpoint) {
-                                return DropdownMenuItem<String>(
-                                  value: checkpoint['id'],
-                                  child: Text(checkpoint['nome'] ?? 'Sem nome'),
-                                );
-                              }).toList(),
-                          value: _selectedCheckpointId,
-                          onChanged: _onCheckpointChanged,
-                          validator:
-                              (v) =>
-                                  v == null ? 'Selecione um checkpoint' : null,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Loading de jogos
-                        if (_loadingJogos)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 8),
-                                  Text('Carregando jogos...'),
-                                ],
-                              ),
-                            ),
-                          )
-                        // Dropdown de jogos
-                        else if (_selectedCheckpointId != null &&
-                            jogosNaoPontuados.isEmpty)
-                          Card(
-                            color: Colors.orange[50],
-                            child: const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.warning, color: Colors.orange),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    "Nenhum jogo disponível para este checkpoint",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        else if (_selectedCheckpointId != null)
-                          DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'Selecione o jogo',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.sports_esports),
-                            ),
-                            items:
-                                jogosNaoPontuados.map((jogo) {
-                                  return DropdownMenuItem<String>(
-                                    value: jogo['id'],
-                                    child: Text(
-                                      '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
-                                    ),
-                                  );
-                                }).toList(),
-                            value: _selectedJogoId,
-                            onChanged: (v) {
-                              setState(() {
-                                _selectedJogoId = v;
-                                _pontuacaoController.clear();
-                                _pontuacao = null;
-                              });
-                              developer.log(
-                                'Jogo selecionado: $v',
-                                name: 'StaffScoreInput',
-                              );
-                            },
-                            validator:
-                                (v) => v == null ? 'Selecione um jogo' : null,
-                          ),
-
-                        const SizedBox(height: 16),
-
-                        // Campo de pontuação
-                        if (_selectedJogoId != null) ...[
-                          Builder(
-                            builder: (_) {
-                              developer.log(
-                                'Mostrar botão de salvar - ID do jogo: $_selectedJogoId',
-                                name: 'StaffScoreInput',
-                              );
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                          TextFormField(
-                            controller: _pontuacaoController,
-                            decoration: InputDecoration(
-                              labelText:
-                                  'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
-                              border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.score),
-                            ),
-                            keyboardType: TextInputType.number,
-                            onChanged: (v) {
-                              setState(() {
-                                _pontuacao = int.tryParse(v);
-                              });
-                              developer.log(
-                                'Pontuação digitada: $_pontuacao',
-                                name: 'StaffScoreInput',
-                              ); // DEBUG
-                            },
-                            validator: _validatePontuacao,
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Botão SEMPRE visível quando jogo selecionado
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 4,
-                              ),
-                              onPressed: _loading ? null : _savePontuacao,
-                              child:
-                                  _loading
-                                      ? const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text('Salvando...'),
-                                        ],
-                                      )
-                                      : const Text(
-                                        'Salvar Pontuação',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                            ),
-                          ),
-
-                          // Debug info - REMOVER DEPOIS
-                          if (_selectedJogoId != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                'DEBUG: Jogo: $_selectedJogoId, Pontos: $_pontuacao',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ),
-                        ],
-
-                        const Spacer(),
-                      ],
-                    ),
-                  ),
-                // Botão de teste - sempre visível para debug
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      developer.log(
-                        'Botão de teste clicado',
-                        name: 'StaffScoreInput',
-                      );
-                    },
+                    // Instruções na parte inferior
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                          ),
+                        ),
+                        child: const Text(
+                          'Posicione o QR Code dentro da área marcada',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Dicas de uso
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue[100]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb, color: Colors.blue[600], size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Text(
-                      'Botão de Teste - Sempre visível',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'Certifique-se de que há luz suficiente e o QR Code está bem visível',
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticipantCard() {
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.green[50]!, Colors.green[100]!],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _participanteData['nome'] ?? 'Nome não encontrado',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (_participanteData['grupo'] != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Grupo ${_participanteData['grupo']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _resetScanner,
+                    icon: const Icon(Icons.restart_alt, color: Colors.grey),
+                    tooltip: 'Escanear outro participante',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green[200]!),
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green[600],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Participante identificado com sucesso',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        // bottomNavigationBar removido, pois StaffNavBottom está agora no Stack do scanner.
+      ),
+    );
+  }
+
+  Widget _buildScoreForm(List<Map<String, dynamic>> jogosNaoPontuados) {
+    if (_checkpoints.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // Dropdown de checkpoint
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: 'Selecione o checkpoint',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  prefixIcon: const Icon(Icons.location_on),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                items:
+                    _checkpoints.map((checkpoint) {
+                      return DropdownMenuItem<String>(
+                        value: checkpoint['id'],
+                        child: Text(checkpoint['nome'] ?? 'Sem nome'),
+                      );
+                    }).toList(),
+                value: _selectedCheckpointId,
+                onChanged: _onCheckpointChanged,
+                validator: (v) => v == null ? 'Selecione um checkpoint' : null,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Loading de jogos ou dropdown de jogos
+          if (_loadingJogos)
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Carregando jogos...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_selectedCheckpointId != null && jogosNaoPontuados.isEmpty)
+            Card(
+              elevation: 3,
+              color: Colors.orange[50],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Nenhum jogo disponível para este checkpoint",
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_selectedCheckpointId != null) ...[
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Selecione o jogo',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    prefixIcon: const Icon(Icons.sports_esports),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  items:
+                      jogosNaoPontuados.map((jogo) {
+                        return DropdownMenuItem<String>(
+                          value: jogo['id'],
+                          child: Text(
+                            '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                          ),
+                        );
+                      }).toList(),
+                  value: _selectedJogoId,
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedJogoId = v;
+                      _pontuacaoController.clear();
+                      _pontuacao = null;
+                    });
+                  },
+                  validator: (v) => v == null ? 'Selecione um jogo' : null,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Campo de pontuação
+            if (_selectedJogoId != null) ...[
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextFormField(
+                    controller: _pontuacaoController,
+                    decoration: InputDecoration(
+                      labelText:
+                          'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      prefixIcon: const Icon(Icons.score),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) {
+                      setState(() {
+                        _pontuacao = int.tryParse(v);
+                      });
+                    },
+                    validator: _validatePontuacao,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Botão de salvar melhorado
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    elevation: 6,
+                  ),
+                  onPressed: _loading ? null : _savePontuacao,
+                  child:
+                      _loading
+                          ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Salvando...'),
+                            ],
+                          )
+                          : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.save, size: 24),
+                              SizedBox(width: 8),
+                              Text(
+                                'Salvar Pontuação',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                ),
+              ),
+            ],
+          ],
+        ],
       ),
     );
   }
@@ -484,13 +798,16 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   // MÉTODOS DE NAVEGAÇÃO
   Future<bool> _showExitConfirmation() async {
     if (!_qrLido && _selectedCheckpointId == null && _selectedJogoId == null) {
-      return true; // Pode sair sem confirmação se não há dados
+      return true;
     }
 
     final result = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
             title: const Text('Confirmar Saída'),
             content: const Text(
               'Há dados preenchidos que serão perdidos. Deseja realmente sair?',
@@ -526,7 +843,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  // MÉTODOS DE VALIDAÇÃO E PERMISSÃO
+  // [Resto dos métodos permanecem iguais...]
   Future<void> _checkStaffPermission() async {
     if (!_authService.isStaff && !_authService.isAdmin) {
       Get.back();
@@ -567,7 +884,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     return null;
   }
 
-  // MÉTODOS DE CARREGAMENTO DE DADOS
   Future<void> _loadCheckpoints() async {
     try {
       final QuerySnapshot snapshot =
@@ -604,12 +920,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     List<Map<String, dynamic>> jogos = [];
 
     try {
-      developer.log(
-        'Loading jogos from checkpoint: ${checkpoint['nome']}',
-        name: 'StaffScoreInput',
-      );
-
-      // Verificar múltiplos jogos (jogosRefs)
       if (checkpoint['jogosRefs'] != null &&
           (checkpoint['jogosRefs'] as List).isNotEmpty) {
         final List<dynamic> refs = checkpoint['jogosRefs'];
@@ -640,9 +950,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             );
           }
         }
-      }
-      // Verificar jogo único (jogoRef)
-      else if (checkpoint['jogoRef'] != null) {
+      } else if (checkpoint['jogoRef'] != null) {
         try {
           DocumentSnapshot doc;
           final ref = checkpoint['jogoRef'];
@@ -670,7 +978,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         }
       }
 
-      // Carregar jogos já pontuados pelo participante
       await _loadJogosJaPontuados();
     } catch (e) {
       developer.log('General error loading jogos: $e', name: 'StaffScoreInput');
@@ -717,7 +1024,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  // MÉTODOS DE HANDLING DE EVENTOS
   Future<void> _handleParticipantQRScan(BarcodeCapture capture) async {
     if (_qrLido) return;
 
@@ -736,7 +1042,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         throw Exception('QR inválido: dados incompletos');
       }
 
-      // Carregar dados do usuário
       final userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
@@ -755,7 +1060,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         };
       });
 
-      // Detectar checkpoint ativo automaticamente
       await _detectActiveCheckpoint(uid, userData['veiculoId']);
 
       Get.snackbar(
@@ -764,6 +1068,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
+        duration: const Duration(seconds: 2),
       );
     } catch (e) {
       developer.log(
@@ -777,6 +1082,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
+        duration: const Duration(seconds: 3),
       );
 
       _resetScanner();
@@ -787,7 +1093,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     if (veiculoId == null) return;
 
     try {
-      // Buscar checkpoint ativo via registros do veículo
       final veiculoCheckpointSnapshot =
           await FirebaseFirestore.instance
               .collection('veiculos')
@@ -802,7 +1107,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         final posto = data['posto'];
 
         if (tipo == 'entrada' && posto != null) {
-          // Verificar se tem saída registrada
           final saidaRegistrada = veiculoCheckpointSnapshot.docs.any((d) {
             final dData = d.data();
             return dData['posto']?.toString().trim() ==
@@ -859,7 +1163,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  // MÉTODOS DE SALVAMENTO
   Future<void> _savePontuacao() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -871,7 +1174,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         throw Exception('Participante inválido');
       }
 
-      // Salvar pontuação no Firestore
       final docRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -887,7 +1189,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
 
-      // Mostrar sucesso e redirecionar para a página de jogos do staff
       await _showSuccessDialog();
       Get.offAllNamed('/staff/jogos');
     } catch (e) {
@@ -913,32 +1214,57 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            content: const SizedBox(
-              height: 120,
+            content: Container(
+              padding: const EdgeInsets.all(20),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 60),
-                  SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green[100],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 48,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Pontuação Salva!',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    'Pontuação salva com sucesso!',
+                    'A pontuação foi registrada com sucesso para ${_participanteData['nome']}',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('OK'),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('OK'),
+                ),
               ),
             ],
           ),
     );
   }
 
-  // MÉTODOS DE RESET E CLEANUP
   void _resetScanner() {
     setState(() {
       _qrLido = false;

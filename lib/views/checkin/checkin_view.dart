@@ -226,7 +226,17 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       String checkpointId = qrData['checkpoint_id'];
-      String tipo = qrData['type'] ?? 'entrada';
+      // Novo bloco para tratar tipo com fallback seguro e print de debug
+      String tipo = '';
+      if (qrData.containsKey('type')) {
+        tipo = qrData['type'].toString().toLowerCase();
+        if (tipo != 'entrada' && tipo != 'saida') {
+          tipo = 'entrada'; // fallback seguro
+        }
+      } else {
+        tipo = 'entrada'; // fallback se não existir
+      }
+      print('>>> QR lido: checkpoint=${qrData['checkpoint_id']}, tipo=$tipo');
 
       // Verificar se usuário está autenticado
       if (!_authService.isLoggedIn) {
