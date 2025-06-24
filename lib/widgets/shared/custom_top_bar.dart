@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mano_mano_dashboard/views/admin/scan_and_score_view.dart';
 import 'package:mano_mano_dashboard/views/profile/profile_view.dart';
 
 class CustomTopBar extends StatelessWidget {
@@ -32,19 +31,6 @@ class CustomTopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ScanAndScoreView(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-            tooltip: 'Ler QR Code',
-          ),
-          const SizedBox(width: 8),
           PopupMenuButton<String>(
             tooltip: 'Opções de utilizador',
             icon: Row(

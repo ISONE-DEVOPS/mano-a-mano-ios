@@ -39,7 +39,7 @@ import '../views/pontuacao/pontuacao_detalhada_view.dart';
 import '../views/checkin/conchas_view.dart';
 import '../views/resultados/resultados_finais_view.dart';
 import '../views/profile/team_profile_view.dart';
-//import '../views/admin/scan_and_score_view.dart';
+import '../views/admin/scan_and_score_view.dart'; // ✅ Descomente esta linha
 import '../views/admin/pontuacoes_view.dart';
 import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
@@ -205,18 +205,19 @@ class AppPages {
         );
       },
     ),
-    // Staff pages
+
+    // Staff pages - ✅ CORRIGIDO
     GetPage(name: '/staff', page: () => const StaffJogosView()),
     GetPage(name: '/staff/jogos', page: () => const StaffJogosView()),
     GetPage(name: '/staff/profile', page: () => const StaffProfileView()),
     GetPage(
       name: '/scan-score',
       page:
-          () => StaffScoreInputView(
-            participanteData: {'uid': '', 'nome': ''},
-            jogosDisponiveis: [],
-            jogosJaPontuados: [],
-          ),
+          () =>
+              const StaffScoreInputView(), // ✅ Removidos parâmetros desnecessários
     ),
+
+    // Admin Scan & Score - ✅ ADICIONADO
+    GetPage(name: '/admin/scan-score', page: () => const ScanAndScoreView()),
   ];
 }
