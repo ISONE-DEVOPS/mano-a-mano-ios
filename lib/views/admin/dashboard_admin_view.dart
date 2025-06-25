@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mano_mano_dashboard/services/ranking_service.dart';
 import 'qualification_grid_view.dart'; // Importe o arquivo da grelha de qualificação
 
 class DashboardAdminView extends StatefulWidget {
@@ -1120,5 +1121,201 @@ class _DashboardAdminViewState extends State<DashboardAdminView>
       default:
         return Colors.blue.shade600; // Outras posições
     }
+  }
+}
+
+// ===================================
+// WIDGET PARA O DASHBOARD ADMIN
+// ===================================
+
+class RankingManagementWidget extends StatefulWidget {
+  const RankingManagementWidget({super.key});
+
+  @override
+  State<RankingManagementWidget> createState() =>
+      _RankingManagementWidgetState();
+}
+
+class _RankingManagementWidgetState extends State<RankingManagementWidget> {
+  bool _isRecalculating = false;
+  DateTime? _lastUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade100,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.leaderboard, color: Colors.red.shade600, size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Gestão do Ranking',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Botões de ação
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _isRecalculating ? null : _recalculateRanking,
+                icon:
+                    _isRecalculating
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Icon(Icons.refresh),
+                label: Text(
+                  _isRecalculating ? 'Recalculando...' : 'Recalcular Tudo',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              OutlinedButton.icon(
+                onPressed: () => _showRankingInfo(context),
+                icon: const Icon(Icons.info),
+                label: const Text('Info'),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Status
+          if (_lastUpdate != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Última atualização: ${_formatDateTime(_lastUpdate!)}',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _recalculateRanking() async {
+    setState(() => _isRecalculating = true);
+
+    try {
+      await RankingService.recalculateCompleteRanking();
+
+      setState(() {
+        _lastUpdate = DateTime.now();
+        _isRecalculating = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Ranking recalculado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isRecalculating = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao recalcular: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showRankingInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('ℹ️ Informações do Ranking'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('🔄 **Atualização Automática:**'),
+                Text('• Sempre que participante responde pergunta'),
+                Text('• Sempre que staff pontua jogo'),
+                Text('• Sempre que checkpoint é completado'),
+                SizedBox(height: 12),
+                Text('🔧 **Atualização Manual:**'),
+                Text('• Use o botão "Recalcular Tudo"'),
+                Text('• Recomendado se houver inconsistências'),
+                Text('• Pode ser usado a qualquer momento'),
+                SizedBox(height: 12),
+                Text('📊 **Critérios de Ordenação:**'),
+                Text('1. Maior pontuação total'),
+                Text('2. Maior número de checkpoints'),
+                Text('3. Menor tempo total (se implementado)'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month} às ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }
