@@ -86,6 +86,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     onChanged: (value) {
                       setState(() {
                         _searchQuery = value.toLowerCase();
+                        _currentPage = 0; // Reset para primeira página
                       });
                     },
                     style: const TextStyle(color: Colors.black),
@@ -140,15 +141,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 Icons.download,
                 'CSV',
                 AppColors.primary,
-                () async {
-                  await Future.delayed(const Duration(milliseconds: 1));
-                  if (mounted) {
-                    _showMessage(
-                      'Exportação em desenvolvimento...',
-                      Colors.orange,
-                    );
-                  }
-                },
+                () => _showMessage(
+                  'Exportação em desenvolvimento...',
+                  Colors.orange,
+                ),
               ),
               const SizedBox(width: 8),
               _buildCompactButton(
@@ -177,7 +173,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       'Papel',
                       _filterRole,
                       ['Todos', 'admin', 'user', 'staff'],
-                      (value) => setState(() => _filterRole = value!),
+                      (value) => setState(() {
+                        _filterRole = value!;
+                        _currentPage = 0; // Reset para primeira página
+                      }),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -186,7 +185,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       'T-Shirt',
                       _filterTshirt,
                       ['Todos', 'XS', 'S', 'M', 'L', 'XL', 'XXL'],
-                      (value) => setState(() => _filterTshirt = value!),
+                      (value) => setState(() {
+                        _filterTshirt = value!;
+                        _currentPage = 0; // Reset para primeira página
+                      }),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -195,7 +197,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       'Grupo',
                       _filterGrupo,
                       ['Todos', 'A', 'B'],
-                      (value) => setState(() => _filterGrupo = value!),
+                      (value) => setState(() {
+                        _filterGrupo = value!;
+                        _currentPage = 0; // Reset para primeira página
+                      }),
                       displayMap: {
                         'Todos': 'Todos',
                         'A': 'Grupo A',
@@ -327,6 +332,18 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         final users = snapshot.data!.docs;
         final filteredUsers = _filterUsers(users);
 
+        // Cálculo correto da paginação
+        final totalPages = (filteredUsers.length / _itemsPerPage).ceil();
+
+        // Garantir que currentPage não excede o total de páginas
+        if (_currentPage >= totalPages && totalPages > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              _currentPage = totalPages - 1;
+            });
+          });
+        }
+
         // Paginação
         final startIndex = _currentPage * _itemsPerPage;
         final endIndex = (_currentPage + 1) * _itemsPerPage;
@@ -337,35 +354,41 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
         return Column(
           children: [
-            // Contador de resultados
+            // Contador de resultados melhorado
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${filteredUsers.length} participante(s)',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${filteredUsers.length} participante(s)',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (filteredUsers.isNotEmpty && totalPages > 1)
+                        Text(
+                          ' • Página ${_currentPage + 1} de $totalPages',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
                   ),
                   if (filteredUsers.isNotEmpty)
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () async {
-                            await Future.delayed(
-                              const Duration(milliseconds: 1),
-                            );
-                            if (mounted) {
-                              _showMessage(
+                          onPressed:
+                              () => _showMessage(
                                 'Lista completa em desenvolvimento...',
                                 Colors.orange,
-                              );
-                            }
-                          },
+                              ),
                           icon: const Icon(
                             Icons.groups,
                             size: 18,
@@ -403,33 +426,80 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         },
                       ),
             ),
-            // Paginação
-            if (filteredUsers.isNotEmpty)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed:
-                        _currentPage > 0
-                            ? () => setState(() => _currentPage--)
-                            : null,
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Anterior'),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    'Página ${_currentPage + 1} de ${((filteredUsers.length - 1) / _itemsPerPage).floor() + 1}',
-                  ),
-                  const SizedBox(width: 16),
-                  TextButton.icon(
-                    onPressed:
-                        endIndex < filteredUsers.length
-                            ? () => setState(() => _currentPage++)
-                            : null,
-                    label: const Text('Próximo'),
-                    icon: const Icon(Icons.arrow_forward),
-                  ),
-                ],
+
+            // Paginação melhorada
+            if (filteredUsers.isNotEmpty && totalPages > 1)
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Primeira página
+                    IconButton(
+                      onPressed:
+                          _currentPage > 0
+                              ? () => setState(() => _currentPage = 0)
+                              : null,
+                      icon: const Icon(Icons.first_page),
+                      tooltip: 'Primeira página',
+                    ),
+
+                    // Página anterior
+                    IconButton(
+                      onPressed:
+                          _currentPage > 0
+                              ? () => setState(() => _currentPage--)
+                              : null,
+                      icon: const Icon(Icons.chevron_left),
+                      tooltip: 'Página anterior',
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // Indicador de página atual
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Text(
+                        '${_currentPage + 1} / $totalPages',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // Próxima página
+                    IconButton(
+                      onPressed:
+                          _currentPage < totalPages - 1
+                              ? () => setState(() => _currentPage++)
+                              : null,
+                      icon: const Icon(Icons.chevron_right),
+                      tooltip: 'Próxima página',
+                    ),
+
+                    // Última página
+                    IconButton(
+                      onPressed:
+                          _currentPage < totalPages - 1
+                              ? () =>
+                                  setState(() => _currentPage = totalPages - 1)
+                              : null,
+                      icon: const Icon(Icons.last_page),
+                      tooltip: 'Última página',
+                    ),
+                  ],
+                ),
               ),
           ],
         );
@@ -741,21 +811,47 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       builder: (context, snapshot) {
         if (snapshot.data?.exists == true) {
           final veiculo = snapshot.data!.data() as Map<String, dynamic>;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.blue.shade300, width: 0.5),
-            ),
-            child: Text(
-              veiculo['matricula'] ?? 'Veículo',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.blue.shade800,
-                fontWeight: FontWeight.w600,
+          // Mostra passageiros se existirem
+          final passageiros = veiculo['passageiros'] as List? ?? [];
+          final passageiroCount = passageiros.length;
+
+          return GestureDetector(
+            onTap: () => _showPassageirosDialog(veiculo),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue.shade300, width: 0.5),
               ),
-              overflow: TextOverflow.ellipsis,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      veiculo['matricula'] ?? 'Veículo',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.blue.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (passageiroCount > 1) ...[
+                    const SizedBox(width: 2),
+                    Icon(Icons.people, size: 10, color: Colors.blue.shade800),
+                    Text(
+                      '$passageiroCount',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.blue.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         }
@@ -859,9 +955,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         _editarVeiculo(doc.id, data);
         break;
       case 'acompanhantes':
-        if (mounted) {
-          _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
-        }
+        _gerirAcompanhantes(doc.id, data);
         break;
       case 'equipa':
         _editarEquipa(doc.id, data);
@@ -870,9 +964,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         _verDetalhes(data);
         break;
       case 'qr':
-        if (mounted) {
-          _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
-        }
+        _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
         break;
       case 'eliminar':
         _eliminarParticipante(doc, data);
@@ -891,18 +983,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             userData: userData,
             onSuccess: (message) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                _showMessage(message, Colors.green);
               }
             },
             onError: (message) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(content: Text(message), backgroundColor: Colors.red),
-              );
+              if (mounted) {
+                _showMessage(message, Colors.red);
+              }
             },
           ),
     );
@@ -917,20 +1004,53 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             userData: userData,
             onSuccess: (message) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                _showMessage(message, Colors.green);
               }
             },
             onError: (message) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(content: Text(message), backgroundColor: Colors.red),
-              );
+              if (mounted) {
+                _showMessage(message, Colors.red);
+              }
             },
           ),
+    );
+  }
+
+  void _gerirAcompanhantes(String userId, Map<String, dynamic> userData) {
+    // Verificar se o usuário tem veículo associado
+    final veiculoId = userData['veiculoId'];
+    if (veiculoId == null || veiculoId.isEmpty) {
+      _showMessage(
+        'Participante deve ter um veículo associado para gerir acompanhantes',
+        Colors.orange,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => _AcompanhantesDialog(
+            userId: userId,
+            userData: userData,
+            onSuccess: (message) {
+              if (mounted) {
+                _showMessage(message, Colors.green);
+              }
+            },
+            onError: (message) {
+              if (mounted) {
+                _showMessage(message, Colors.red);
+              }
+            },
+          ),
+    );
+  }
+
+  void _showPassageirosDialog(Map<String, dynamic> veiculoData) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _PassageirosDialog(veiculoData: veiculoData),
     );
   }
 
@@ -962,12 +1082,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   ),
                   onTap: () {
                     Navigator.pop(dialogContext);
-                    if (mounted) {
-                      _showMessage(
-                        'Funcionalidade em desenvolvimento...',
-                        Colors.orange,
-                      );
-                    }
+                    _showMessage(
+                      'Funcionalidade em desenvolvimento...',
+                      Colors.orange,
+                    );
                   },
                 ),
                 const Divider(),
@@ -983,12 +1101,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   ),
                   onTap: () {
                     Navigator.pop(dialogContext);
-                    if (mounted) {
-                      _showMessage(
-                        'Funcionalidade em desenvolvimento...',
-                        Colors.orange,
-                      );
-                    }
+                    _showMessage(
+                      'Funcionalidade em desenvolvimento...',
+                      Colors.orange,
+                    );
                   },
                 ),
                 const Divider(),
@@ -1004,12 +1120,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   ),
                   onTap: () {
                     Navigator.pop(dialogContext);
-                    if (mounted) {
-                      _showMessage(
-                        'Funcionalidade em desenvolvimento...',
-                        Colors.orange,
-                      );
-                    }
+                    _showMessage(
+                      'Funcionalidade em desenvolvimento...',
+                      Colors.orange,
+                    );
                   },
                 ),
               ],
@@ -1139,23 +1253,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .doc(doc.id)
                         .delete();
 
-                    Navigator.pop(dialogContext);
-
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Participante eliminado com sucesso!'),
-                          backgroundColor: Colors.green,
-                        ),
+                      Navigator.of(context).pop();
+                      _showMessage(
+                        'Participante eliminado com sucesso!',
+                        Colors.green,
                       );
                     }
                   } catch (e) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      SnackBar(
-                        content: Text('Erro ao eliminar participante: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    if (mounted) {
+                      _showMessage(
+                        'Erro ao eliminar participante: $e',
+                        Colors.red,
+                      );
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -1175,6 +1286,610 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         context,
       ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
     }
+  }
+}
+
+// ============= DIÁLOGO PARA ACOMPANHANTES/PASSAGEIROS =============
+class _AcompanhantesDialog extends StatefulWidget {
+  final String userId;
+  final Map<String, dynamic> userData;
+  final Function(String) onSuccess;
+  final Function(String) onError;
+
+  const _AcompanhantesDialog({
+    required this.userId,
+    required this.userData,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_AcompanhantesDialog> createState() => _AcompanhantesDialogState();
+}
+
+class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _telefoneController = TextEditingController();
+  String _selectedTshirt = 'M';
+  List<Map<String, dynamic>> _passageiros = [];
+  Map<String, dynamic>? _veiculoData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPassageiros();
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _telefoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPassageiros() async {
+    try {
+      final veiculoId = widget.userData['veiculoId'];
+      if (veiculoId == null || veiculoId.isEmpty) {
+        widget.onError('Participante não tem veículo associado');
+        return;
+      }
+
+      // Carregar dados do veículo
+      final veiculoDoc =
+          await FirebaseFirestore.instance
+              .collection('veiculos')
+              .doc(veiculoId)
+              .get();
+
+      if (!veiculoDoc.exists) {
+        widget.onError('Veículo não encontrado');
+        return;
+      }
+
+      _veiculoData = veiculoDoc.data() as Map<String, dynamic>;
+      final passageiroIds = (_veiculoData!['passageiros'] as List? ?? []);
+
+      // Carregar dados de cada passageiro
+      _passageiros = [];
+      for (String passageiroId in passageiroIds) {
+        try {
+          final userDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(passageiroId)
+                  .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data() as Map<String, dynamic>;
+            _passageiros.add({
+              'id': passageiroId,
+              'nome': userData['nome'] ?? 'Nome não informado',
+              'telefone': userData['telefone'] ?? '',
+              'tshirt': userData['tshirt'] ?? 'M',
+              'isCondutor': passageiroId == _veiculoData!['ownerId'],
+              'isOriginal': true, // Passageiro já existente
+            });
+          }
+        } catch (e) {
+          // Se não conseguir carregar um passageiro específico, continua
+        }
+      }
+    } catch (e) {
+      widget.onError('Erro ao carregar passageiros: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const AlertDialog(
+        backgroundColor: Colors.white,
+        content: SizedBox(
+          height: 100,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      title: Row(
+        children: [
+          const Icon(Icons.directions_car, color: Colors.blue),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gerir Passageiros do Veículo',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  _veiculoData?['matricula'] ?? 'Veículo',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 500,
+        height: 600,
+        child: Column(
+          children: [
+            // Formulário para adicionar passageiro
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Adicionar Novo Passageiro',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nomeController,
+                    style: const TextStyle(color: Colors.black),
+                    decoration: const InputDecoration(
+                      labelText: 'Nome',
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _telefoneController,
+                          style: const TextStyle(color: Colors.black),
+                          decoration: const InputDecoration(
+                            labelText: 'Telefone',
+                            prefixIcon: Icon(Icons.phone),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      DropdownButton<String>(
+                        value: _selectedTshirt,
+                        items:
+                            ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+                                .map(
+                                  (size) => DropdownMenuItem(
+                                    value: size,
+                                    child: Text(size),
+                                  ),
+                                )
+                                .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTshirt = value!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _adicionarPassageiro,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Adicionar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Lista de passageiros
+            Expanded(
+              child:
+                  _passageiros.isEmpty
+                      ? const Center(
+                        child: Text(
+                          'Nenhum passageiro no veículo',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: _passageiros.length,
+                        itemBuilder: (context, index) {
+                          final passageiro = _passageiros[index];
+                          final isCondutor = passageiro['isCondutor'] == true;
+                          // Removed unused isOriginal variable
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            color:
+                                isCondutor
+                                    ? Colors.green.shade50
+                                    : Colors.white,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    isCondutor
+                                        ? Colors.green.shade100
+                                        : Colors.blue.shade100,
+                                child: Text(
+                                  (passageiro['nome'] ?? '?')[0].toUpperCase(),
+                                  style: TextStyle(
+                                    color:
+                                        isCondutor
+                                            ? Colors.green.shade800
+                                            : Colors.blue.shade800,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      passageiro['nome'] ??
+                                          'Nome não informado',
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCondutor)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Condutor',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.green.shade800,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                '${passageiro['telefone'] ?? 'Sem telefone'} • T-Shirt: ${passageiro['tshirt'] ?? 'N/A'}',
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                              trailing:
+                                  isCondutor
+                                      ? null
+                                      : IconButton(
+                                        onPressed:
+                                            () => _removerPassageiro(index),
+                                        icon: const Icon(
+                                          Icons.remove_circle,
+                                          color: Colors.red,
+                                        ),
+                                        tooltip: 'Remover passageiro',
+                                      ),
+                            ),
+                          );
+                        },
+                      ),
+            ),
+
+            // Informação adicional
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange.shade700, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'O condutor não pode ser removido. Novos passageiros serão registados como utilizadores temporários.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: _salvarPassageiros,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+
+  void _adicionarPassageiro() {
+    if (_nomeController.text.trim().isEmpty) {
+      widget.onError('Nome é obrigatório');
+      return;
+    }
+
+    setState(() {
+      _passageiros.add({
+        'id': null, // Será criado ao salvar
+        'nome': _nomeController.text.trim(),
+        'telefone': _telefoneController.text.trim(),
+        'tshirt': _selectedTshirt,
+        'isCondutor': false,
+        'isOriginal': false, // Novo passageiro
+      });
+      _nomeController.clear();
+      _telefoneController.clear();
+      _selectedTshirt = 'M';
+    });
+  }
+
+  void _removerPassageiro(int index) {
+    final passageiro = _passageiros[index];
+    if (passageiro['isCondutor'] == true) {
+      widget.onError('Não é possível remover o condutor');
+      return;
+    }
+
+    setState(() {
+      _passageiros.removeAt(index);
+    });
+  }
+
+  Future<void> _salvarPassageiros() async {
+    try {
+      final veiculoId = widget.userData['veiculoId'];
+      List<String> passageiroIds = [];
+
+      // Processar cada passageiro
+      for (var passageiro in _passageiros) {
+        if (passageiro['isOriginal'] == true) {
+          // Passageiro já existente, manter ID
+          passageiroIds.add(passageiro['id']);
+        } else {
+          // Novo passageiro, criar utilizador temporário
+          final novoUser = {
+            'nome': passageiro['nome'],
+            'telefone': passageiro['telefone'],
+            'tshirt': passageiro['tshirt'],
+            'email': '', // Email vazio para passageiros temporários
+            'role': 'passageiro',
+            'ativo': true,
+            'veiculoId': veiculoId,
+            'isTemporary': true, // Marcar como temporário
+            'createdAt': FieldValue.serverTimestamp(),
+          };
+
+          final docRef = await FirebaseFirestore.instance
+              .collection('users')
+              .add(novoUser);
+
+          passageiroIds.add(docRef.id);
+        }
+      }
+
+      // Atualizar lista de passageiros no veículo
+      await FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .update({
+            'passageiros': passageiroIds,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess(
+          'Passageiros atualizados com sucesso! Total: ${passageiroIds.length}',
+        );
+      }
+    } catch (e) {
+      widget.onError('Erro ao salvar passageiros: $e');
+    }
+  }
+}
+
+// ============= DIÁLOGO PARA VISUALIZAR PASSAGEIROS =============
+class _PassageirosDialog extends StatelessWidget {
+  final Map<String, dynamic> veiculoData;
+
+  const _PassageirosDialog({required this.veiculoData});
+
+  @override
+  Widget build(BuildContext context) {
+    final passageiros = veiculoData['passageiros'] as List? ?? [];
+
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      title: Row(
+        children: [
+          const Icon(Icons.directions_car, color: Colors.blue),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  veiculoData['matricula'] ?? 'Veículo',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  veiculoData['modelo'] ?? '',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        height: 300,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Passageiros (${passageiros.length}):',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child:
+                  passageiros.isEmpty
+                      ? const Center(
+                        child: Text(
+                          'Nenhum passageiro registado',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: passageiros.length,
+                        itemBuilder: (context, index) {
+                          final passageiroId = passageiros[index];
+                          return FutureBuilder<DocumentSnapshot>(
+                            future:
+                                FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(passageiroId)
+                                    .get(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const ListTile(
+                                  leading: CircularProgressIndicator(),
+                                  title: Text('Carregando...'),
+                                );
+                              }
+
+                              if (!snapshot.data!.exists) {
+                                return ListTile(
+                                  leading: const Icon(
+                                    Icons.error,
+                                    color: Colors.red,
+                                  ),
+                                  title: const Text(
+                                    'Utilizador não encontrado',
+                                  ),
+                                  subtitle: Text('ID: $passageiroId'),
+                                );
+                              }
+
+                              final userData =
+                                  snapshot.data!.data() as Map<String, dynamic>;
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Text(
+                                      (userData['nome'] ?? '?')[0]
+                                          .toUpperCase(),
+                                      style: TextStyle(
+                                        color: Colors.blue.shade800,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    userData['nome'] ?? 'Nome não informado',
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
+                                  subtitle: Text(
+                                    userData['telefone'] ?? 'Sem telefone',
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  trailing:
+                                      index == 0
+                                          ? Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade100,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Condutor',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.green.shade800,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          )
+                                          : null,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar', style: TextStyle(color: Colors.blue)),
+        ),
+      ],
+    );
   }
 }
 
@@ -1654,6 +2369,7 @@ class _VeiculoDialogState extends State<_VeiculoDialog> {
         'nome_equipa': nomeEquipa,
         'passageiros': _veiculoData?['passageiros'] ?? [widget.userId],
         'checkpointId': _veiculoData?['checkpointId'] ?? [],
+        'pontuacao_total': _veiculoData?['pontuacao_total'] ?? 0,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
