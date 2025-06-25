@@ -1370,17 +1370,49 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
       }
 
       _veiculoData = veiculoDoc.data() as Map<String, dynamic>;
+      final ownerId = _veiculoData!['ownerId']; // ID do condutor/proprietário
+
+      // Carregar dados do condutor primeiro
+      Map<String, dynamic>? condutorData;
+      if (ownerId != null) {
+        try {
+          final condutorDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(ownerId)
+                  .get();
+
+          if (condutorDoc.exists) {
+            condutorData = condutorDoc.data() as Map<String, dynamic>;
+          }
+        } catch (e) {
+          // Se não conseguir carregar o condutor, continua
+        }
+      }
 
       // Verificar se passageiros é um array de strings ou array de objetos
       final passageirosData = _veiculoData!['passageiros'];
       _passageiros = [];
 
-      if (passageirosData is List) {
-        for (var i = 0; i < passageirosData.length; i++) {
-          final passageiroData = passageirosData[i];
+      // Sempre adicionar o condutor primeiro (se existir e não estiver na lista)
+      if (condutorData != null) {
+        _passageiros.add({
+          'id': ownerId,
+          'nome': condutorData['nome'] ?? 'Nome não informado',
+          'telefone': condutorData['telefone'] ?? '',
+          'tshirt': condutorData['tshirt'] ?? 'M',
+          'isCondutor': true,
+          'isOriginal': true,
+          'isAcompanhanteOnly': false,
+        });
+      }
 
+      if (passageirosData is List) {
+        for (var passageiroData in passageirosData) {
           if (passageiroData is String) {
-            // Passageiro é um ID de usuário - carregar dados do Firestore
+            // Passageiro é um ID de usuário - pular se for o condutor (já adicionado)
+            if (passageiroData == ownerId) continue;
+
             try {
               final userDoc =
                   await FirebaseFirestore.instance
@@ -1395,7 +1427,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                   'nome': userData['nome'] ?? 'Nome não informado',
                   'telefone': userData['telefone'] ?? '',
                   'tshirt': userData['tshirt'] ?? 'M',
-                  'isCondutor': passageiroData == _veiculoData!['ownerId'],
+                  'isCondutor': false,
                   'isOriginal': true, // Passageiro já existente
                   'isAcompanhanteOnly': false,
                 });
@@ -1405,12 +1437,21 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
             }
           } else if (passageiroData is Map) {
             // Passageiro é um objeto direto no array
+            // Verificar se é o condutor comparando dados
+            final isCondutorObject =
+                condutorData != null &&
+                passageiroData['nome'] == condutorData['nome'] &&
+                passageiroData['telefone'] == condutorData['telefone'];
+
+            // Se é o condutor, pular porque já foi adicionado
+            if (isCondutorObject) continue;
+
             _passageiros.add({
               'id': null, // Não tem ID porque é objeto direto
               'nome': passageiroData['nome'] ?? 'Nome não informado',
               'telefone': passageiroData['telefone'] ?? '',
               'tshirt': passageiroData['tshirt'] ?? 'M',
-              'isCondutor': i == 0, // Primeiro passageiro é sempre o condutor
+              'isCondutor': false,
               'isOriginal': true, // Passageiro já existente
               'isAcompanhanteOnly': false,
               'isDirectObject': true, // Marca como objeto direto
@@ -1567,7 +1608,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                         itemBuilder: (context, index) {
                           final passageiro = _passageiros[index];
                           final isCondutor = passageiro['isCondutor'] == true;
-                          //final isOriginal = passageiro['isOriginal'] == true;
+                          // final isOriginal = passageiro['isOriginal'] == true;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
