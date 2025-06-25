@@ -105,32 +105,21 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // Conteúdo principal
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // QR Scanner melhorado
-                    if (!_qrLido) _buildQRScannerSection(),
-
-                    // Dados do participante escaneado
-                    if (_qrLido) ...[
-                      _buildParticipantCard(),
-                      const SizedBox(height: 16),
-                      _buildScoreForm(jogosNaoPontuados),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            // Garantir que o nav bottom sempre apareça
-            const StaffNavBottom(),
-          ],
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              if (!_qrLido) _buildQRScannerSection(),
+              if (_qrLido) ...[
+                _buildParticipantCard(),
+                const SizedBox(height: 16),
+                _buildScoreForm(jogosNaoPontuados),
+              ],
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
+        bottomNavigationBar: const StaffNavBottom(),
       ),
     );
   }
@@ -179,7 +168,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
             // Scanner com tamanho reduzido
             Container(
-              height: 250, // Reduzido para ser mais compacto
+              height: 200, // Reduzido para ser mais compacto
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.blue[200]!, width: 2),
@@ -306,7 +295,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                           ),
                         ),
                         child: const Text(
-                          'Posicione o QR Code dentro da área marcada',
+                          '🧪 TESTE DE BUILD: Camera ativa - Altura 200 OK',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -804,8 +793,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
       return true;
     }
 
+    final ctx = context;
     final result = await showDialog<bool>(
-      context: context,
+      context: ctx,
       builder:
           (context) => AlertDialog(
             shape: RoundedRectangleBorder(
@@ -1160,6 +1150,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
       } else {
         // Todos os jogos foram pontuados - mostrar sucesso final
         await _showFinalSuccessDialog();
+        if (!mounted) return;
         Get.offAllNamed('/staff/jogos');
       }
     } catch (e) {
@@ -1178,8 +1169,10 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   }
 
   Future<void> _showSuccessAndContinueDialog(int remainingGames) async {
+    if (!mounted) return;
+    final ctx = context;
     await showDialog(
-      context: context,
+      context: ctx,
       builder:
           (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(
@@ -1261,8 +1254,10 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   }
 
   Future<void> _showFinalSuccessDialog() async {
+    if (!mounted) return;
+    final ctx = context;
     await showDialog(
-      context: context,
+      context: ctx,
       builder:
           (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(

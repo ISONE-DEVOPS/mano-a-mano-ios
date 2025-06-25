@@ -18,6 +18,9 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   String _filterGrupo = 'Todos';
   bool _isFilterExpanded = false;
 
+  int _currentPage = 0;
+  static const int _itemsPerPage = 10;
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -279,11 +282,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
   Widget _buildParticipantesList() {
     return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('users')
-              .orderBy('createdAt', descending: false)
-              .snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('createdAt', descending: false)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -315,6 +317,14 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
         final users = snapshot.data!.docs;
         final filteredUsers = _filterUsers(users);
+
+        // Paginação
+        final startIndex = _currentPage * _itemsPerPage;
+        final endIndex = (_currentPage + 1) * _itemsPerPage;
+        final pagedUsers = filteredUsers.sublist(
+          startIndex,
+          endIndex > filteredUsers.length ? filteredUsers.length : endIndex,
+        );
 
         return Column(
           children: [
@@ -356,24 +366,47 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
             // Lista otimizada
             Expanded(
-              child:
-                  filteredUsers.isEmpty
-                      ? const Center(
-                        child: Text(
-                          'Nenhum participante corresponde aos filtros',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
-                      : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredUsers.length,
-                        itemBuilder: (context, index) {
-                          final doc = filteredUsers[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          return _buildOptimizedParticipanteCard(doc, data);
-                        },
+              child: filteredUsers.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nenhum participante corresponde aos filtros',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: pagedUsers.length,
+                      itemBuilder: (context, index) {
+                        final doc = pagedUsers[index];
+                        final data = doc.data() as Map<String, dynamic>;
+                        return _buildOptimizedParticipanteCard(doc, data);
+                      },
+                    ),
             ),
+            // Paginação
+            if (filteredUsers.isNotEmpty)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: _currentPage > 0
+                        ? () => setState(() => _currentPage--)
+                        : null,
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Anterior'),
+                  ),
+                  const SizedBox(width: 16),
+                  Text('Página ${_currentPage + 1} de ${((filteredUsers.length - 1) / _itemsPerPage).floor() + 1}'),
+                  const SizedBox(width: 16),
+                  TextButton.icon(
+                    onPressed: endIndex < filteredUsers.length
+                        ? () => setState(() => _currentPage++)
+                        : null,
+                    label: const Text('Próximo'),
+                    icon: const Icon(Icons.arrow_forward),
+                  ),
+                ],
+              ),
           ],
         );
       },
@@ -831,6 +864,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     // Se existe equipaId, buscar dados da equipa
     if (equipaId != null && equipaId.isNotEmpty) {
       equipaDoc = await _getEquipaInfo(equipaId);
+      if (!mounted) return;
     }
 
     // Verificar se o widget ainda está montado antes de usar context
@@ -850,9 +884,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     String selectedGrupo = equipaData?['grupo'] ?? 'A';
 
     if (!mounted) return; // Verificação adicional antes de showDialog
-
+    // Capturar o BuildContext antes de qualquer await
+    final ctx = context;
     showDialog(
-      context: context,
+      context: ctx,
       builder:
           (ctx) => AlertDialog(
             backgroundColor: Colors.white,
@@ -975,7 +1010,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   if (nomeController.text.trim().isEmpty) {
                     if (!mounted) return;
                     _showErrorSnackBar(
-                      context,
+                      ctx,
                       'O nome da equipa é obrigatório',
                     );
                     return;
@@ -1001,6 +1036,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                           .collection('equipas')
                           .doc(equipaId)
                           .update(equipaDataToSave);
+                      if (!mounted) return;
                       finalEquipaId = equipaId;
                     } else {
                       // Criar nova equipa
@@ -1009,6 +1045,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       final docRef = await FirebaseFirestore.instance
                           .collection('equipas')
                           .add(equipaDataToSave);
+                      if (!mounted) return;
                       finalEquipaId = docRef.id;
                     }
 
@@ -1017,11 +1054,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .collection('users')
                         .doc(userId)
                         .update({'equipaId': finalEquipaId});
-
                     if (!mounted) return;
                     Navigator.pop(ctx);
                     _showSuccessSnackBar(
-                      context,
+                      ctx,
                       isEdit
                           ? 'Equipa atualizada com sucesso!'
                           : 'Equipa criada com sucesso!',
@@ -1029,7 +1065,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   } catch (e) {
                     if (!mounted) return;
                     _showErrorSnackBar(
-                      context,
+                      ctx,
                       'Erro ao ${isEdit ? 'atualizar' : 'criar'} equipa: $e',
                     );
                   }
@@ -1057,6 +1093,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     // Se existe veiculoId, buscar dados do veículo
     if (veiculoId != null && veiculoId.isNotEmpty) {
       veiculoDoc = await _getVeiculoInfo(veiculoId);
+      if (!mounted) return;
     }
 
     // Verificar se o widget ainda está montado antes de usar context
@@ -1235,6 +1272,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       final equipaDoc = await _getEquipaInfo(
                         userData['equipaId'],
                       );
+                      if (!mounted) return;
                       if (equipaDoc?.exists == true) {
                         final equipaData =
                             equipaDoc!.data() as Map<String, dynamic>;
@@ -1262,6 +1300,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                           .collection('veiculos')
                           .doc(veiculoId)
                           .update(veiculoDataToSave);
+                      if (!mounted) return;
                       finalVeiculoId = veiculoId;
                     } else {
                       // Criar novo veículo
@@ -1270,6 +1309,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       final docRef = await FirebaseFirestore.instance
                           .collection('veiculos')
                           .add(veiculoDataToSave);
+                      if (!mounted) return;
                       finalVeiculoId = docRef.id;
                     }
 
@@ -1278,7 +1318,6 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .collection('users')
                         .doc(userId)
                         .update({'veiculoId': finalVeiculoId});
-
                     if (!mounted) return;
                     Navigator.pop(ctx);
                     _showSuccessSnackBar(
@@ -1513,7 +1552,6 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .collection('users')
                         .doc(doc.id)
                         .delete();
-
                     if (!mounted) return;
                     Navigator.pop(ctx);
                     _showSuccessSnackBar(
@@ -1540,10 +1578,14 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   }
 
   Future<void> _exportParticipantesCsv() async {
+    await Future.delayed(Duration(milliseconds: 1));
+    if (!mounted) return;
     _showSuccessSnackBar(context, 'Exportação em desenvolvimento...');
   }
 
   Future<void> _exportListaCompleta() async {
+    await Future.delayed(Duration(milliseconds: 1));
+    if (!mounted) return;
     _showSuccessSnackBar(context, 'Lista completa em desenvolvimento...');
   }
 
