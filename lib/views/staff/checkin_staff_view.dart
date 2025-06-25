@@ -304,7 +304,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
             // Scanner com overlay melhorado
             Container(
-              height: 200,
+              height: MediaQuery.of(context).size.width * 0.65,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.blue[200]!, width: 2),
@@ -909,6 +909,15 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
               };
             }).toList();
       });
+      if (_checkpoints.isEmpty) {
+        Get.snackbar(
+          'Sem checkpoints',
+          'Nenhum checkpoint encontrado. Verifique a Firestore.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      }
     } catch (e) {
       developer.log('Error loading checkpoints: $e', name: 'StaffScoreInput');
     }
