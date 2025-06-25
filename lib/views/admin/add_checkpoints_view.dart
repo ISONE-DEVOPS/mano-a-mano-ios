@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:mano_mano_dashboard/widgets/shared/admin_page_wrapper.dart';
 
 class AddCheckpointsView extends StatefulWidget {
   const AddCheckpointsView({super.key});
@@ -312,9 +313,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Checkpoints')),
-      body: SingleChildScrollView(
+    return AdminPageWrapper(
+      title: 'Checkpoints',
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [

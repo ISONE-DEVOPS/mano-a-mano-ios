@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'edit_participantes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mano_mano_dashboard/theme/app_colors.dart';
 
 class ParticipantesView extends StatefulWidget {
   const ParticipantesView({super.key});
@@ -30,7 +29,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E1),
+      backgroundColor: const Color(0xFFF8F9FA), // Fundo mais neutro
       body: SafeArea(
         child: Column(
           children: [
@@ -52,10 +51,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withAlpha((0.1 * 255).round()),
+            color: Colors.grey.withAlpha((0.15 * 255).round()),
             spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -69,9 +68,9 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               const Text(
                 'Participantes',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Color(0xFF1A1A1A), // Preto mais suave
                 ),
               ),
               const SizedBox(width: 16),
@@ -80,32 +79,50 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               Expanded(
                 flex: 2,
                 child: SizedBox(
-                  height: 36,
+                  height: 40,
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) {
                       setState(() {
                         _searchQuery = value.toLowerCase();
-                        _currentPage = 0; // Reset para primeira página
+                        _currentPage = 0;
                       });
                     },
-                    style: const TextStyle(color: Colors.black),
+                    style: const TextStyle(
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 14,
+                    ),
                     decoration: InputDecoration(
-                      hintText: 'Pesquisar...',
-                      hintStyle: const TextStyle(color: Colors.grey),
+                      hintText: 'Pesquisar participantes...',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 14,
+                      ),
                       prefixIcon: const Icon(
                         Icons.search,
-                        size: 18,
-                        color: Colors.grey,
+                        size: 20,
+                        color: Color(0xFF6B7280),
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
-                      fillColor: Colors.grey.shade100,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF3B82F6),
+                          width: 2,
+                        ),
+                      ),
+                      fillColor: const Color(0xFFF9FAFB),
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 16,
+                        vertical: 8,
                       ),
                       isDense: true,
                     ),
@@ -115,42 +132,66 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               const SizedBox(width: 12),
 
               // Botão de filtros
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _isFilterExpanded = !_isFilterExpanded;
-                  });
-                },
-                icon: Icon(
-                  _isFilterExpanded ? Icons.filter_list_off : Icons.filter_list,
-                  color: _isFilterExpanded ? Colors.blue : Colors.grey.shade700,
+              Container(
+                decoration: BoxDecoration(
+                  color:
+                      _isFilterExpanded
+                          ? const Color(0xFF3B82F6)
+                          : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color:
+                        _isFilterExpanded
+                            ? const Color(0xFF3B82F6)
+                            : Colors.grey.shade300,
+                  ),
                 ),
-                tooltip: 'Filtros',
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isFilterExpanded = !_isFilterExpanded;
+                    });
+                  },
+                  icon: Icon(
+                    _isFilterExpanded
+                        ? Icons.filter_list_off
+                        : Icons.filter_list,
+                    color:
+                        _isFilterExpanded
+                            ? Colors.white
+                            : const Color(0xFF374151),
+                    size: 20,
+                  ),
+                  tooltip: 'Filtros',
+                ),
               ),
 
               // Botões principais compactos
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               _buildCompactButton(
                 Icons.person_add,
                 'Novo',
-                AppColors.secondary,
+                const Color(0xFF10B981),
+                Colors.white,
                 () => Navigator.of(context).pushNamed('/register-participant'),
               ),
               const SizedBox(width: 8),
               _buildCompactButton(
                 Icons.download,
                 'CSV',
-                AppColors.primary,
+                const Color(0xFF3B82F6),
+                Colors.white,
                 () => _showMessage(
                   'Exportação em desenvolvimento...',
-                  Colors.orange,
+                  const Color(0xFFF59E0B),
                 ),
               ),
               const SizedBox(width: 8),
               _buildCompactButton(
                 Icons.more_horiz,
                 'Mais',
-                Colors.orange,
+                const Color(0xFF8B5CF6),
+                Colors.white,
                 _showBulkActions,
               ),
             ],
@@ -158,13 +199,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
           // Filtros expansíveis
           if (_isFilterExpanded) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
@@ -175,11 +216,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       ['Todos', 'admin', 'user', 'staff'],
                       (value) => setState(() {
                         _filterRole = value!;
-                        _currentPage = 0; // Reset para primeira página
+                        _currentPage = 0;
                       }),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: _buildCompactDropdown(
                       'T-Shirt',
@@ -187,11 +228,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       ['Todos', 'XS', 'S', 'M', 'L', 'XL', 'XXL'],
                       (value) => setState(() {
                         _filterTshirt = value!;
-                        _currentPage = 0; // Reset para primeira página
+                        _currentPage = 0;
                       }),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: _buildCompactDropdown(
                       'Grupo',
@@ -199,7 +240,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       ['Todos', 'A', 'B'],
                       (value) => setState(() {
                         _filterGrupo = value!;
-                        _currentPage = 0; // Reset para primeira página
+                        _currentPage = 0;
                       }),
                       displayMap: {
                         'Todos': 'Todos',
@@ -220,27 +261,29 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   Widget _buildCompactButton(
     IconData icon,
     String label,
-    Color color,
+    Color backgroundColor,
+    Color textColor,
     VoidCallback onPressed,
   ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: Colors.black),
+      icon: Icon(icon, size: 18, color: textColor),
       label: Text(
         label,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.black,
+        style: TextStyle(
+          fontSize: 14,
+          color: textColor,
           fontWeight: FontWeight.w600,
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        minimumSize: const Size(0, 32),
+        backgroundColor: backgroundColor,
+        foregroundColor: textColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        minimumSize: const Size(0, 40),
         elevation: 2,
-        shadowColor: Colors.black26,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -253,29 +296,37 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     Map<String, String>? displayMap,
   }) {
     return SizedBox(
-      height: 32,
+      height: 40,
       child: DropdownButtonFormField<String>(
         value: value,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
+          labelStyle: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF374151),
+            fontWeight: FontWeight.w500,
+          ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
+            horizontal: 12,
+            vertical: 8,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: Colors.blue, width: 2),
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
           ),
           isDense: true,
           fillColor: Colors.white,
           filled: true,
         ),
-        style: const TextStyle(fontSize: 12, color: Colors.black),
+        style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
         dropdownColor: Colors.white,
         items:
             items.map((item) {
@@ -283,12 +334,15 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 value: item,
                 child: Text(
                   displayMap?[item] ?? item,
-                  style: const TextStyle(fontSize: 12, color: Colors.black),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
               );
             }).toList(),
         onChanged: onChanged,
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
+        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF6B7280)),
       ),
     );
   }
@@ -304,7 +358,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
             ),
           );
         }
@@ -314,15 +368,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                Icon(Icons.people_outline, size: 80, color: Color(0xFF9CA3AF)),
                 SizedBox(height: 16),
                 Text(
                   'Nenhum participante encontrado',
                   style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey,
+                    fontSize: 20,
+                    color: Color(0xFF6B7280),
                     fontWeight: FontWeight.w500,
                   ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Adicione o primeiro participante para começar',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
                 ),
               ],
             ),
@@ -356,51 +415,67 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           children: [
             // Contador de resultados melhorado
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Text(
-                        '${filteredUsers.length} participante(s)',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF3B82F6)),
+                        ),
+                        child: Text(
+                          '${filteredUsers.length} participante(s)',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E40AF),
+                          ),
                         ),
                       ),
-                      if (filteredUsers.isNotEmpty && totalPages > 1)
+                      if (filteredUsers.isNotEmpty && totalPages > 1) ...[
+                        const SizedBox(width: 12),
                         Text(
-                          ' • Página ${_currentPage + 1} de $totalPages',
+                          'Página ${_currentPage + 1} de $totalPages',
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (filteredUsers.isNotEmpty)
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed:
-                              () => _showMessage(
-                                'Lista completa em desenvolvimento...',
-                                Colors.orange,
-                              ),
-                          icon: const Icon(
-                            Icons.groups,
-                            size: 18,
-                            color: Colors.black87,
-                          ),
-                          tooltip: 'Lista Completa',
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                  if (filteredUsers.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        onPressed:
+                            () => _showMessage(
+                              'Lista completa em desenvolvimento...',
+                              const Color(0xFFF59E0B),
+                            ),
+                        icon: const Icon(
+                          Icons.groups,
+                          size: 20,
+                          color: Color(0xFF374151),
+                        ),
+                        tooltip: 'Lista Completa',
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -411,13 +486,36 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               child:
                   filteredUsers.isEmpty
                       ? const Center(
-                        child: Text(
-                          'Nenhum participante corresponde aos filtros',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Nenhum participante corresponde aos filtros',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Color(0xFF6B7280),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Tente ajustar os filtros de pesquisa',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
                         ),
                       )
                       : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount: pagedUsers.length,
                         itemBuilder: (context, index) {
                           final doc = pagedUsers[index];
@@ -430,28 +528,26 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             // Paginação melhorada
             if (filteredUsers.isNotEmpty && totalPages > 1)
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Primeira página
-                    IconButton(
-                      onPressed:
-                          _currentPage > 0
-                              ? () => setState(() => _currentPage = 0)
-                              : null,
-                      icon: const Icon(Icons.first_page),
-                      tooltip: 'Primeira página',
+                    _buildPaginationButton(
+                      Icons.first_page,
+                      'Primeira página',
+                      _currentPage > 0,
+                      () => setState(() => _currentPage = 0),
                     ),
 
+                    const SizedBox(width: 8),
+
                     // Página anterior
-                    IconButton(
-                      onPressed:
-                          _currentPage > 0
-                              ? () => setState(() => _currentPage--)
-                              : null,
-                      icon: const Icon(Icons.chevron_left),
-                      tooltip: 'Página anterior',
+                    _buildPaginationButton(
+                      Icons.chevron_left,
+                      'Página anterior',
+                      _currentPage > 0,
+                      () => setState(() => _currentPage--),
                     ),
 
                     const SizedBox(width: 16),
@@ -459,19 +555,27 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     // Indicador de página atual
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: 16,
+                        vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: const Color(0xFF3B82F6),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withOpacity(0.3),
+                            spreadRadius: 0,
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         '${_currentPage + 1} / $totalPages',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade800,
+                          color: Colors.white,
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -479,24 +583,21 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     const SizedBox(width: 16),
 
                     // Próxima página
-                    IconButton(
-                      onPressed:
-                          _currentPage < totalPages - 1
-                              ? () => setState(() => _currentPage++)
-                              : null,
-                      icon: const Icon(Icons.chevron_right),
-                      tooltip: 'Próxima página',
+                    _buildPaginationButton(
+                      Icons.chevron_right,
+                      'Próxima página',
+                      _currentPage < totalPages - 1,
+                      () => setState(() => _currentPage++),
                     ),
 
+                    const SizedBox(width: 8),
+
                     // Última página
-                    IconButton(
-                      onPressed:
-                          _currentPage < totalPages - 1
-                              ? () =>
-                                  setState(() => _currentPage = totalPages - 1)
-                              : null,
-                      icon: const Icon(Icons.last_page),
-                      tooltip: 'Última página',
+                    _buildPaginationButton(
+                      Icons.last_page,
+                      'Última página',
+                      _currentPage < totalPages - 1,
+                      () => setState(() => _currentPage = totalPages - 1),
                     ),
                   ],
                 ),
@@ -507,32 +608,70 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     );
   }
 
+  Widget _buildPaginationButton(
+    IconData icon,
+    String tooltip,
+    bool enabled,
+    VoidCallback? onPressed,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: enabled ? const Color(0xFFF3F4F6) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: enabled ? const Color(0xFFD1D5DB) : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: IconButton(
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(
+          icon,
+          color: enabled ? const Color(0xFF374151) : const Color(0xFF9CA3AF),
+          size: 20,
+        ),
+        tooltip: tooltip,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      ),
+    );
+  }
+
   Widget _buildOptimizedParticipanteCard(
     QueryDocumentSnapshot doc,
     Map<String, dynamic> data,
   ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 2,
-      color: Colors.white,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             // Avatar compacto
             CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.primary,
+              radius: 24,
+              backgroundColor: const Color(0xFF3B82F6),
               child: Text(
                 (data['nome'] ?? 'U').toString().substring(0, 1).toUpperCase(),
                 style: const TextStyle(
-                  color: Colors.black,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 16,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
             // Informações principais
             Expanded(
@@ -548,7 +687,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: Color(0xFF1A1A1A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -557,10 +696,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       _buildCompactRoleBadge(data['role'] ?? 'user'),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     data['email'] ?? 'Email não informado',
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -575,14 +717,18 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.phone, size: 12, color: Colors.blue.shade700),
-                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.phone,
+                        size: 14,
+                        color: Color(0xFF3B82F6),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           data['telefone'] ?? 'N/A',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.blue.shade800,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF374151),
                             fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -590,20 +736,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.local_offer,
-                        size: 12,
-                        color: Colors.green.shade700,
+                        size: 14,
+                        color: Color(0xFF10B981),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Text(
-                        data['tshirt'] ?? 'N/A',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.green.shade800,
+                        'T-Shirt: ${data['tshirt'] ?? 'N/A'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF374151),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -625,69 +771,79 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         _buildCompactStatusChip(data),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         _buildCompactVeiculoChip(data),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
 
                   // Menu de ações compacto
-                  PopupMenuButton<String>(
-                    onSelected: (value) => _handleAction(value, doc, data),
-                    icon: const Icon(
-                      Icons.more_vert,
-                      size: 18,
-                      color: Colors.black87,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    iconSize: 18,
-                    color: Colors.white,
-                    itemBuilder:
-                        (context) => [
-                          _buildCompactMenuItem(
-                            Icons.edit,
-                            'Editar',
-                            'editar',
-                            Colors.orange,
-                          ),
-                          _buildCompactMenuItem(
-                            Icons.directions_car,
-                            'Veículo',
-                            'veiculo',
-                            Colors.green,
-                          ),
-                          _buildCompactMenuItem(
-                            Icons.group,
-                            'Acompanhantes',
-                            'acompanhantes',
-                            Colors.blue,
-                          ),
-                          _buildCompactMenuItem(
-                            Icons.groups,
-                            'Equipa',
-                            'equipa',
-                            Colors.purple,
-                          ),
-                          _buildCompactMenuItem(
-                            Icons.info,
-                            'Detalhes',
-                            'detalhes',
-                            Colors.deepPurple,
-                          ),
-                          _buildCompactMenuItem(
-                            Icons.qr_code,
-                            'QR Code',
-                            'qr',
-                            Colors.indigo,
-                          ),
-                          const PopupMenuDivider(),
-                          _buildCompactMenuItem(
-                            Icons.delete,
-                            'Eliminar',
-                            'eliminar',
-                            Colors.red,
-                          ),
-                        ],
+                    child: PopupMenuButton<String>(
+                      onSelected: (value) => _handleAction(value, doc, data),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        size: 20,
+                        color: Color(0xFF374151),
+                      ),
+                      iconSize: 20,
+                      color: Colors.white,
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      itemBuilder:
+                          (context) => [
+                            _buildCompactMenuItem(
+                              Icons.edit,
+                              'Editar',
+                              'editar',
+                              const Color(0xFFF59E0B),
+                            ),
+                            _buildCompactMenuItem(
+                              Icons.directions_car,
+                              'Veículo',
+                              'veiculo',
+                              const Color(0xFF10B981),
+                            ),
+                            _buildCompactMenuItem(
+                              Icons.group,
+                              'Acompanhantes',
+                              'acompanhantes',
+                              const Color(0xFF3B82F6),
+                            ),
+                            _buildCompactMenuItem(
+                              Icons.groups,
+                              'Equipa',
+                              'equipa',
+                              const Color(0xFF8B5CF6),
+                            ),
+                            _buildCompactMenuItem(
+                              Icons.info,
+                              'Detalhes',
+                              'detalhes',
+                              const Color(0xFF6366F1),
+                            ),
+                            _buildCompactMenuItem(
+                              Icons.qr_code,
+                              'QR Code',
+                              'qr',
+                              const Color(0xFF0891B2),
+                            ),
+                            const PopupMenuDivider(),
+                            _buildCompactMenuItem(
+                              Icons.delete,
+                              'Eliminar',
+                              'eliminar',
+                              const Color(0xFFEF4444),
+                            ),
+                          ],
+                    ),
                   ),
                 ],
               ),
@@ -706,15 +862,19 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   ) {
     return PopupMenuItem(
       value: value,
-      height: 36,
+      height: 44,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 12),
           Text(
             title,
-            style: const TextStyle(fontSize: 13, color: Colors.black),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF1A1A1A),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -728,33 +888,33 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
     switch (role) {
       case 'admin':
-        backgroundColor = Colors.red.shade100;
-        textColor = Colors.red.shade800;
+        backgroundColor = const Color(0xFFFEF2F2);
+        textColor = const Color(0xFFDC2626);
         label = 'Admin';
         break;
       case 'staff':
-        backgroundColor = Colors.orange.shade100;
-        textColor = Colors.orange.shade800;
+        backgroundColor = const Color(0xFFFFF7ED);
+        textColor = const Color(0xFFEA580C);
         label = 'Staff';
         break;
       default:
-        backgroundColor = Colors.blue.shade100;
-        textColor = Colors.blue.shade800;
+        backgroundColor = const Color(0xFFEFF6FF);
+        textColor = const Color(0xFF2563EB);
         label = 'User';
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: textColor, width: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor.withOpacity(0.3), width: 1),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: textColor,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -768,17 +928,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         if (snapshot.data?.exists == true) {
           final equipa = snapshot.data!.data() as Map<String, dynamic>;
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.green.shade100,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.green.shade300, width: 0.5),
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF10B981), width: 1),
             ),
             child: Text(
               '${equipa['nome'] ?? 'Equipa'} (${equipa['grupo'] ?? '?'})',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 10,
-                color: Colors.green.shade800,
+                color: Color(0xFF059669),
                 fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
@@ -786,17 +946,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           );
         }
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.red.shade100,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.red.shade300, width: 0.5),
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFEF4444), width: 1),
           ),
-          child: Text(
+          child: const Text(
             'Sem equipa',
             style: TextStyle(
               fontSize: 10,
-              color: Colors.red.shade800,
+              color: Color(0xFFDC2626),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -811,18 +971,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       builder: (context, snapshot) {
         if (snapshot.data?.exists == true) {
           final veiculo = snapshot.data!.data() as Map<String, dynamic>;
-          // Mostra passageiros se existirem
           final passageiros = veiculo['passageiros'] as List? ?? [];
           final passageiroCount = passageiros.length;
 
           return GestureDetector(
             onTap: () => _showPassageirosDialog(veiculo),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.blue.shade300, width: 0.5),
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF3B82F6), width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -830,22 +989,26 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   Flexible(
                     child: Text(
                       veiculo['matricula'] ?? 'Veículo',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
-                        color: Colors.blue.shade800,
+                        color: Color(0xFF1D4ED8),
                         fontWeight: FontWeight.w600,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (passageiroCount > 1) ...[
-                    const SizedBox(width: 2),
-                    Icon(Icons.people, size: 10, color: Colors.blue.shade800),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.people,
+                      size: 12,
+                      color: Color(0xFF1D4ED8),
+                    ),
                     Text(
                       '$passageiroCount',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 9,
-                        color: Colors.blue.shade800,
+                        color: Color(0xFF1D4ED8),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -856,17 +1019,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           );
         }
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.red.shade100,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.red.shade300, width: 0.5),
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFEF4444), width: 1),
           ),
-          child: Text(
+          child: const Text(
             'Sem veículo',
             style: TextStyle(
               fontSize: 10,
-              color: Colors.red.shade800,
+              color: Color(0xFFDC2626),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -964,7 +1127,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         _verDetalhes(data);
         break;
       case 'qr':
-        _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
+        _showMessage(
+          'Funcionalidade em desenvolvimento...',
+          const Color(0xFFF59E0B),
+        );
         break;
       case 'eliminar':
         _eliminarParticipante(doc, data);
@@ -983,12 +1149,12 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             userData: userData,
             onSuccess: (message) {
               if (mounted) {
-                _showMessage(message, Colors.green);
+                _showMessage(message, const Color(0xFF10B981));
               }
             },
             onError: (message) {
               if (mounted) {
-                _showMessage(message, Colors.red);
+                _showMessage(message, const Color(0xFFEF4444));
               }
             },
           ),
@@ -1004,12 +1170,12 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             userData: userData,
             onSuccess: (message) {
               if (mounted) {
-                _showMessage(message, Colors.green);
+                _showMessage(message, const Color(0xFF10B981));
               }
             },
             onError: (message) {
               if (mounted) {
-                _showMessage(message, Colors.red);
+                _showMessage(message, const Color(0xFFEF4444));
               }
             },
           ),
@@ -1025,12 +1191,12 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             userData: userData,
             onSuccess: (message) {
               if (mounted) {
-                _showMessage(message, Colors.green);
+                _showMessage(message, const Color(0xFF10B981));
               }
             },
             onError: (message) {
               if (mounted) {
-                _showMessage(message, Colors.red);
+                _showMessage(message, const Color(0xFFEF4444));
               }
             },
           ),
@@ -1050,69 +1216,58 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       builder:
           (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text(
               'Ações em Lote',
               style: TextStyle(
-                color: Colors.black,
+                color: Color(0xFF1A1A1A),
                 fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.groups, color: Colors.purple),
-                  title: const Text(
-                    'Criar Equipas Automáticas',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  subtitle: const Text(
-                    'Organizar participantes em equipas',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  onTap: () {
+                _buildBulkActionTile(
+                  Icons.groups,
+                  'Criar Equipas Automáticas',
+                  'Organizar participantes em equipas',
+                  const Color(0xFF8B5CF6),
+                  () {
                     Navigator.pop(dialogContext);
                     _showMessage(
                       'Funcionalidade em desenvolvimento...',
-                      Colors.orange,
+                      const Color(0xFFF59E0B),
                     );
                   },
                 ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.qr_code, color: Colors.blue),
-                  title: const Text(
-                    'Gerar QR Codes',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  subtitle: const Text(
-                    'Para todos os participantes',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  onTap: () {
+                const SizedBox(height: 8),
+                _buildBulkActionTile(
+                  Icons.qr_code,
+                  'Gerar QR Codes',
+                  'Para todos os participantes',
+                  const Color(0xFF3B82F6),
+                  () {
                     Navigator.pop(dialogContext);
                     _showMessage(
                       'Funcionalidade em desenvolvimento...',
-                      Colors.orange,
+                      const Color(0xFFF59E0B),
                     );
                   },
                 ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.email, color: Colors.green),
-                  title: const Text(
-                    'Enviar Convites',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                  subtitle: const Text(
-                    'Para participantes sem equipas',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  onTap: () {
+                const SizedBox(height: 8),
+                _buildBulkActionTile(
+                  Icons.email,
+                  'Enviar Convites',
+                  'Para participantes sem equipas',
+                  const Color(0xFF10B981),
+                  () {
                     Navigator.pop(dialogContext);
                     _showMessage(
                       'Funcionalidade em desenvolvimento...',
-                      Colors.orange,
+                      const Color(0xFFF59E0B),
                     );
                   },
                 ),
@@ -1123,11 +1278,55 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Fechar',
-                  style: TextStyle(color: Colors.blue),
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
           ),
+    );
+  }
+
+  Widget _buildBulkActionTile(
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
@@ -1137,11 +1336,15 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       builder:
           (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text(
               'Detalhes do Participante',
               style: TextStyle(
-                color: Colors.black,
+                color: Color(0xFF1A1A1A),
                 fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
             ),
             content: SingleChildScrollView(
@@ -1178,7 +1381,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Fechar',
-                  style: TextStyle(color: Colors.blue),
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -1188,22 +1395,26 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 120,
             child: Text(
               '$label:',
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+                fontSize: 14,
               ),
             ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.black)),
+            child: Text(
+              value,
+              style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -1219,20 +1430,31 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       builder:
           (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Text(
               'Confirmar Eliminação',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFFDC2626),
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
             ),
             content: Text(
               'Tem certeza que deseja eliminar o participante "${data['nome']}"?\n\nEsta ação não pode ser desfeita.',
-              style: const TextStyle(color: Colors.black),
+              style: const TextStyle(color: Color(0xFF374151), fontSize: 16),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Cancelar',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -1247,23 +1469,29 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       Navigator.of(context).pop();
                       _showMessage(
                         'Participante eliminado com sucesso!',
-                        Colors.green,
+                        const Color(0xFF10B981),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
                       _showMessage(
                         'Erro ao eliminar participante: $e',
-                        Colors.red,
+                        const Color(0xFFEF4444),
                       );
                     }
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: const Color(0xFFDC2626),
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Eliminar'),
+                child: const Text(
+                  'Eliminar',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -1272,9 +1500,24 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
   void _showMessage(String message, Color color) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
     }
   }
 }
@@ -1390,11 +1633,11 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
         }
       }
 
-      // Verificar se passageiros é um array de strings ou array de objetos
-      final passageirosData = _veiculoData!['passageiros'];
+      // Processar array de passageiros (pode conter IDs e objetos)
+      final passageirosData = _veiculoData!['passageiros'] as List? ?? [];
       _passageiros = [];
 
-      // Sempre adicionar o condutor primeiro (se existir e não estiver na lista)
+      // Sempre adicionar o condutor primeiro (se existir)
       if (condutorData != null) {
         _passageiros.add({
           'id': ownerId,
@@ -1407,56 +1650,56 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
         });
       }
 
-      if (passageirosData is List) {
-        for (var passageiroData in passageirosData) {
-          if (passageiroData is String) {
-            // Passageiro é um ID de usuário - pular se for o condutor (já adicionado)
-            if (passageiroData == ownerId) continue;
+      // Processar lista de passageiros
+      for (var passageiroData in passageirosData) {
+        if (passageiroData is String) {
+          // Passageiro é um ID de usuário - pular se for o condutor (já adicionado)
+          if (passageiroData == ownerId) continue;
 
-            try {
-              final userDoc =
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(passageiroData)
-                      .get();
+          try {
+            final userDoc =
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(passageiroData)
+                    .get();
 
-              if (userDoc.exists) {
-                final userData = userDoc.data() as Map<String, dynamic>;
-                _passageiros.add({
-                  'id': passageiroData,
-                  'nome': userData['nome'] ?? 'Nome não informado',
-                  'telefone': userData['telefone'] ?? '',
-                  'tshirt': userData['tshirt'] ?? 'M',
-                  'isCondutor': false,
-                  'isOriginal': true, // Passageiro já existente
-                  'isAcompanhanteOnly': false,
-                });
-              }
-            } catch (e) {
-              // Se não conseguir carregar um passageiro específico, continua
+            if (userDoc.exists) {
+              final userData = userDoc.data() as Map<String, dynamic>;
+              _passageiros.add({
+                'id': passageiroData,
+                'nome': userData['nome'] ?? 'Nome não informado',
+                'telefone': userData['telefone'] ?? '',
+                'tshirt': userData['tshirt'] ?? 'M',
+                'isCondutor': false,
+                'isOriginal': true, // Utilizador real existente
+                'isAcompanhanteOnly': false,
+              });
             }
-          } else if (passageiroData is Map) {
-            // Passageiro é um objeto direto no array
-            // Verificar se é o condutor comparando dados
-            final isCondutorObject =
-                condutorData != null &&
-                passageiroData['nome'] == condutorData['nome'] &&
-                passageiroData['telefone'] == condutorData['telefone'];
-
-            // Se é o condutor, pular porque já foi adicionado
-            if (isCondutorObject) continue;
-
-            _passageiros.add({
-              'id': null, // Não tem ID porque é objeto direto
-              'nome': passageiroData['nome'] ?? 'Nome não informado',
-              'telefone': passageiroData['telefone'] ?? '',
-              'tshirt': passageiroData['tshirt'] ?? 'M',
-              'isCondutor': false,
-              'isOriginal': true, // Passageiro já existente
-              'isAcompanhanteOnly': false,
-              'isDirectObject': true, // Marca como objeto direto
-            });
+          } catch (e) {
+            // Se não conseguir carregar um passageiro específico, continua
           }
+        } else if (passageiroData is Map<String, dynamic>) {
+          // Passageiro é um objeto direto (acompanhante)
+          // Verificar se é o condutor comparando dados
+          final isCondutorObject =
+              condutorData != null &&
+              passageiroData['nome'] == condutorData['nome'] &&
+              passageiroData['telefone'] == condutorData['telefone'];
+
+          // Se é o condutor, pular porque já foi adicionado
+          if (isCondutorObject) continue;
+
+          _passageiros.add({
+            'id': null, // Não tem ID porque é acompanhante
+            'nome': passageiroData['nome'] ?? 'Nome não informado',
+            'telefone': passageiroData['telefone'] ?? '',
+            'tshirt': passageiroData['tshirt'] ?? 'M',
+            'isCondutor': false,
+            'isOriginal': true, // Acompanhante já existente
+            'isAcompanhanteOnly': false,
+            'isDirectObject': true, // Marca como acompanhante direto
+            'isAcompanhante': passageiroData['isAcompanhante'] ?? true,
+          });
         }
       }
     } catch (e) {
@@ -1473,21 +1716,38 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AlertDialog(
+      return AlertDialog(
         backgroundColor: Colors.white,
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const SizedBox(
+          height: 120,
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+            ),
+          ),
         ),
       );
     }
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: [
-          const Icon(Icons.directions_car, color: Colors.blue),
-          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.directions_car,
+              color: Color(0xFF3B82F6),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1495,14 +1755,17 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                 const Text(
                   'Gerir Passageiros do Veículo',
                   style: TextStyle(
-                    color: Colors.black,
+                    color: Color(0xFF1A1A1A),
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 18,
                   ),
                 ),
                 Text(
                   _veiculoData?['matricula'] ?? 'Veículo',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
@@ -1510,17 +1773,19 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
         ],
       ),
       content: SizedBox(
-        width: 500,
-        height: 600,
+        width: 600,
+        height: 700,
         child: Column(
           children: [
             // Formulário para adicionar passageiro
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withOpacity(0.2),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1529,78 +1794,116 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                     'Adicionar Novo Passageiro',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _nomeController,
-                    style: const TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Color(0xFF1A1A1A)),
                     decoration: const InputDecoration(
                       labelText: 'Nome',
-                      prefixIcon: Icon(Icons.person),
+                      labelStyle: TextStyle(color: Color(0xFF374151)),
+                      prefixIcon: Icon(Icons.person, color: Color(0xFF3B82F6)),
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
+                        flex: 2,
                         child: TextField(
                           controller: _telefoneController,
-                          style: const TextStyle(color: Colors.black),
+                          style: const TextStyle(color: Color(0xFF1A1A1A)),
                           decoration: const InputDecoration(
                             labelText: 'Telefone',
-                            prefixIcon: Icon(Icons.phone),
+                            labelStyle: TextStyle(color: Color(0xFF374151)),
+                            prefixIcon: Icon(
+                              Icons.phone,
+                              color: Color(0xFF10B981),
+                            ),
                             border: OutlineInputBorder(),
                             isDense: true,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      DropdownButton<String>(
-                        value: _selectedTshirt,
-                        items:
-                            ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-                                .map(
-                                  (size) => DropdownMenuItem(
-                                    value: size,
-                                    child: Text(size),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedTshirt = value!;
-                          });
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedTshirt,
+                          style: const TextStyle(color: Color(0xFF1A1A1A)),
+                          decoration: const InputDecoration(
+                            labelText: 'T-Shirt',
+                            labelStyle: TextStyle(color: Color(0xFF374151)),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items:
+                              ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+                                  .map(
+                                    (size) => DropdownMenuItem(
+                                      value: size,
+                                      child: Text(size),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedTshirt = value!;
+                            });
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: _adicionarPassageiro,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Adicionar'),
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    label: const Text(
+                      'Adicionar',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF10B981),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Lista de passageiros
             Expanded(
               child:
                   _passageiros.isEmpty
                       ? const Center(
-                        child: Text(
-                          'Nenhum passageiro no veículo',
-                          style: TextStyle(color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Nenhum passageiro no veículo',
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                       : ListView.builder(
@@ -1608,27 +1911,32 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                         itemBuilder: (context, index) {
                           final passageiro = _passageiros[index];
                           final isCondutor = passageiro['isCondutor'] == true;
-                          // final isOriginal = passageiro['isOriginal'] == true;
 
-                          return Card(
+                          return Container(
                             margin: const EdgeInsets.only(bottom: 8),
-                            color:
-                                isCondutor
-                                    ? Colors.green.shade50
-                                    : Colors.white,
+                            decoration: BoxDecoration(
+                              color:
+                                  isCondutor
+                                      ? const Color(0xFFF0FDF4)
+                                      : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    isCondutor
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFE5E7EB),
+                              ),
+                            ),
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor:
                                     isCondutor
-                                        ? Colors.green.shade100
-                                        : Colors.blue.shade100,
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFF3B82F6),
                                 child: Text(
                                   (passageiro['nome'] ?? '?')[0].toUpperCase(),
-                                  style: TextStyle(
-                                    color:
-                                        isCondutor
-                                            ? Colors.green.shade800
-                                            : Colors.blue.shade800,
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -1640,25 +1948,26 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                                       passageiro['nome'] ??
                                           'Nome não informado',
                                       style: const TextStyle(
-                                        color: Colors.black,
+                                        color: Color(0xFF1A1A1A),
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
                                   if (isCondutor)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.shade100,
-                                        borderRadius: BorderRadius.circular(4),
+                                        color: const Color(0xFF10B981),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: Text(
+                                      child: const Text(
                                         'Condutor',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.green.shade800,
+                                          color: Colors.white,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -1667,7 +1976,9 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                               ),
                               subtitle: Text(
                                 '${passageiro['telefone'] ?? 'Sem telefone'} • T-Shirt: ${passageiro['tshirt'] ?? 'N/A'}',
-                                style: const TextStyle(color: Colors.black87),
+                                style: const TextStyle(
+                                  color: Color(0xFF6B7280),
+                                ),
                               ),
                               trailing:
                                   isCondutor
@@ -1677,7 +1988,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                                             () => _removerPassageiro(index),
                                         icon: const Icon(
                                           Icons.remove_circle,
-                                          color: Colors.red,
+                                          color: Color(0xFFEF4444),
                                         ),
                                         tooltip: 'Remover passageiro',
                                       ),
@@ -1689,23 +2000,22 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
 
             // Informação adicional
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.orange.shade700, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
+                  const Icon(Icons.info, color: Color(0xFFEA580C), size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Text(
                       'O condutor não pode ser removido. Novos passageiros serão registados como utilizadores temporários.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.orange.shade800,
-                      ),
+                      style: TextStyle(fontSize: 12, color: Color(0xFFEA580C)),
                     ),
                   ),
                 ],
@@ -1717,15 +2027,28 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Fechar', style: TextStyle(color: Colors.grey)),
+          child: const Text(
+            'Fechar',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: _salvarPassageiros,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            backgroundColor: const Color(0xFF3B82F6),
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-          child: const Text('Salvar'),
+          child: const Text(
+            'Salvar',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
@@ -1772,48 +2095,52 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
   Future<void> _salvarPassageiros() async {
     try {
       final veiculoId = widget.userData['veiculoId'];
+
+      // Separar passageiros por tipo
       List<String> passageiroIds = [];
+      List<Map<String, dynamic>> passageirosAcompanhantes = [];
 
       // Processar cada passageiro
       for (var passageiro in _passageiros) {
-        if (passageiro['isOriginal'] == true) {
-          // Passageiro já existente, manter ID
+        if (passageiro['isOriginal'] == true && passageiro['id'] != null) {
+          // Passageiro já existente (utilizador real), manter ID
+          passageiroIds.add(passageiro['id']);
+        } else if (passageiro['isCondutor'] == true) {
+          // Condutor sempre vai como ID na lista
           passageiroIds.add(passageiro['id']);
         } else {
-          // Novo passageiro, criar utilizador temporário
-          final novoUser = {
+          // Novo acompanhante - adicionar como objeto direto no array
+          passageirosAcompanhantes.add({
             'nome': passageiro['nome'],
             'telefone': passageiro['telefone'],
             'tshirt': passageiro['tshirt'],
-            'email': '', // Email vazio para passageiros temporários
-            'role': 'passageiro',
-            'ativo': true,
-            'veiculoId': veiculoId,
-            'isTemporary': true, // Marcar como temporário
-            'createdAt': FieldValue.serverTimestamp(),
-          };
-
-          final docRef = await FirebaseFirestore.instance
-              .collection('users')
-              .add(novoUser);
-
-          passageiroIds.add(docRef.id);
+            'isAcompanhante': true, // Marca como acompanhante
+          });
         }
       }
+
+      // Combinar IDs de utilizadores reais com objetos de acompanhantes
+      List<dynamic> passageirosFinal = [];
+
+      // Adicionar utilizadores reais (IDs)
+      passageirosFinal.addAll(passageiroIds);
+
+      // Adicionar acompanhantes (objetos)
+      passageirosFinal.addAll(passageirosAcompanhantes);
 
       // Atualizar lista de passageiros no veículo
       await FirebaseFirestore.instance
           .collection('veiculos')
           .doc(veiculoId)
           .update({
-            'passageiros': passageiroIds,
+            'passageiros': passageirosFinal,
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
       if (mounted) {
         Navigator.pop(context);
         widget.onSuccess(
-          'Passageiros atualizados com sucesso! Total: ${passageiroIds.length}',
+          'Passageiros atualizados com sucesso! Total: ${passageirosFinal.length} (${passageiroIds.length} utilizadores + ${passageirosAcompanhantes.length} acompanhantes)',
         );
       }
     } catch (e) {
@@ -1834,10 +2161,22 @@ class _PassageirosDialog extends StatelessWidget {
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         children: [
-          const Icon(Icons.directions_car, color: Colors.blue),
-          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.directions_car,
+              color: Color(0xFF3B82F6),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1845,14 +2184,17 @@ class _PassageirosDialog extends StatelessWidget {
                 Text(
                   veiculoData['matricula'] ?? 'Veículo',
                   style: const TextStyle(
-                    color: Colors.black,
+                    color: Color(0xFF1A1A1A),
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 18,
                   ),
                 ),
                 Text(
                   veiculoData['modelo'] ?? '',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
@@ -1860,111 +2202,139 @@ class _PassageirosDialog extends StatelessWidget {
         ],
       ),
       content: SizedBox(
-        width: 400,
-        height: 300,
+        width: 450,
+        height: 400,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Passageiros (${passageiros.length}):',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withOpacity(0.3),
+                ),
+              ),
+              child: Text(
+                'Passageiros e Acompanhantes (${passageiros.length}):',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E40AF),
+                  fontSize: 16,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Expanded(
               child:
                   passageiros.isEmpty
                       ? const Center(
-                        child: Text(
-                          'Nenhum passageiro registado',
-                          style: TextStyle(color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Nenhum passageiro registado',
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                       : ListView.builder(
                         itemCount: passageiros.length,
                         itemBuilder: (context, index) {
-                          final passageiroId = passageiros[index];
-                          return FutureBuilder<DocumentSnapshot>(
-                            future:
-                                FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(passageiroId)
-                                    .get(),
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
-                                return const ListTile(
-                                  leading: CircularProgressIndicator(),
-                                  title: Text('Carregando...'),
-                                );
-                              }
+                          final passageiroData = passageiros[index];
 
-                              if (!snapshot.data!.exists) {
-                                return ListTile(
-                                  leading: const Icon(
-                                    Icons.error,
-                                    color: Colors.red,
-                                  ),
-                                  title: const Text(
-                                    'Utilizador não encontrado',
-                                  ),
-                                  subtitle: Text('ID: $passageiroId'),
-                                );
-                              }
+                          // Se é um ID (string), buscar dados do utilizador
+                          if (passageiroData is String) {
+                            return FutureBuilder<DocumentSnapshot>(
+                              future:
+                                  FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(passageiroData)
+                                      .get(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF9FAFB),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const ListTile(
+                                      leading: CircularProgressIndicator(),
+                                      title: Text('Carregando...'),
+                                    ),
+                                  );
+                                }
 
-                              final userData =
-                                  snapshot.data!.data() as Map<String, dynamic>;
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 4),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: Colors.blue.shade100,
-                                    child: Text(
-                                      (userData['nome'] ?? '?')[0]
-                                          .toUpperCase(),
-                                      style: TextStyle(
-                                        color: Colors.blue.shade800,
-                                        fontWeight: FontWeight.bold,
+                                if (!snapshot.data!.exists) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(
+                                          0xFFEF4444,
+                                        ).withOpacity(0.3),
                                       ),
                                     ),
-                                  ),
-                                  title: Text(
-                                    userData['nome'] ?? 'Nome não informado',
-                                    style: const TextStyle(color: Colors.black),
-                                  ),
-                                  subtitle: Text(
-                                    userData['telefone'] ?? 'Sem telefone',
-                                    style: const TextStyle(
-                                      color: Colors.black87,
+                                    child: ListTile(
+                                      leading: const Icon(
+                                        Icons.error,
+                                        color: Color(0xFFEF4444),
+                                      ),
+                                      title: const Text(
+                                        'Utilizador não encontrado',
+                                        style: TextStyle(
+                                          color: Color(0xFF1A1A1A),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        'ID: $passageiroData',
+                                        style: const TextStyle(
+                                          color: Color(0xFF6B7280),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  trailing:
-                                      index == 0
-                                          ? Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.green.shade100,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              'Condutor',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.green.shade800,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          )
-                                          : null,
-                                ),
-                              );
-                            },
-                          );
+                                  );
+                                }
+
+                                final userData =
+                                    snapshot.data!.data()
+                                        as Map<String, dynamic>;
+                                final isCondutor =
+                                    index == 0; // Primeiro sempre é condutor
+
+                                return _buildPassageiroCard(
+                                  userData,
+                                  isCondutor,
+                                  'Utilizador',
+                                );
+                              },
+                            );
+                          }
+                          // Se é um objeto (Map), é um acompanhante direto
+                          else if (passageiroData is Map<String, dynamic>) {
+                            return _buildPassageiroCard(
+                              passageiroData,
+                              false,
+                              'Acompanhante',
+                            );
+                          }
+
+                          return const SizedBox.shrink();
                         },
                       ),
             ),
@@ -1974,9 +2344,109 @@ class _PassageirosDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Fechar', style: TextStyle(color: Colors.blue)),
+          child: const Text(
+            'Fechar',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPassageiroCard(
+    Map<String, dynamic> userData,
+    bool isCondutor,
+    String tipo,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color:
+            isCondutor
+                ? const Color(0xFFF0FDF4)
+                : tipo == 'Acompanhante'
+                ? const Color(0xFFFFF7ED)
+                : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color:
+              isCondutor
+                  ? const Color(0xFF10B981)
+                  : tipo == 'Acompanhante'
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor:
+              isCondutor
+                  ? const Color(0xFF10B981)
+                  : tipo == 'Acompanhante'
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF3B82F6),
+          child: Text(
+            (userData['nome'] ?? '?')[0].toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                userData['nome'] ?? 'Nome não informado',
+                style: const TextStyle(
+                  color: Color(0xFF1A1A1A),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (isCondutor)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Condutor',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            else if (tipo == 'Acompanhante')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Acompanhante',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          '${userData['telefone'] ?? 'Sem telefone'} • T-Shirt: ${userData['tshirt'] ?? 'N/A'}',
+          style: const TextStyle(color: Color(0xFF6B7280)),
+        ),
+      ),
     );
   }
 }
@@ -2055,84 +2525,106 @@ class _EquipaDialogState extends State<_EquipaDialog> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AlertDialog(
+      return AlertDialog(
         backgroundColor: Colors.white,
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const SizedBox(
+          height: 120,
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+            ),
+          ),
         ),
       );
     }
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         _isEdit ? 'Editar Equipa' : 'Criar Nova Equipa',
         style: const TextStyle(
-          color: Colors.black,
+          color: Color(0xFF1A1A1A),
           fontWeight: FontWeight.bold,
+          fontSize: 20,
         ),
       ),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 400,
+          width: 450,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: _nomeController,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 decoration: InputDecoration(
                   labelText: 'Nome da Equipa',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   hintText: 'Digite o nome da equipa',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.groups, color: Colors.blue),
+                  prefixIcon: const Icon(
+                    Icons.groups,
+                    color: Color(0xFF3B82F6),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _hinoController,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 maxLines: 3,
                 decoration: InputDecoration(
                   labelText: 'Hino/Grito de Guerra',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   hintText: 'Digite o grito de guerra da equipa',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.campaign, color: Colors.orange),
+                  prefixIcon: const Icon(
+                    Icons.campaign,
+                    color: Color(0xFFF59E0B),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedGrupo,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 dropdownColor: Colors.white,
                 decoration: InputDecoration(
                   labelText: 'Grupo',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.flag, color: Colors.green),
+                  prefixIcon: const Icon(Icons.flag, color: Color(0xFF10B981)),
                 ),
                 items:
                     ['A', 'B'].map((grupo) {
@@ -2140,7 +2632,7 @@ class _EquipaDialogState extends State<_EquipaDialog> {
                         value: grupo,
                         child: Text(
                           'Grupo $grupo',
-                          style: const TextStyle(color: Colors.black),
+                          style: const TextStyle(color: Color(0xFF1A1A1A)),
                         ),
                       );
                     }).toList(),
@@ -2157,15 +2649,28 @@ class _EquipaDialogState extends State<_EquipaDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: _salvarEquipa,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            backgroundColor: const Color(0xFF3B82F6),
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-          child: Text(_isEdit ? 'Atualizar' : 'Criar'),
+          child: Text(
+            _isEdit ? 'Atualizar' : 'Criar',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
@@ -2299,108 +2804,132 @@ class _VeiculoDialogState extends State<_VeiculoDialog> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AlertDialog(
+      return AlertDialog(
         backgroundColor: Colors.white,
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const SizedBox(
+          height: 120,
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+            ),
+          ),
         ),
       );
     }
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         _isEdit ? 'Editar Veículo' : 'Registar Novo Veículo',
         style: const TextStyle(
-          color: Colors.black,
+          color: Color(0xFF1A1A1A),
           fontWeight: FontWeight.bold,
+          fontSize: 20,
         ),
       ),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 400,
+          width: 450,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: _matriculaController,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
                   labelText: 'Matrícula',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   hintText: 'Ex: AA-123-BB',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
                   prefixIcon: const Icon(
                     Icons.directions_car,
-                    color: Colors.blue,
+                    color: Color(0xFF3B82F6),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _modeloController,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 decoration: InputDecoration(
                   labelText: 'Modelo do Veículo',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   hintText: 'Ex: Toyota Corolla',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.car_repair, color: Colors.green),
+                  prefixIcon: const Icon(
+                    Icons.car_repair,
+                    color: Color(0xFF10B981),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _disticoController,
-                style: const TextStyle(color: Colors.black),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 decoration: InputDecoration(
                   labelText: 'Dístico (Código)',
-                  labelStyle: const TextStyle(color: Colors.black87),
+                  labelStyle: const TextStyle(color: Color(0xFF374151)),
                   hintText: 'Código único do veículo',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
                   ),
-                  prefixIcon: const Icon(Icons.qr_code, color: Colors.orange),
+                  prefixIcon: const Icon(
+                    Icons.qr_code,
+                    color: Color(0xFFF59E0B),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF3B82F6).withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: Colors.blue.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
+                    const Icon(Icons.info, color: Color(0xFF1E40AF), size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
                       child: Text(
                         'O condutor atual será definido como proprietário do veículo.',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade800,
+                          fontSize: 14,
+                          color: Color(0xFF1E40AF),
                         ),
                       ),
                     ),
@@ -2414,15 +2943,28 @@ class _VeiculoDialogState extends State<_VeiculoDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: _salvarVeiculo,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-          child: Text(_isEdit ? 'Atualizar' : 'Registar'),
+          child: Text(
+            _isEdit ? 'Atualizar' : 'Registar',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );

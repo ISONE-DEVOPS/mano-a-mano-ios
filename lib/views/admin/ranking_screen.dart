@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mano_mano_dashboard/services/ranking_service.dart';
+import 'package:mano_mano_dashboard/widgets/shared/admin_page_wrapper.dart';
 
 class RankingScreen extends StatefulWidget {
   const RankingScreen({super.key});
@@ -31,55 +32,16 @@ class _RankingScreenState extends State<RankingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        backgroundColor: Colors.red.shade600,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: const Row(
-          children: [
-            Icon(Icons.leaderboard, size: 24),
-            SizedBox(width: 12),
-            Text(
-              'Ranking Shell ao KM',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ],
+    return AdminPageWrapper(
+      title: 'Ranking Shell ao KM',
+      actions: [
+        IconButton(
+          onPressed: () => _showRankingManagement(context),
+          icon: const Icon(Icons.settings),
+          tooltip: 'Gestão do Ranking',
         ),
-        actions: [
-          // Indicador de atualização em tempo real
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.shade600,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.live_tv, size: 16, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'AO VIVO',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => _showRankingManagement(context),
-            icon: const Icon(Icons.settings, size: 20),
-            tooltip: 'Gestão do Ranking',
-          ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
+      ],
+      child: StreamBuilder<QuerySnapshot>(
         stream: _rankingStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -101,20 +63,14 @@ class _RankingScreenState extends State<RankingScreen> {
             return _buildEmptyRanking();
           }
 
-          // Separar top 3 e restantes
           final top3 = rankingDocs.take(3).toList();
           final remaining = rankingDocs.skip(3).toList();
 
           return SingleChildScrollView(
             child: Column(
               children: [
-                // Header com estatísticas
                 _buildHeaderStats(rankingDocs),
-
-                // Pódium das 3 primeiras equipas
                 _buildPodium(top3),
-
-                // Lista das restantes equipas
                 if (remaining.isNotEmpty) _buildRemainingTeams(remaining),
               ],
             ),
@@ -173,18 +129,23 @@ class _RankingScreenState extends State<RankingScreen> {
               ),
             ),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatCard('Total Equipas', '$totalEquipas', Icons.groups),
-              _buildStatCard('Com Pontos', '$equipasComPontos', Icons.star),
-              _buildStatCard(
-                'Melhor Score',
-                '$pontucaoMais pts',
-                Icons.emoji_events,
-              ),
-              _buildStatCard('Status', 'AO VIVO', Icons.live_tv),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildStatCard('Total Equipas', '$totalEquipas', Icons.groups),
+                SizedBox(width: 12),
+                _buildStatCard('Com Pontos', '$equipasComPontos', Icons.star),
+                SizedBox(width: 12),
+                _buildStatCard(
+                  'Melhor Score',
+                  '$pontucaoMais pts',
+                  Icons.emoji_events,
+                ),
+                SizedBox(width: 12),
+                _buildStatCard('Status', 'AO VIVO', Icons.live_tv),
+              ],
+            ),
           ),
         ],
       ),
@@ -560,6 +521,14 @@ class _RankingScreenState extends State<RankingScreen> {
   }
 
   Widget _buildTeamRow(Map<String, dynamic> data, int position) {
+    if (data['equipaId'] == null ||
+        data['equipaId'].toString().trim().isEmpty) {
+      return const ListTile(
+        leading: Icon(Icons.error, color: Colors.red),
+        title: Text('Equipa desconhecida'),
+        subtitle: Text('ID da equipa ausente'),
+      );
+    }
     return FutureBuilder<DocumentSnapshot>(
       future:
           FirebaseFirestore.instance

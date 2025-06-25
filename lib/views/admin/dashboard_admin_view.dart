@@ -1,12 +1,13 @@
 // ================================
-// DASHBOARD ADMIN VIEW - COMPLETO ATUALIZADO
+// DASHBOARD ADMIN VIEW - UI MELHORADO PARA MAIOR VISIBILIDADE
 // ================================
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mano_mano_dashboard/services/ranking_service.dart';
-import 'qualification_grid_screen.dart'; // Nova tela dedicada
-import 'ranking_screen.dart'; // Nova tela dedicada
+//import 'package:mano_mano_dashboard/widgets/shared/admin_page_wrapper.dart';
+import 'qualification_grid_screen.dart';
+import 'ranking_screen.dart';
 
 class DashboardAdminView extends StatefulWidget {
   const DashboardAdminView({super.key});
@@ -19,113 +20,168 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
-          // Header otimizado
-          _buildHeader(context),
-
-          // Dashboard principal
-          Expanded(child: _buildMainDashboard(context)),
+          _buildEnhancedHeader(context),
+          Expanded(child: _buildImprovedMainDashboard(context)),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildEnhancedHeader(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.red.shade800, Colors.red.shade600],
+          colors: [
+            const Color(0xFFDC2626), // Shell Red Primary
+            const Color(0xFFEF4444), // Shell Red Light
+          ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withAlpha(77),
+            color: const Color(0xFFDC2626).withAlpha(64),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-      child: Column(
-        children: [
-          // Título principal mais compacto
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(51),
-                  borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Column(
+          children: [
+            // Linha principal do header - mais compacta
+            Row(
+              children: [
+                // Logo/Ícone compacto
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(38),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withAlpha(77),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.local_gas_station_rounded,
+                    size: 24,
+                    color: Colors.white,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.dashboard,
-                  size: 28,
-                  color: Colors.white,
+
+                const SizedBox(width: 16),
+
+                // Título compacto
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SHELL AO KM 2025',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      Text(
+                        'Dashboard Administrativo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withAlpha(20),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                // Informações do usuário
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(38),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withAlpha(77),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.white.withAlpha(77),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'linda@pagali.cv',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Botões de ação principais compactos
+                Row(
                   children: [
-                    Text(
-                      'SHELL AO KM 2025',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
+                    _buildCompactActionButton(
+                      context,
+                      'Grelha',
+                      Icons.grid_view_rounded,
+                      const Color(0xFF2563EB),
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const QualificationGridScreen(),
+                        ),
                       ),
                     ),
-                    Text(
-                      'Dashboard Administrativo',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    _buildCompactActionButton(
+                      context,
+                      'Ranking',
+                      Icons.leaderboard_rounded,
+                      const Color(0xFF059669),
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RankingScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
+              ],
+            ),
 
-              // Botões de navegação rápida mais compactos
-              Row(
-                children: [
-                  _buildCompactActionButton(
-                    context,
-                    'Grelha',
-                    Icons.grid_view,
-                    Colors.blue.shade600,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const QualificationGridScreen(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildCompactActionButton(
-                    context,
-                    'Ranking',
-                    Icons.leaderboard,
-                    Colors.green.shade600,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RankingScreen(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            const SizedBox(height: 16),
 
-          const SizedBox(height: 20),
-
-          // Estatísticas mais compactas
-          _buildCompactStatsHeader(),
-        ],
+            // Estatísticas em tempo real mais compactas
+            _buildCompactStatsRow(),
+          ],
+        ),
       ),
     );
   }
@@ -137,274 +193,382 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     Color color,
     VoidCallback onPressed,
   ) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(26),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        elevation: 4,
-        shadowColor: color.withAlpha(102),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        minimumSize: const Size(80, 32),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          minimumSize: const Size(80, 32),
+        ),
       ),
     );
   }
 
-  Widget _buildMainDashboard(BuildContext context) {
+  Widget _buildImprovedMainDashboard(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Seção principal
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade600,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.dashboard,
-                  size: 28,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Text(
-                'Visão Geral do Rally',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+          // Título da seção principal mais visível
+          _buildSectionHeader(
+            'Visão Geral do Rally',
+            'Monitoramento completo do evento em tempo real',
+            Icons.dashboard_rounded,
+            const Color(0xFFDC2626),
           ),
+
+          const SizedBox(height: 24),
+
+          // Cards de resumo com melhor hierarquia visual
+          _buildEnhancedSummaryCards(),
 
           const SizedBox(height: 32),
 
-          // Cards de resumo melhorados
-          _buildSummaryCards(),
+          // Seção de gestão com layout melhorado
+          _buildImprovedQuickManagement(context),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
 
-          // Seção de gestão rápida
-          _buildQuickManagementSection(context),
+          // Layout side-by-side para melhor aproveitamento do espaço
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Informações dos percursos
+              Expanded(flex: 3, child: _buildEnhancedRouteInformation()),
 
-          const SizedBox(height: 40),
+              const SizedBox(width: 24),
 
-          // Informações dos percursos
-          _buildRouteInformation(),
-
-          const SizedBox(height: 40),
-
-          // Atividade recente
-          _buildRecentActivity(),
+              // Atividade recente mais compacta
+              Expanded(flex: 2, child: _buildCompactRecentActivity()),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCards() {
+  Widget _buildSectionHeader(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [color.withAlpha(13), Colors.transparent],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(5), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withAlpha(77),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 28, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedSummaryCards() {
     return Row(
       children: [
         Expanded(
-          child: _buildImprovedSummaryCard(
-            'Evento Ativo',
+          child: _buildHighVisibilityCard(
+            'Rally Ativo',
             'Shell ao KM 2025',
-            Icons.event_available,
-            Colors.blue.shade600,
-            'Rally Paper em preparação',
+            'Rally Paper • 2ª Edição',
+            Icons.event_available_rounded,
+            const Color(0xFF2563EB),
+            Colors.blue.shade50,
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 16),
         Expanded(
-          child: _buildImprovedSummaryCard(
-            'Status do Sistema',
+          child: _buildHighVisibilityCard(
+            'Status Sistema',
             'Operacional',
-            Icons.check_circle,
-            Colors.green.shade600,
-            'Todos os sistemas funcionando',
+            'Todos os serviços ativos',
+            Icons.check_circle_rounded,
+            const Color(0xFF059669),
+            Colors.green.shade50,
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 16),
         Expanded(
-          child: _buildImprovedSummaryCard(
+          child: _buildHighVisibilityCard(
             'Data do Evento',
             '28 Jun 2025',
-            Icons.calendar_today,
-            Colors.orange.shade600,
-            'Sábado às 14h30',
+            'Sábado • 14h30 Kebra Canela',
+            Icons.calendar_today_rounded,
+            const Color(0xFFEA580C),
+            Colors.orange.shade50,
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 16),
         Expanded(
-          child: _buildImprovedSummaryCard(
-            'Local de Partida',
-            'Kebra Canela',
-            Icons.location_on,
-            Colors.red.shade600,
-            'Ponto de encontro confirmado',
+          child: _buildHighVisibilityCard(
+            'Checkpoints',
+            '8 Postos Shell',
+            'Percursos A e B configurados',
+            Icons.location_on_rounded,
+            const Color(0xFFDC2626),
+            Colors.red.shade50,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildImprovedSummaryCard(
+  Widget _buildHighVisibilityCard(
     String title,
     String value,
+    String subtitle,
     IconData icon,
     Color color,
-    String subtitle,
+    Color backgroundColor,
   ) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withAlpha(51), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: color.withAlpha(20),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Ícone com background colorido
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withAlpha(77)),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 32),
           ),
+
           const SizedBox(height: 20),
+
+          // Valor principal em destaque
           Text(
             value,
             style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
             ),
           ),
+
           const SizedBox(height: 8),
+
+          // Título
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              color: Colors.grey.shade700,
             ),
           ),
+
           const SizedBox(height: 4),
+
+          // Subtítulo
           Text(
             subtitle,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade500,
+              height: 1.3,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickManagementSection(BuildContext context) {
+  Widget _buildImprovedQuickManagement(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.grey.shade100,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header da seção
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade600,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withAlpha(77),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: const Icon(
-                  Icons.settings,
-                  size: 24,
+                  Icons.tune_rounded,
+                  size: 28,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(width: 16),
-              const Text(
-                'Gestão Rápida',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gestão Rápida',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    Text(
+                      'Acesso direto às principais funcionalidades',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          Row(
+          // Grid de ações melhorado
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.1,
             children: [
-              Expanded(
-                child: _buildManagementCard(
-                  'Ver Grelha de Qualificação',
-                  'Visualizar posições das equipas organizadas por grupos',
-                  Icons.grid_view,
-                  Colors.blue.shade600,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const QualificationGridScreen(),
-                    ),
+              _buildEnhancedActionCard(
+                'Grelha Qualificação',
+                'Visualizar posições organizadas por grupos A e B',
+                Icons.grid_view_rounded,
+                const Color(0xFF2563EB),
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const QualificationGridScreen(),
                   ),
                 ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildManagementCard(
-                  'Ver Ranking Completo',
-                  'Acompanhar classificação geral e pontuações',
-                  Icons.leaderboard,
-                  Colors.green.shade600,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RankingScreen(),
-                    ),
+              _buildEnhancedActionCard(
+                'Ranking Completo',
+                'Classificação geral e pontuações detalhadas',
+                Icons.leaderboard_rounded,
+                const Color(0xFF059669),
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RankingScreen(),
                   ),
                 ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildManagementCard(
-                  'Gestão do Ranking',
-                  'Recalcular pontuações e verificar inconsistências',
-                  Icons.refresh,
-                  Colors.orange.shade600,
-                  () => _showRankingManagement(context),
-                ),
+              _buildEnhancedActionCard(
+                'Recalcular Ranking',
+                'Atualizar pontuações e corrigir inconsistências',
+                Icons.refresh_rounded,
+                const Color(0xFFEA580C),
+                () => _showRankingManagement(context),
               ),
             ],
           ),
@@ -413,7 +577,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildManagementCard(
+  Widget _buildEnhancedActionCard(
     String title,
     String description,
     IconData icon,
@@ -422,59 +586,85 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withAlpha(26),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
             padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withAlpha(13), color.withAlpha(5)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withAlpha(77), width: 1.5),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Ícone
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(25),
+                    color: color.withAlpha(38),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 24),
                 ),
+
                 const SizedBox(height: 16),
+
+                // Título
                 Text(
                   title,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
+                // Descrição
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: Colors.grey.shade600,
                     height: 1.4,
                   ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 16),
+
+                const Spacer(),
+
+                // Indicador de ação
                 Row(
                   children: [
                     Text(
                       'Abrir',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: color,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, size: 16, color: color),
+                    Icon(Icons.arrow_forward_rounded, size: 16, color: color),
                   ],
                 ),
               ],
@@ -485,41 +675,70 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildRouteInformation() {
+  Widget _buildEnhancedRouteInformation() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.grey.shade100,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.indigo.shade600,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withAlpha(77),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.route, size: 24, color: Colors.white),
+                child: const Icon(
+                  Icons.route_rounded,
+                  size: 28,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 16),
-              const Text(
-                'Informações dos Percursos',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Percursos do Rally',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    Text(
+                      'Rotas configuradas para os grupos A e B',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -527,24 +746,43 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
 
           const SizedBox(height: 24),
 
-          Row(
+          // Percursos
+          Column(
             children: [
-              Expanded(
-                child: _buildRouteCard(
-                  'GRUPO A - PERCURSO NORTE',
-                  'Kebra Canela → Cidadela → São Filipe → Fazenda → Tira-Chapéu → Aeroporto → Várzea → Chã de Areia',
-                  Colors.blue.shade600,
-                  Icons.north,
-                ),
+              _buildDetailedRouteCard(
+                'GRUPO A - PERCURSO NORTE',
+                'Sentido horário pela cidade da Praia',
+                [
+                  'Kebra Canela (Partida)',
+                  'Cidadela',
+                  'São Filipe',
+                  'Fazenda',
+                  'Tira-Chapéu',
+                  'Aeroporto',
+                  'Várzea',
+                  'Chã de Areia (Meta)',
+                ],
+                const Color(0xFF2563EB),
+                Icons.north_rounded,
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: _buildRouteCard(
-                  'GRUPO B - PERCURSO SUL',
-                  'Kebra Canela → Chã de Areia → Várzea → Aeroporto → Tira-Chapéu → Fazenda → São Filipe → Cidadela',
-                  Colors.green.shade600,
-                  Icons.south,
-                ),
+
+              const SizedBox(height: 16),
+
+              _buildDetailedRouteCard(
+                'GRUPO B - PERCURSO SUL',
+                'Sentido anti-horário pela cidade da Praia',
+                [
+                  'Kebra Canela (Partida)',
+                  'Chã de Areia',
+                  'Várzea',
+                  'Aeroporto',
+                  'Tira-Chapéu',
+                  'Fazenda',
+                  'São Filipe',
+                  'Cidadela (Meta)',
+                ],
+                const Color(0xFF059669),
+                Icons.south_rounded,
               ),
             ],
           ),
@@ -553,9 +791,10 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildRouteCard(
+  Widget _buildDetailedRouteCard(
     String title,
     String description,
+    List<String> checkpoints,
     Color color,
     IconData icon,
   ) {
@@ -565,129 +804,211 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [color.withAlpha(25), Colors.white],
+          colors: [color.withAlpha(13), Colors.transparent],
         ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(77)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: color.withAlpha(77), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header do percurso
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade600,
+                  color: color,
                   borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withAlpha(77),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.notifications,
-                  size: 24,
-                  color: Colors.white,
-                ),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 16),
-              const Text(
-                'Atividade Recente',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
+          // Lista de checkpoints
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                checkpoints.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final checkpoint = entry.value;
+                  final isStart = index == 0;
+                  final isEnd = index == checkpoints.length - 1;
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isStart || isEnd
+                              ? color.withAlpha(38)
+                              : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color:
+                            isStart || isEnd
+                                ? color.withAlpha(128)
+                                : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                isStart || isEnd ? color : Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          checkpoint,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isStart || isEnd ? color : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactRecentActivity() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade100,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0891B2), Color(0xFF06B6D4)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0891B2).withAlpha(77),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Atividade Recente',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Lista de atividades
           Column(
             children: [
-              _buildActivityItem(
-                'Nova equipa registada',
-                'Equipa Flamingos registou-se no sistema',
-                '14:30',
-                Icons.add_circle,
-                Colors.green.shade600,
-              ),
-              const SizedBox(height: 16),
-              _buildActivityItem(
-                'Checkpoint atualizado',
-                'Posto de Tira-Chapéu foi configurado com sucesso',
-                '13:45',
-                Icons.edit,
-                Colors.blue.shade600,
-              ),
-              const SizedBox(height: 16),
-              _buildActivityItem(
-                'Novo participante',
-                'João Silva juntou-se às Águias do Norte',
-                '12:20',
-                Icons.person_add,
-                Colors.orange.shade600,
-              ),
-              const SizedBox(height: 16),
-              _buildActivityItem(
+              _buildCompactActivityItem(
                 'Sistema atualizado',
-                'Base de dados sincronizada automaticamente',
-                '11:15',
-                Icons.sync,
-                Colors.purple.shade600,
+                'Base de dados sincronizada',
+                '2 min',
+                Icons.sync_rounded,
+                const Color(0xFF7C3AED),
+              ),
+              _buildCompactActivityItem(
+                'Nova equipa',
+                'Equipa Flamingos registada',
+                '5 min',
+                Icons.add_circle_rounded,
+                const Color(0xFF059669),
+              ),
+              _buildCompactActivityItem(
+                'Checkpoint configurado',
+                'Posto Tira-Chapéu ativo',
+                '8 min',
+                Icons.edit_rounded,
+                const Color(0xFF2563EB),
+              ),
+              _buildCompactActivityItem(
+                'Novo participante',
+                'João Silva - Águias do Norte',
+                '12 min',
+                Icons.person_add_rounded,
+                const Color(0xFFEA580C),
               ),
             ],
           ),
@@ -696,31 +1017,26 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildActivityItem(
+  Widget _buildCompactActivityItem(
     String title,
     String subtitle,
     String time,
     IconData icon,
     Color color,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withAlpha(38),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: 16),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,15 +1044,14 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2937),
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -744,9 +1059,9 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
           Text(
             time,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -754,7 +1069,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildCompactStatsHeader() {
+  Widget _buildCompactStatsRow() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('equipas').snapshots(),
       builder: (context, equipasSnapshot) {
@@ -826,27 +1141,41 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                     final totalVeiculos = veiculosSnapshot.data!.docs.length;
 
                     return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildCompactStatIndicator(
-                          Icons.groups,
-                          'Equipas',
-                          totalEquipas,
+                        Expanded(
+                          child: _buildCompactStatCard(
+                            Icons.groups_rounded,
+                            'Equipas',
+                            totalEquipas,
+                            'registadas',
+                          ),
                         ),
-                        _buildCompactStatIndicator(
-                          Icons.local_gas_station,
-                          'Checkpoints',
-                          totalCheckpoints,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildCompactStatCard(
+                            Icons.local_gas_station_rounded,
+                            'Checkpoints',
+                            totalCheckpoints,
+                            'configurados',
+                          ),
                         ),
-                        _buildCompactStatIndicator(
-                          Icons.person,
-                          'Participantes',
-                          totalParticipantes,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildCompactStatCard(
+                            Icons.person_rounded,
+                            'Participantes',
+                            totalParticipantes,
+                            'inscritos',
+                          ),
                         ),
-                        _buildCompactStatIndicator(
-                          Icons.directions_car,
-                          'Veículos',
-                          totalVeiculos,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildCompactStatCard(
+                            Icons.directions_car_rounded,
+                            'Veículos',
+                            totalVeiculos,
+                            'registados',
+                          ),
                         ),
                       ],
                     );
@@ -860,16 +1189,20 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildCompactStatIndicator(IconData icon, String label, int count) {
+  Widget _buildCompactStatCard(
+    IconData icon,
+    String label,
+    int count,
+    String subtitle,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(51),
+        color: Colors.white.withAlpha(38),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(77)),
+        border: Border.all(color: Colors.white.withAlpha(77), width: 1),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 20, color: Colors.white),
           const SizedBox(height: 6),
@@ -877,7 +1210,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
             '$count',
             style: const TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
               color: Colors.white,
             ),
           ),
@@ -886,10 +1219,17 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
             label,
             style: const TextStyle(
               fontSize: 11,
-              color: Colors.white70,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.white.withAlpha(204),
               fontWeight: FontWeight.w500,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -905,7 +1245,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
 }
 
 // ================================
-// RANKING MANAGEMENT DIALOG
+// RANKING MANAGEMENT DIALOG - MELHORADO
 // ================================
 
 class RankingManagementDialog extends StatefulWidget {
@@ -922,88 +1262,204 @@ class _RankingManagementDialogState extends State<RankingManagementDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.leaderboard, color: Colors.red.shade600),
-          const SizedBox(width: 12),
-          const Text('Gestão do Ranking'),
-        ],
-      ),
-      content: SizedBox(
-        width: 400,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: 500,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, Colors.grey.shade50],
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Gerir o sistema de ranking do rally',
-              style: TextStyle(fontSize: 16),
+            // Header melhorado
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.leaderboard_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gestão do Ranking',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Recalcular pontuações do sistema',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
 
+            const SizedBox(height: 24),
+
+            // Conteúdo
             if (_lastUpdate != null)
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200, width: 1.5),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.check_circle,
+                      Icons.check_circle_rounded,
                       color: Colors.green.shade600,
-                      size: 20,
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Última atualização: ${_formatDateTime(_lastUpdate!)}',
-                      style: TextStyle(color: Colors.green.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Última atualização: ${_formatDateTime(_lastUpdate!)}',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            const Text(
-              'Informações do Sistema:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            // Informações do sistema
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200, width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_rounded,
+                        color: Colors.blue.shade600,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Informações do Sistema',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '• Atualização automática quando participante responde',
+                  ),
+                  const Text('• Recálculo manual quando necessário'),
+                  const Text(
+                    '• Ordenação por pontuação e checkpoints visitados',
+                  ),
+                  const Text('• Sincronização em tempo real'),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text('• Atualização automática quando participante responde'),
-            const Text('• Recálculo manual quando necessário'),
-            const Text('• Ordenação por pontuação e checkpoints'),
+
+            const SizedBox(height: 32),
+
+            // Botões de ação
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Fechar',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _isRecalculating ? null : _recalculateRanking,
+                    icon:
+                        _isRecalculating
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Icon(Icons.refresh_rounded),
+                    label: Text(
+                      _isRecalculating ? 'Recalculando...' : 'Recalcular Agora',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Fechar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: _isRecalculating ? null : _recalculateRanking,
-          icon:
-              _isRecalculating
-                  ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                  : const Icon(Icons.refresh),
-          label: Text(_isRecalculating ? 'Recalculando...' : 'Recalcular'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1020,9 +1476,22 @@ class _RankingManagementDialogState extends State<RankingManagementDialog> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Ranking recalculado com sucesso!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text(
+                  'Ranking recalculado com sucesso!',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1032,8 +1501,23 @@ class _RankingManagementDialogState extends State<RankingManagementDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Erro ao recalcular: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Erro ao recalcular: $e',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
