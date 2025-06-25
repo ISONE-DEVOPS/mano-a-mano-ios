@@ -1017,16 +1017,6 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   }
 
   void _gerirAcompanhantes(String userId, Map<String, dynamic> userData) {
-    // Verificar se o usuário tem veículo associado
-    final veiculoId = userData['veiculoId'];
-    if (veiculoId == null || veiculoId.isEmpty) {
-      _showMessage(
-        'Participante deve ter um veículo associado para gerir acompanhantes',
-        Colors.orange,
-      );
-      return;
-    }
-
     showDialog(
       context: context,
       builder:
@@ -1331,8 +1321,39 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
   Future<void> _loadPassageiros() async {
     try {
       final veiculoId = widget.userData['veiculoId'];
+
+      // Se não tem veículo, mostra apenas opção de adicionar acompanhantes sem veículo
       if (veiculoId == null || veiculoId.isEmpty) {
-        widget.onError('Participante não tem veículo associado');
+        // Carregar acompanhantes diretos do user (se houver)
+        final userDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.userId)
+                .get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          final acompanhantes = userData['acompanhantes'] as List? ?? [];
+
+          _passageiros = [];
+          for (var acompanhante in acompanhantes) {
+            _passageiros.add({
+              'id': null, // Não é um user real
+              'nome': acompanhante['nome'] ?? 'Nome não informado',
+              'telefone': acompanhante['telefone'] ?? '',
+              'tshirt': acompanhante['tshirt'] ?? 'M',
+              'isCondutor': false,
+              'isOriginal': false, // Acompanhante direto
+              'isAcompanhanteOnly': true, // Marca como acompanhante sem veículo
+            });
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -1349,35 +1370,56 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
       }
 
       _veiculoData = veiculoDoc.data() as Map<String, dynamic>;
-      final passageiroIds = (_veiculoData!['passageiros'] as List? ?? []);
 
-      // Carregar dados de cada passageiro
+      // Verificar se passageiros é um array de strings ou array de objetos
+      final passageirosData = _veiculoData!['passageiros'];
       _passageiros = [];
-      for (String passageiroId in passageiroIds) {
-        try {
-          final userDoc =
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(passageiroId)
-                  .get();
 
-          if (userDoc.exists) {
-            final userData = userDoc.data() as Map<String, dynamic>;
+      if (passageirosData is List) {
+        for (var i = 0; i < passageirosData.length; i++) {
+          final passageiroData = passageirosData[i];
+
+          if (passageiroData is String) {
+            // Passageiro é um ID de usuário - carregar dados do Firestore
+            try {
+              final userDoc =
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(passageiroData)
+                      .get();
+
+              if (userDoc.exists) {
+                final userData = userDoc.data() as Map<String, dynamic>;
+                _passageiros.add({
+                  'id': passageiroData,
+                  'nome': userData['nome'] ?? 'Nome não informado',
+                  'telefone': userData['telefone'] ?? '',
+                  'tshirt': userData['tshirt'] ?? 'M',
+                  'isCondutor': passageiroData == _veiculoData!['ownerId'],
+                  'isOriginal': true, // Passageiro já existente
+                  'isAcompanhanteOnly': false,
+                });
+              }
+            } catch (e) {
+              // Se não conseguir carregar um passageiro específico, continua
+            }
+          } else if (passageiroData is Map) {
+            // Passageiro é um objeto direto no array
             _passageiros.add({
-              'id': passageiroId,
-              'nome': userData['nome'] ?? 'Nome não informado',
-              'telefone': userData['telefone'] ?? '',
-              'tshirt': userData['tshirt'] ?? 'M',
-              'isCondutor': passageiroId == _veiculoData!['ownerId'],
+              'id': null, // Não tem ID porque é objeto direto
+              'nome': passageiroData['nome'] ?? 'Nome não informado',
+              'telefone': passageiroData['telefone'] ?? '',
+              'tshirt': passageiroData['tshirt'] ?? 'M',
+              'isCondutor': i == 0, // Primeiro passageiro é sempre o condutor
               'isOriginal': true, // Passageiro já existente
+              'isAcompanhanteOnly': false,
+              'isDirectObject': true, // Marca como objeto direto
             });
           }
-        } catch (e) {
-          // Se não conseguir carregar um passageiro específico, continua
         }
       }
     } catch (e) {
-      widget.onError('Erro ao carregar passageiros: $e');
+      widget.onError('Erro ao carregar dados: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -1525,7 +1567,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                         itemBuilder: (context, index) {
                           final passageiro = _passageiros[index];
                           final isCondutor = passageiro['isCondutor'] == true;
-                          // Removed unused isOriginal variable
+                          //final isOriginal = passageiro['isOriginal'] == true;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -1654,6 +1696,10 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
       return;
     }
 
+    final hasVeiculo =
+        widget.userData['veiculoId'] != null &&
+        widget.userData['veiculoId'].toString().isNotEmpty;
+
     setState(() {
       _passageiros.add({
         'id': null, // Será criado ao salvar
@@ -1661,7 +1707,8 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
         'telefone': _telefoneController.text.trim(),
         'tshirt': _selectedTshirt,
         'isCondutor': false,
-        'isOriginal': false, // Novo passageiro
+        'isOriginal': false, // Novo passageiro/acompanhante
+        'isAcompanhanteOnly': !hasVeiculo, // Se não tem veículo, é acompanhante
       });
       _nomeController.clear();
       _telefoneController.clear();
