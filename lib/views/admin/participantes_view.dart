@@ -973,12 +973,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               ElevatedButton(
                 onPressed: () async {
                   if (nomeController.text.trim().isEmpty) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                        context,
-                        'O nome da equipa é obrigatório',
-                      );
-                    }
+                    if (!mounted) return;
+                    _showErrorSnackBar(
+                      context,
+                      'O nome da equipa é obrigatório',
+                    );
                     return;
                   }
 
@@ -1019,22 +1018,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .doc(userId)
                         .update({'equipaId': finalEquipaId});
 
-                    if (mounted) {
-                      Navigator.pop(ctx);
-                      _showSuccessSnackBar(
-                        context,
-                        isEdit
-                            ? 'Equipa atualizada com sucesso!'
-                            : 'Equipa criada com sucesso!',
-                      );
-                    }
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _showSuccessSnackBar(
+                      context,
+                      isEdit
+                          ? 'Equipa atualizada com sucesso!'
+                          : 'Equipa criada com sucesso!',
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                        context,
-                        'Erro ao ${isEdit ? 'atualizar' : 'criar'} equipa: $e',
-                      );
-                    }
+                    if (!mounted) return;
+                    _showErrorSnackBar(
+                      context,
+                      'Erro ao ${isEdit ? 'atualizar' : 'criar'} equipa: $e',
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -1225,9 +1222,8 @@ class _ParticipantesViewState extends State<ParticipantesView> {
               ElevatedButton(
                 onPressed: () async {
                   if (matriculaController.text.trim().isEmpty) {
-                    if (mounted) {
-                      _showErrorSnackBar(context, 'A matrícula é obrigatória');
-                    }
+                    if (!mounted) return;
+                    _showErrorSnackBar(context, 'A matrícula é obrigatória');
                     return;
                   }
 
@@ -1283,22 +1279,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .doc(userId)
                         .update({'veiculoId': finalVeiculoId});
 
-                    if (mounted) {
-                      Navigator.pop(ctx);
-                      _showSuccessSnackBar(
-                        context,
-                        isEdit
-                            ? 'Veículo atualizado com sucesso!'
-                            : 'Veículo registado com sucesso!',
-                      );
-                    }
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _showSuccessSnackBar(
+                      context,
+                      isEdit
+                          ? 'Veículo atualizado com sucesso!'
+                          : 'Veículo registado com sucesso!',
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                        context,
-                        'Erro ao ${isEdit ? 'atualizar' : 'registar'} veículo: $e',
-                      );
-                    }
+                    if (!mounted) return;
+                    _showErrorSnackBar(
+                      context,
+                      'Erro ao ${isEdit ? 'atualizar' : 'registar'} veículo: $e',
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -1520,20 +1514,18 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .doc(doc.id)
                         .delete();
 
-                    if (mounted) {
-                      Navigator.pop(ctx);
-                      _showSuccessSnackBar(
-                        context,
-                        'Participante eliminado com sucesso!',
-                      );
-                    }
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _showSuccessSnackBar(
+                      context,
+                      'Participante eliminado com sucesso!',
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      _showErrorSnackBar(
-                        context,
-                        'Erro ao eliminar participante: $e',
-                      );
-                    }
+                    if (!mounted) return;
+                    _showErrorSnackBar(
+                      context,
+                      'Erro ao eliminar participante: $e',
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(

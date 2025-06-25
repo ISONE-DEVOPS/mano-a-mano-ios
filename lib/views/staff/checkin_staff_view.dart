@@ -107,92 +107,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         ),
         body: Column(
           children: [
-            // Header com instruções
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.blue[700]!, Colors.blue[500]!],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 25),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(51),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: const Icon(
-                            Icons.qr_code_scanner,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Scanner QR Code',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Aponte a câmera para o QR do participante',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // Botões de navegação rápida
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildHeaderButton(
-                            'Jogos',
-                            Icons.sports_esports,
-                            () => Get.offNamed('/staff/jogos'),
-                            Colors.green,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildHeaderButton(
-                            'Menu Staff',
-                            Icons.home,
-                            _safeNavigateHome,
-                            Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // Conteúdo principal
             Expanded(
               child: SingleChildScrollView(
@@ -213,48 +127,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 ),
               ),
             ),
+            // Garantir que o nav bottom sempre apareça
             const StaffNavBottom(),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderButton(
-    String text,
-    IconData icon,
-    VoidCallback onPressed,
-    Color color,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha((0.15 * 255).round()),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha((0.3 * 255).round())),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -302,9 +177,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
             ),
             const SizedBox(height: 20),
 
-            // Scanner com overlay melhorado
+            // Scanner com tamanho reduzido
             Container(
-              height: MediaQuery.of(context).size.width * 0.65,
+              height: 250, // Reduzido para ser mais compacto
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.blue[200]!, width: 2),
@@ -445,9 +320,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             // Dicas de uso
             Container(
               padding: const EdgeInsets.all(16),
@@ -544,7 +417,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                     ),
                   ),
                   IconButton(
-                    onPressed: _resetScanner,
+                    onPressed: _resetParticipantData,
                     icon: const Icon(Icons.restart_alt, color: Colors.grey),
                     tooltip: 'Escanear outro participante',
                   ),
@@ -624,10 +497,9 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
 
-          // Loading de jogos ou dropdown de jogos
+          // Loading de jogos
           if (_loadingJogos)
             Card(
               elevation: 3,
@@ -645,156 +517,285 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 ),
               ),
             )
-          else if (_selectedCheckpointId != null && jogosNaoPontuados.isEmpty)
-            Card(
-              elevation: 3,
-              color: Colors.orange[50],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.orange),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Nenhum jogo disponível para este checkpoint",
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (_selectedCheckpointId != null) ...[
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: 'Selecione o jogo',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: const Icon(Icons.sports_esports),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  items:
-                      jogosNaoPontuados.map((jogo) {
-                        return DropdownMenuItem<String>(
-                          value: jogo['id'],
-                          child: Text(
-                            '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
-                          ),
-                        );
-                      }).toList(),
-                  value: _selectedJogoId,
-                  onChanged: (v) {
-                    setState(() {
-                      _selectedJogoId = v;
-                      _pontuacaoController.clear();
-                      _pontuacao = null;
-                    });
-                  },
-                  validator: (v) => v == null ? 'Selecione um jogo' : null,
-                ),
-              ),
-            ),
-
+          // Mostrar jogos já pontuados
+          else if (_selectedCheckpointId != null &&
+              _jogosDisponiveis.isNotEmpty) ...[
+            _buildJogosStatus(),
             const SizedBox(height: 16),
 
-            // Campo de pontuação
-            if (_selectedJogoId != null) ...[
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextFormField(
-                    controller: _pontuacaoController,
-                    decoration: InputDecoration(
-                      labelText:
-                          'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      prefixIcon: const Icon(Icons.score),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) {
-                      setState(() {
-                        _pontuacao = int.tryParse(v);
-                      });
-                    },
-                    validator: _validatePontuacao,
-                  ),
-                ),
-              ),
+            // Se há jogos não pontuados, mostra o formulário
+            if (jogosNaoPontuados.isNotEmpty) ...[
+              _buildJogoSelector(jogosNaoPontuados),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 24),
-
-              // Botão de salvar melhorado
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 6,
-                  ),
-                  onPressed: _loading ? null : _savePontuacao,
-                  child:
-                      _loading
-                          ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Text('Salvando...'),
-                            ],
-                          )
-                          : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.save, size: 24),
-                              SizedBox(width: 8),
-                              Text(
-                                'Salvar Pontuação',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                ),
-              ),
+              // Campo de pontuação
+              if (_selectedJogoId != null) ...[
+                _buildPontuacaoField(jogosNaoPontuados),
+                const SizedBox(height: 24),
+                _buildSaveButton(),
+              ],
             ],
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildJogosStatus() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[600]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Status dos Jogos',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Lista de todos os jogos com status
+            ..._jogosDisponiveis.map((jogo) {
+              final isPontuado = _jogosJaPontuados.contains(jogo['id']);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isPontuado ? Colors.green[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color:
+                        isPontuado ? Colors.green[200]! : Colors.orange[200]!,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isPontuado ? Icons.check_circle : Icons.pending,
+                      color: isPontuado ? Colors.green : Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            jogo['nome'] ?? 'Jogo sem nome',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            isPontuado ? 'Já pontuado' : 'Aguardando pontuação',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  isPontuado
+                                      ? Colors.green[700]
+                                      : Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Max: ${jogo['pontuacaoMax']} pts',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
+            // Resumo
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.analytics, color: Colors.blue[600], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Progresso: ${_jogosJaPontuados.length}/${_jogosDisponiveis.length} jogos pontuados',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJogoSelector(List<Map<String, dynamic>> jogosNaoPontuados) {
+    if (jogosNaoPontuados.isEmpty) {
+      return Card(
+        elevation: 3,
+        color: Colors.green[50],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Todos os jogos deste checkpoint já foram pontuados! 🎉",
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: 'Selecione o próximo jogo para pontuar',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            prefixIcon: const Icon(Icons.sports_esports),
+            filled: true,
+            fillColor: Colors.grey[50],
+            helperText: '${jogosNaoPontuados.length} jogo(s) restante(s)',
+          ),
+          items:
+              jogosNaoPontuados.map((jogo) {
+                return DropdownMenuItem<String>(
+                  value: jogo['id'],
+                  child: Text(
+                    '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                  ),
+                );
+              }).toList(),
+          value: _selectedJogoId,
+          onChanged: (v) {
+            setState(() {
+              _selectedJogoId = v;
+              _pontuacaoController.clear();
+              _pontuacao = null;
+            });
+          },
+          validator: (v) => v == null ? 'Selecione um jogo' : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPontuacaoField(List<Map<String, dynamic>> jogosNaoPontuados) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: TextFormField(
+          controller: _pontuacaoController,
+          decoration: InputDecoration(
+            labelText:
+                'Pontuação (0 - ${jogosNaoPontuados.firstWhereOrNull((j) => j['id'] == _selectedJogoId)?['pontuacaoMax'] ?? 100})',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            prefixIcon: const Icon(Icons.score),
+            filled: true,
+            fillColor: Colors.grey[50],
+            helperText: 'Digite a pontuação obtida pelo participante',
+          ),
+          keyboardType: TextInputType.number,
+          onChanged: (v) => setState(() => _pontuacao = int.tryParse(v)),
+          validator: _validatePontuacao,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          elevation: 6,
+        ),
+        onPressed:
+            _loading
+                ? null
+                : _canSave()
+                ? _savePontuacao
+                : null,
+        child:
+            _loading
+                ? const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Salvando...'),
+                  ],
+                )
+                : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.save, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Salvar Pontuação',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+      ),
+    );
+  }
+
+  // Método para verificar se pode salvar
+  bool _canSave() {
+    return _selectedCheckpointId != null &&
+        _selectedJogoId != null &&
+        _pontuacao != null &&
+        _pontuacaoController.text.isNotEmpty &&
+        _validatePontuacao(_pontuacaoController.text) == null;
   }
 
   // MÉTODOS DE NAVEGAÇÃO
@@ -833,19 +834,14 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
   Future<void> _safeNavigateBack() async {
     final canExit = await _showExitConfirmation();
-    if (canExit) {
-      Get.back();
-    }
+    if (canExit) Get.back();
   }
 
   Future<void> _safeNavigateHome() async {
     final canExit = await _showExitConfirmation();
-    if (canExit) {
-      Get.offAllNamed('/staff-home');
-    }
+    if (canExit) Get.offAllNamed('/staff-home');
   }
 
-  // [Resto dos métodos permanecem iguais...]
   Future<void> _checkStaffPermission() async {
     if (!_authService.isStaff && !_authService.isAdmin) {
       Get.back();
@@ -860,28 +856,18 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   }
 
   String? _validatePontuacao(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Digite a pontuação';
-    }
+    if (value == null || value.isEmpty) return 'Digite a pontuação';
 
     final val = int.tryParse(value);
-    if (val == null) {
-      return 'Digite um número válido';
-    }
-
-    if (val < 0) {
-      return 'Pontuação não pode ser negativa';
-    }
+    if (val == null) return 'Digite um número válido';
+    if (val < 0) return 'Pontuação não pode ser negativa';
 
     final maxPontuacao =
         _jogosDisponiveis.firstWhereOrNull(
           (j) => j['id'] == _selectedJogoId,
         )?['pontuacaoMax'] ??
         100;
-
-    if (val > maxPontuacao) {
-      return 'Pontuação máxima é $maxPontuacao';
-    }
+    if (val > maxPontuacao) return 'Pontuação máxima é $maxPontuacao';
 
     return null;
   }
@@ -909,6 +895,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
               };
             }).toList();
       });
+
       if (_checkpoints.isEmpty) {
         Get.snackbar(
           'Sem checkpoints',
@@ -924,9 +911,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   }
 
   Future<void> _loadJogosFromCheckpoint(Map<String, dynamic> checkpoint) async {
-    setState(() {
-      _loadingJogos = true;
-    });
+    setState(() => _loadingJogos = true);
 
     List<Map<String, dynamic>> jogos = [];
 
@@ -1071,8 +1056,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         };
       });
 
-      // Apenas exibe o formulário, não define checkpoint automaticamente.
-
       Get.snackbar(
         'Sucesso',
         'Dados do participante carregados: $nome',
@@ -1096,7 +1079,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         duration: const Duration(seconds: 3),
       );
 
-      _resetScanner();
+      _resetParticipantData();
     }
   }
 
@@ -1140,7 +1123,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
           .collection('pontuacoes')
           .doc(_selectedCheckpointId!);
 
-      // Garante que o documento do checkpoint existe e cria timestampEntrada se ainda não existir o documento
+      // Garante que o documento do checkpoint existe
       final docSnapshot = await docRef.get();
       if (!docSnapshot.exists) {
         await docRef.set({
@@ -1155,8 +1138,30 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
 
-      await _showSuccessDialog();
-      Get.offAllNamed('/staff/jogos');
+      // Atualizar lista de jogos já pontuados
+      setState(() {
+        _jogosJaPontuados.add(_selectedJogoId!);
+      });
+
+      final remainingGames =
+          _jogosDisponiveis
+              .where((j) => !_jogosJaPontuados.contains(j['id']))
+              .length;
+
+      if (remainingGames > 0) {
+        // Ainda há jogos para pontuar - resetar formulário para o próximo jogo
+        await _showSuccessAndContinueDialog(remainingGames);
+
+        setState(() {
+          _selectedJogoId = null;
+          _pontuacao = null;
+        });
+        _pontuacaoController.clear();
+      } else {
+        // Todos os jogos foram pontuados - mostrar sucesso final
+        await _showFinalSuccessDialog();
+        Get.offAllNamed('/staff/jogos');
+      }
     } catch (e) {
       developer.log('Error saving score: $e', name: 'StaffScoreInput');
 
@@ -1172,7 +1177,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  Future<void> _showSuccessDialog() async {
+  Future<void> _showSuccessAndContinueDialog(int remainingGames) async {
     await showDialog(
       context: context,
       builder:
@@ -1199,14 +1204,125 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Pontuação Salva!',
+                    'Pontuação Salva! ✅',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'A pontuação foi registrada com sucesso para ${_participanteData['nome']}',
+                    'Jogo pontuado com sucesso para ${_participanteData['nome']}',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue[600], size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Restam $remainingGames jogo(s) para pontuar neste checkpoint',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Continuar Pontuando'),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _showFinalSuccessDialog() async {
+    await showDialog(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            content: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green[100],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.celebration,
+                      color: Colors.green,
+                      size: 48,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Checkpoint Completo! 🎉',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Todos os jogos foram pontuados para ${_participanteData['nome']} neste checkpoint!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.green[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Participante pode prosseguir para o próximo checkpoint',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1223,7 +1339,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                     ),
                   ),
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('OK'),
+                  child: const Text('Finalizar'),
                 ),
               ),
             ],
@@ -1231,7 +1347,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     );
   }
 
-  void _resetScanner() {
+  void _resetParticipantData() {
     setState(() {
       _qrLido = false;
       _selectedCheckpointId = null;
