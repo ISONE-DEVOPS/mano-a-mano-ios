@@ -1,5 +1,5 @@
 // ================================
-// RANKING SCREEN - CABEÇALHO OTIMIZADO
+// RANKING SCREEN - PÓDIUM + REAL-TIME
 // ================================
 
 import 'package:flutter/material.dart';
@@ -16,6 +16,18 @@ class RankingScreen extends StatefulWidget {
 class _RankingScreenState extends State<RankingScreen> {
   bool _isRecalculating = false;
   DateTime? _lastUpdate;
+  late Stream<QuerySnapshot> _rankingStream;
+
+  @override
+  void initState() {
+    super.initState();
+    // Stream em tempo real
+    _rankingStream =
+        FirebaseFirestore.instance
+            .collection('ranking')
+            .orderBy('pontuacao', descending: true)
+            .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,236 +42,636 @@ class _RankingScreenState extends State<RankingScreen> {
             Icon(Icons.leaderboard, size: 24),
             SizedBox(width: 12),
             Text(
-              'Ranking Geral',
+              'Ranking Shell ao KM',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
         actions: [
+          // Indicador de atualização em tempo real
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green.shade600,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.live_tv, size: 16, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  'AO VIVO',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
           IconButton(
             onPressed: () => _showRankingManagement(context),
             icon: const Icon(Icons.settings, size: 20),
             tooltip: 'Gestão do Ranking',
           ),
-          IconButton(
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh, size: 20),
-            tooltip: 'Atualizar',
-          ),
-          const SizedBox(width: 16),
         ],
       ),
-      body: Column(
-        children: [
-          // Header compacto otimizado
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.red.shade600, Colors.red.shade500],
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _rankingStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Carregando ranking...'),
+                ],
               ),
-            ),
+            );
+          }
+
+          final rankingDocs = snapshot.data!.docs;
+
+          if (rankingDocs.isEmpty) {
+            return _buildEmptyRanking();
+          }
+
+          // Separar top 3 e restantes
+          final top3 = rankingDocs.take(3).toList();
+          final remaining = rankingDocs.skip(3).toList();
+
+          return SingleChildScrollView(
             child: Column(
               children: [
-                const Text(
-                  'SHELL AO KM 2025',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Classificação geral por pontuação',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
-                ),
-                const SizedBox(height: 12),
-                _buildCompactRankingStats(),
+                // Header com estatísticas
+                _buildHeaderStats(rankingDocs),
+
+                // Pódium das 3 primeiras equipas
+                _buildPodium(top3),
+
+                // Lista das restantes equipas
+                if (remaining.isNotEmpty) _buildRemainingTeams(remaining),
               ],
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeaderStats(List<QueryDocumentSnapshot> docs) {
+    final totalEquipas = docs.length;
+    final pontucaoMais =
+        totalEquipas > 0
+            ? (docs.first.data() as Map<String, dynamic>)['pontuacao'] ?? 0
+            : 0;
+    final equipasComPontos =
+        docs
+            .where(
+              (doc) =>
+                  ((doc.data() as Map<String, dynamic>)['pontuacao'] ?? 0) > 0,
+            )
+            .length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.red.shade600, Colors.red.shade500],
+        ),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'SHELL AO KM 2025',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2.0,
+            ),
           ),
-
-          // Status do último recálculo
-          if (_lastUpdate != null) _buildLastUpdateInfo(),
-
-          // Lista do ranking
-          Expanded(child: _buildRankingList()),
+          const SizedBox(height: 8),
+          Text(
+            'Classificação Geral - Atualização em Tempo Real',
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+          if (_lastUpdate != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'Última atualização: ${_formatDateTime(_lastUpdate!)}',
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+            ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStatCard('Total Equipas', '$totalEquipas', Icons.groups),
+              _buildStatCard('Com Pontos', '$equipasComPontos', Icons.star),
+              _buildStatCard(
+                'Melhor Score',
+                '$pontucaoMais pts',
+                Icons.emoji_events,
+              ),
+              _buildStatCard('Status', 'AO VIVO', Icons.live_tv),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCompactRankingStats() {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('ranking')
-              .orderBy('pontuacao', descending: true)
-              .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox(
-            height: 40,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
+  Widget _buildStatCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(51),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(77)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPodium(List<QueryDocumentSnapshot> top3) {
+    return Container(
+      margin: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          // Título do pódium
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.yellow.shade600, Colors.yellow.shade500],
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
             ),
-          );
-        }
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.emoji_events, color: Colors.white, size: 32),
+                SizedBox(width: 12),
+                Text(
+                  'PÓDIUM - TOP 3',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-        final totalEquipas = snapshot.data!.docs.length;
-        final pontucaoMais =
-            totalEquipas > 0
-                ? (snapshot.data!.docs.first.data()
-                        as Map<String, dynamic>)['pontuacao'] ??
-                    0
-                : 0;
-        final equipasComPontos =
-            snapshot.data!.docs
-                .where(
-                  (doc) =>
-                      ((doc.data() as Map<String, dynamic>)['pontuacao'] ?? 0) >
-                      0,
-                )
-                .length;
+          // Pódium visual
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade300,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Layout do pódium (2º, 1º, 3º)
+                if (top3.isNotEmpty) _buildPodiumLayout(top3),
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPodiumLayout(List<QueryDocumentSnapshot> top3) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 2º Lugar
+          if (top3.length > 1)
+            _buildPodiumStep(top3[1], 2, 120, Colors.grey.shade500),
+
+          // 1º Lugar (mais alto)
+          if (top3.isNotEmpty)
+            _buildPodiumStep(top3[0], 1, 160, Colors.yellow.shade600),
+
+          // 3º Lugar
+          if (top3.length > 2)
+            _buildPodiumStep(top3[2], 3, 100, Colors.brown.shade500),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPodiumStep(
+    QueryDocumentSnapshot doc,
+    int position,
+    double height,
+    Color color,
+  ) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance
+              .collection('equipas')
+              .doc(data['equipaId'])
+              .get(),
+      builder: (context, equipaSnapshot) {
+        final equipaData =
+            equipaSnapshot.hasData
+                ? (equipaSnapshot.data?.data() as Map<String, dynamic>?)
+                : null;
+
+        final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
+        final grupo = equipaData?['grupo'] ?? 'A';
+
+        return Column(
           children: [
-            _buildCompactStatItem('Total', '$totalEquipas', Icons.groups),
-            _buildCompactStatItem(
-              'Com Pontos',
-              '$equipasComPontos',
-              Icons.star,
+            // Medalha e info da equipa
+            Container(
+              width: 120,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withAlpha(51),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color, width: 2),
+              ),
+              child: Column(
+                children: [
+                  // Medalha
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withAlpha(204)],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withAlpha(102),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$position°',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Nome da equipa
+                  Text(
+                    equipaNome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Pontuação
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Text(
+                      '${data['pontuacao'] ?? 0} pts',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Grupo
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          grupo == 'A'
+                              ? Colors.blue.shade100
+                              : Colors.purple.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Grupo $grupo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            grupo == 'A'
+                                ? Colors.blue.shade800
+                                : Colors.purple.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            _buildCompactStatItem(
-              'Melhor',
-              '$pontucaoMais pts',
-              Icons.emoji_events,
+
+            const SizedBox(height: 12),
+
+            // Base do pódium
+            Container(
+              width: 120,
+              height: height,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [color.withAlpha(153), color],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withAlpha(102),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.emoji_events,
+                      color: Colors.white,
+                      size: position == 1 ? 40 : 30,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$position° LUGAR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: position == 1 ? 16 : 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _buildCompactStatItem('Status', 'Ativo', Icons.play_circle),
           ],
         );
       },
     );
   }
 
-  Widget _buildCompactStatItem(String label, String value, IconData icon) {
+  Widget _buildRemainingTeams(List<QueryDocumentSnapshot> remaining) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(51),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withAlpha(77)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLastUpdateInfo() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Última atualização: ${_formatDateTime(_lastUpdate!)}',
-            style: TextStyle(color: Colors.green.shade700),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankingList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('ranking')
-              .orderBy('pontuacao', descending: true)
-              .snapshots(),
-      builder: (context, rankingSnapshot) {
-        if (!rankingSnapshot.hasData) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(color: Colors.red),
-                SizedBox(height: 16),
-                Text('Carregando ranking...'),
-              ],
-            ),
-          );
-        }
-
-        final rankingDocs = rankingSnapshot.data!.docs;
-
-        if (rankingDocs.isEmpty) {
-          return _buildEmptyRanking();
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Container(
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade200,
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade700, Colors.blue.shade500],
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.list, color: Colors.white, size: 24),
+                SizedBox(width: 12),
+                Text(
+                  'CLASSIFICAÇÃO COMPLETA',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  'Posição | Equipa | Pontos | Checkpoints',
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                // Header da tabela
-                _buildRankingHeader(),
+          ),
 
-                // Lista de equipas
-                ...rankingDocs.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final doc = entry.value;
-                  final data = doc.data() as Map<String, dynamic>;
+          // Lista das equipas
+          ...remaining.asMap().entries.map((entry) {
+            final index = entry.key;
+            final doc = entry.value;
+            final position = index + 4; // Começa no 4º lugar
+            final data = doc.data() as Map<String, dynamic>;
 
-                  return _buildRankingRow(data, index + 1);
-                }),
-              ],
-            ),
+            return _buildTeamRow(data, position);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamRow(Map<String, dynamic> data, int position) {
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance
+              .collection('equipas')
+              .doc(data['equipaId'])
+              .get(),
+      builder: (context, equipaSnapshot) {
+        final equipaData =
+            equipaSnapshot.hasData
+                ? (equipaSnapshot.data?.data() as Map<String, dynamic>?)
+                : null;
+
+        final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
+        final grupo = equipaData?['grupo'] ?? 'A';
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: position % 2 == 0 ? Colors.grey.shade50 : Colors.white,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              // Posição
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: _getPositionColor(position),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Center(
+                  child: Text(
+                    '$position',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 20),
+
+              // Nome da equipa
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      equipaNome,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Grupo $grupo',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Pontuação
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: Text(
+                  '${data['pontuacao'] ?? 0} pts',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Checkpoints
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${data['checkpointCount'] ?? 0}/8',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -281,16 +693,16 @@ class _RankingScreenState extends State<RankingScreen> {
             Icon(Icons.leaderboard, size: 80, color: Colors.grey),
             SizedBox(height: 20),
             Text(
-              'Nenhum ranking disponível',
+              'Rally ainda não iniciado',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 color: Colors.grey,
                 fontWeight: FontWeight.w600,
               ),
             ),
             SizedBox(height: 12),
             Text(
-              'As pontuações aparecerão aqui após o início do rally',
+              'As pontuações aparecerão aqui quando as equipas começarem a participar',
               style: TextStyle(fontSize: 16, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -300,301 +712,10 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 
-  Widget _buildRankingHeader() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red.shade700, Colors.red.shade500],
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      child: const Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              'Posição',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Equipa',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 140,
-            child: Text(
-              'Pontuação',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            child: Text(
-              'Checkpoints',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(
-            width: 100,
-            child: Text(
-              'Grupo',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankingRow(Map<String, dynamic> data, int position) {
-    return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance
-              .collection('equipas')
-              .doc(data['equipaId'])
-              .get(),
-      builder: (context, equipaSnapshot) {
-        final equipaData =
-            equipaSnapshot.hasData
-                ? (equipaSnapshot.data?.data() as Map<String, dynamic>?)
-                : null;
-
-        final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
-        final grupo = equipaData?['grupo'] ?? 'A';
-
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: position % 2 == 0 ? Colors.white : Colors.grey.shade50,
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey.shade200,
-                width: position == 1 ? 0 : 1,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Posição com medalha
-              SizedBox(
-                width: 80,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _getPositionColor(position),
-                            _getPositionColor(position).withAlpha(204),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _getPositionColor(position).withAlpha(102),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$position',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (position <= 3)
-                      Icon(
-                        Icons.emoji_events,
-                        color: _getPositionColor(position),
-                        size: 20,
-                      ),
-                  ],
-                ),
-              ),
-
-              // Nome da equipa
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      equipaNome,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.black87,
-                        decoration:
-                            position <= 3 ? TextDecoration.underline : null,
-                        decorationColor: _getPositionColor(position),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID: ${data['equipaId']}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Pontuação
-              SizedBox(
-                width: 140,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.green.shade50, Colors.green.shade100],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-                  child: Text(
-                    '${data['pontuacao'] ?? 0} pts',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade800,
-                      fontSize: 16,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-
-              // Checkpoints
-              SizedBox(
-                width: 120,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Text(
-                    '${data['checkpointCount'] ?? 0}/8',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade700,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-
-              // Grupo
-              SizedBox(
-                width: 100,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        grupo == 'A'
-                            ? Colors.blue.shade100
-                            : Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color:
-                          grupo == 'A'
-                              ? Colors.blue.shade300
-                              : Colors.green.shade300,
-                    ),
-                  ),
-                  child: Text(
-                    grupo,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color:
-                          grupo == 'A'
-                              ? Colors.blue.shade800
-                              : Colors.green.shade800,
-                      fontSize: 16,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Color _getPositionColor(int position) {
-    switch (position) {
-      case 1:
-        return Colors.amber.shade600; // Ouro
-      case 2:
-        return Colors.grey.shade500; // Prata
-      case 3:
-        return Colors.brown.shade500; // Bronze
-      case 4:
-      case 5:
-        return Colors.green.shade600; // Top 5
-      case 6:
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-        return Colors.blue.shade600; // Top 10
-      default:
-        return Colors.red.shade600; // Restantes
-    }
+    if (position <= 5) return Colors.green.shade600;
+    if (position <= 10) return Colors.blue.shade600;
+    return Colors.orange.shade600;
   }
 
   void _showRankingManagement(BuildContext context) {
@@ -616,48 +737,44 @@ class _RankingScreenState extends State<RankingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Gerir o sistema de ranking do rally',
-                    style: TextStyle(fontSize: 16),
+                    'Sistema de ranking em tempo real',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 20),
-
-                  if (_lastUpdate != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.green.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Última atualização: ${_formatDateTime(_lastUpdate!)}',
-                            style: TextStyle(color: Colors.green.shade700),
-                          ),
-                        ],
-                      ),
-                    ),
-
                   const SizedBox(height: 16),
 
-                  const Text(
-                    'Informações do Sistema:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.live_tv, color: Colors.green, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Status: ATIVO',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '• Atualização automática quando participante pontua',
+                        ),
+                        Text('• Pódium destacado para top 3'),
+                        Text('• Sincronização em tempo real via Firestore'),
+                        Text('• Ordenação por pontuação total'),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '• Atualização automática quando participante responde',
-                  ),
-                  const Text('• Recálculo manual quando necessário'),
-                  const Text('• Ordenação por pontuação e checkpoints'),
-                  const Text('• Sincronização em tempo real'),
                 ],
               ),
             ),
@@ -680,7 +797,7 @@ class _RankingScreenState extends State<RankingScreen> {
                         )
                         : const Icon(Icons.refresh),
                 label: Text(
-                  _isRecalculating ? 'Recalculando...' : 'Recalcular Tudo',
+                  _isRecalculating ? 'Recalculando...' : 'Recalcular Ranking',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,

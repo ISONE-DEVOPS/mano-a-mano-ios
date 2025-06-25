@@ -13,11 +13,15 @@ class RankingService {
       final pontuacaoTotal = await _calculateTeamTotalScore(equipaId);
       final checkpointCount = await _getCheckpointsCompleted(equipaId);
 
+      // 🆕 ADICIONADO: Calcular tempo total
+      final tempoTotal = await _calculateTotalTime(equipaId);
+
       // Atualizar ou criar registro no ranking
       await _firestore.collection('ranking').doc(equipaId).set({
         'equipaId': equipaId,
         'pontuacao': pontuacaoTotal,
         'checkpointCount': checkpointCount,
+        'tempoTotal': tempoTotal, // 🆕 ADICIONADO
         'ultimaAtualizacao': FieldValue.serverTimestamp(),
         'ordem': 0, // Será calculado depois
       }, SetOptions(merge: true));
@@ -196,10 +200,78 @@ class RankingService {
     }
   }
 
+  // 🆕 FUNÇÃO ADICIONADA - CÁLCULO DE TEMPO TOTAL
   static Future<int> _calculateTotalTime(String equipaId) async {
-    // Implementar cálculo de tempo total se necessário
-    // Por agora, retorna 0
-    return 0;
+    try {
+      debugPrint('⏱️ Calculando tempo total para equipa: $equipaId');
+
+      // 1. Buscar condutor principal da equipa
+      final equipaDoc =
+          await _firestore.collection('equipas').doc(equipaId).get();
+      final membros = (equipaDoc.data()?['membros'] ?? []) as List<dynamic>;
+
+      if (membros.isEmpty) return 0;
+
+      final condutorId = membros.first; // Usar primeiro membro como referência
+
+      // 2. Buscar todas as pontuações do condutor
+      final pontuacoesSnapshot =
+          await _firestore
+              .collection('users')
+              .doc(condutorId)
+              .collection('eventos')
+              .doc('shell_2025')
+              .collection('pontuacoes')
+              .get();
+
+      if (pontuacoesSnapshot.docs.isEmpty) return 0;
+
+      DateTime? primeiroTimestamp;
+      DateTime? ultimoTimestamp;
+
+      // 3. Encontrar primeiro e último timestamp
+      for (var doc in pontuacoesSnapshot.docs) {
+        final data = doc.data();
+
+        // Timestamp de entrada
+        final timestampEntrada = data['timestampEntrada'] as Timestamp?;
+        if (timestampEntrada != null) {
+          final entradaTime = timestampEntrada.toDate();
+
+          if (primeiroTimestamp == null ||
+              entradaTime.isBefore(primeiroTimestamp)) {
+            primeiroTimestamp = entradaTime;
+          }
+        }
+
+        // Timestamp de saída
+        final timestampSaida = data['timestampSaida'] as Timestamp?;
+        if (timestampSaida != null) {
+          final saidaTime = timestampSaida.toDate();
+
+          if (ultimoTimestamp == null || saidaTime.isAfter(ultimoTimestamp)) {
+            ultimoTimestamp = saidaTime;
+          }
+        }
+      }
+
+      // 4. Calcular diferença em minutos
+      if (primeiroTimestamp != null && ultimoTimestamp != null) {
+        final diferenca = ultimoTimestamp.difference(primeiroTimestamp);
+        final tempoMinutos = diferenca.inMinutes;
+
+        debugPrint(
+          '⏱️ Tempo calculado: $tempoMinutos minutos (${diferenca.inHours}h ${diferenca.inMinutes % 60}min)',
+        );
+        return tempoMinutos;
+      }
+
+      debugPrint('⏱️ Timestamps insuficientes para calcular tempo');
+      return 0;
+    } catch (e) {
+      debugPrint('❌ Erro ao calcular tempo total: $e');
+      return 0;
+    }
   }
 
   static Future<String?> _getUserTeam(String userId) async {
@@ -226,6 +298,10 @@ class RankingService {
           await _firestore
               .collection('ranking')
               .orderBy('pontuacao', descending: true)
+              .orderBy(
+                'tempoTotal',
+                descending: false,
+              ) // 🆕 Tempo como critério de desempate
               .get();
 
       final batch = _firestore.batch();
@@ -238,6 +314,59 @@ class RankingService {
       await batch.commit();
     } catch (e) {
       debugPrint('❌ Erro ao recalcular posições: $e');
+    }
+  }
+
+  // 🆕 FUNÇÕES EXTRAS PARA AJUDAR COM TIMESTAMPS
+
+  /// Atualizar timestamp de entrada quando scan QR entrada
+  static Future<void> updateEntryTimestamp(
+    String userId,
+    String checkpointId,
+  ) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('eventos')
+          .doc('shell_2025')
+          .collection('pontuacoes')
+          .doc(checkpointId)
+          .set({
+            'timestampEntrada': FieldValue.serverTimestamp(),
+            'checkpointId': checkpointId,
+          }, SetOptions(merge: true));
+
+      debugPrint('📍 Timestamp de entrada atualizado');
+    } catch (e) {
+      debugPrint('❌ Erro ao atualizar timestamp entrada: $e');
+    }
+  }
+
+  /// Atualizar timestamp de saída quando scan QR saída
+  static Future<void> updateExitTimestamp(
+    String userId,
+    String checkpointId,
+  ) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('eventos')
+          .doc('shell_2025')
+          .collection('pontuacoes')
+          .doc(checkpointId)
+          .update({'timestampSaida': FieldValue.serverTimestamp()});
+
+      // Atualizar ranking após saída
+      final equipaId = await _getUserTeam(userId);
+      if (equipaId != null) {
+        await updateRankingRealTime(equipaId);
+      }
+
+      debugPrint('🚪 Timestamp de saída atualizado');
+    } catch (e) {
+      debugPrint('❌ Erro ao atualizar timestamp saída: $e');
     }
   }
 }
