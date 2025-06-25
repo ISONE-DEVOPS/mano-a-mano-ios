@@ -85,9 +85,19 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         _searchQuery = value.toLowerCase();
                       });
                     },
+                    style: const TextStyle(
+                      color: Colors.black,
+                    ), // Texto preto na pesquisa
                     decoration: InputDecoration(
                       hintText: 'Pesquisar...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
+                      hintStyle: const TextStyle(
+                        color: Colors.grey,
+                      ), // Hint em cinza
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(18),
                         borderSide: BorderSide.none,
@@ -113,7 +123,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 },
                 icon: Icon(
                   _isFilterExpanded ? Icons.filter_list_off : Icons.filter_list,
-                  color: _isFilterExpanded ? Colors.blue : Colors.grey,
+                  color: _isFilterExpanded ? Colors.blue : Colors.grey.shade700,
                 ),
                 tooltip: 'Filtros',
               ),
@@ -203,17 +213,22 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      icon: Icon(icon, size: 16, color: Colors.black), // Ícones sempre pretos
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Colors.black, // Texto sempre preto para melhor contraste
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
-        foregroundColor:
-            color == AppColors.primary || color == AppColors.secondary
-                ? Colors.black
-                : Colors.white,
+        foregroundColor: Colors.black, // Sempre texto preto
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         minimumSize: const Size(0, 32),
-        textStyle: const TextStyle(fontSize: 12),
+        elevation: 2,
+        shadowColor: Colors.black26,
       ),
     );
   }
@@ -231,26 +246,46 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         value: value,
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            color: Colors.black87, // Label em preto
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 4,
           ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: Colors.blue, width: 2),
+          ),
           isDense: true,
-          labelStyle: const TextStyle(fontSize: 12),
+          fillColor: Colors.white,
+          filled: true,
         ),
-        style: const TextStyle(fontSize: 12, color: Colors.black),
+        style: const TextStyle(
+          fontSize: 12,
+          color: Colors.black, // Texto selecionado em preto
+        ),
+        dropdownColor: Colors.white, // Background do dropdown em branco
         items:
             items.map((item) {
               return DropdownMenuItem(
                 value: item,
                 child: Text(
                   displayMap?[item] ?? item,
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black, // Itens do dropdown em preto
+                  ),
                 ),
               );
             }).toList(),
         onChanged: onChanged,
+        icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
       ),
     );
   }
@@ -315,7 +350,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       children: [
                         IconButton(
                           onPressed: _exportListaCompleta,
-                          icon: const Icon(Icons.groups, size: 18),
+                          icon: const Icon(
+                            Icons.groups,
+                            size: 18,
+                            color: Colors.black87,
+                          ),
                           tooltip: 'Lista Completa',
                           constraints: const BoxConstraints(
                             minWidth: 32,
@@ -360,7 +399,8 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
+      elevation: 2,
+      color: Colors.white, // Garantir background branco do card
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -406,7 +446,12 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   const SizedBox(height: 2),
                   Text(
                     data['email'] ?? 'Email não informado',
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color:
+                          Colors
+                              .black87, // Cor mais escura para melhor contraste
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -421,14 +466,15 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.phone, size: 12, color: Colors.blue.shade600),
+                      Icon(Icons.phone, size: 12, color: Colors.blue.shade700),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           data['telefone'] ?? 'N/A',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.blue.shade700,
+                            color: Colors.blue.shade800, // Cor mais escura
+                            fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -441,14 +487,14 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                       Icon(
                         Icons.local_offer,
                         size: 12,
-                        color: Colors.green.shade600,
+                        color: Colors.green.shade700,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         data['tshirt'] ?? 'N/A',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.green.shade700,
+                          color: Colors.green.shade800, // Cor mais escura
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -480,8 +526,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                   // Menu de ações compacto
                   PopupMenuButton<String>(
                     onSelected: (value) => _handleAction(value, doc, data),
-                    icon: const Icon(Icons.more_vert, size: 18),
+                    icon: const Icon(
+                      Icons.more_vert,
+                      size: 18,
+                      color: Colors.black87,
+                    ),
                     iconSize: 18,
+                    color: Colors.white, // Background do popup em branco
                     itemBuilder:
                         (context) => [
                           _buildCompactMenuItem(
@@ -552,41 +603,51 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         children: [
           Icon(icon, color: color, size: 16),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 13)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black, // Texto preto no menu popup
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildCompactRoleBadge(String role) {
-    Color color;
+    Color backgroundColor;
+    Color textColor;
     String label;
 
     switch (role) {
       case 'admin':
-        color = Colors.red;
+        backgroundColor = Colors.red.shade100;
+        textColor = Colors.red.shade800;
         label = 'Admin';
         break;
       case 'staff':
-        color = Colors.orange;
+        backgroundColor = Colors.orange.shade100;
+        textColor = Colors.orange.shade800;
         label = 'Staff';
         break;
       default:
-        color = Colors.blue;
+        backgroundColor = Colors.blue.shade100;
+        textColor = Colors.blue.shade800;
         label = 'User';
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withAlpha((0.1 * 255).round()),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color, width: 0.5),
+        border: Border.all(color: textColor, width: 0.5),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: color,
+          color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
@@ -603,15 +664,19 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
+              color: Colors.green.shade100,
               borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.green.shade300, width: 0.5),
             ),
             child: Text(
               '${equipa['nome'] ?? 'Equipa'} (${equipa['grupo'] ?? '?'})',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: Colors.green,
-                fontWeight: FontWeight.w500,
+                color:
+                    Colors
+                        .green
+                        .shade800, // Cor mais escura para melhor contraste
+                fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -620,15 +685,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
+            color: Colors.red.shade100,
             borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.red.shade300, width: 0.5),
           ),
-          child: const Text(
+          child: Text(
             'Sem equipa',
             style: TextStyle(
               fontSize: 10,
-              color: Colors.red,
-              fontWeight: FontWeight.w500,
+              color:
+                  Colors.red.shade800, // Cor mais escura para melhor contraste
+              fontWeight: FontWeight.w600,
             ),
           ),
         );
@@ -645,15 +712,19 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: Colors.blue.shade100,
               borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.blue.shade300, width: 0.5),
             ),
             child: Text(
               veiculo['matricula'] ?? 'Veículo',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+                color:
+                    Colors
+                        .blue
+                        .shade800, // Cor mais escura para melhor contraste
+                fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -662,15 +733,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
+            color: Colors.red.shade100,
             borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.red.shade300, width: 0.5),
           ),
-          child: const Text(
+          child: Text(
             'Sem veículo',
             style: TextStyle(
               fontSize: 10,
-              color: Colors.red,
-              fontWeight: FontWeight.w500,
+              color:
+                  Colors.red.shade800, // Cor mais escura para melhor contraste
+              fontWeight: FontWeight.w600,
             ),
           ),
         );
@@ -774,18 +847,31 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     }
   }
 
-  // Placeholder methods for functionality (você pode adicionar a implementação completa)
+  // Placeholder methods for functionality
   void _showBulkActions() {
     showDialog(
       context: context,
       builder:
           (ctx) => AlertDialog(
-            title: const Text('Ações em Lote'),
-            content: const Text('Funcionalidades em desenvolvimento...'),
+            backgroundColor: Colors.white,
+            title: const Text(
+              'Ações em Lote',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'Funcionalidades em desenvolvimento...',
+              style: TextStyle(color: Colors.black87),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Fechar'),
+                child: const Text(
+                  'Fechar',
+                  style: TextStyle(color: Colors.blue),
+                ),
               ),
             ],
           ),
@@ -859,7 +945,12 @@ class _ParticipantesViewState extends State<ParticipantesView> {
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
-            Text(message),
+            Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+              ), // Garantir texto branco no snackbar verde
+            ),
           ],
         ),
         backgroundColor: Colors.green,
@@ -882,11 +973,14 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            content: Text(message, style: const TextStyle(color: Colors.black)),
+            content: Text(
+              message,
+              style: const TextStyle(color: Colors.black87),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: const Text('OK', style: TextStyle(color: Colors.blue)),
               ),
             ],
           ),
