@@ -140,7 +140,15 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 Icons.download,
                 'CSV',
                 AppColors.primary,
-                _exportParticipantesCsv,
+                () async {
+                  await Future.delayed(const Duration(milliseconds: 1));
+                  if (mounted) {
+                    _showMessage(
+                      'Exportação em desenvolvimento...',
+                      Colors.orange,
+                    );
+                  }
+                },
               ),
               const SizedBox(width: 8),
               _buildCompactButton(
@@ -282,10 +290,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
   Widget _buildParticipantesList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .orderBy('createdAt', descending: false)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('users')
+              .orderBy('createdAt', descending: false)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -346,7 +355,17 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: _exportListaCompleta,
+                          onPressed: () async {
+                            await Future.delayed(
+                              const Duration(milliseconds: 1),
+                            );
+                            if (mounted) {
+                              _showMessage(
+                                'Lista completa em desenvolvimento...',
+                                Colors.orange,
+                              );
+                            }
+                          },
                           icon: const Icon(
                             Icons.groups,
                             size: 18,
@@ -366,22 +385,23 @@ class _ParticipantesViewState extends State<ParticipantesView> {
 
             // Lista otimizada
             Expanded(
-              child: filteredUsers.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Nenhum participante corresponde aos filtros',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+              child:
+                  filteredUsers.isEmpty
+                      ? const Center(
+                        child: Text(
+                          'Nenhum participante corresponde aos filtros',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                      : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: pagedUsers.length,
+                        itemBuilder: (context, index) {
+                          final doc = pagedUsers[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _buildOptimizedParticipanteCard(doc, data);
+                        },
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: pagedUsers.length,
-                      itemBuilder: (context, index) {
-                        final doc = pagedUsers[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        return _buildOptimizedParticipanteCard(doc, data);
-                      },
-                    ),
             ),
             // Paginação
             if (filteredUsers.isNotEmpty)
@@ -389,19 +409,23 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton.icon(
-                    onPressed: _currentPage > 0
-                        ? () => setState(() => _currentPage--)
-                        : null,
+                    onPressed:
+                        _currentPage > 0
+                            ? () => setState(() => _currentPage--)
+                            : null,
                     icon: const Icon(Icons.arrow_back),
                     label: const Text('Anterior'),
                   ),
                   const SizedBox(width: 16),
-                  Text('Página ${_currentPage + 1} de ${((filteredUsers.length - 1) / _itemsPerPage).floor() + 1}'),
+                  Text(
+                    'Página ${_currentPage + 1} de ${((filteredUsers.length - 1) / _itemsPerPage).floor() + 1}',
+                  ),
                   const SizedBox(width: 16),
                   TextButton.icon(
-                    onPressed: endIndex < filteredUsers.length
-                        ? () => setState(() => _currentPage++)
-                        : null,
+                    onPressed:
+                        endIndex < filteredUsers.length
+                            ? () => setState(() => _currentPage++)
+                            : null,
                     label: const Text('Próximo'),
                     icon: const Icon(Icons.arrow_forward),
                   ),
@@ -832,525 +856,89 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         );
         break;
       case 'veiculo':
-        _editarVeiculo(context, doc.id, data);
+        _editarVeiculo(doc.id, data);
         break;
       case 'acompanhantes':
-        _editarAcompanhantes(context, data);
+        if (mounted) {
+          _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
+        }
         break;
       case 'equipa':
-        _editarEquipa(context, doc.id, data);
+        _editarEquipa(doc.id, data);
         break;
       case 'detalhes':
-        _verDetalhes(context, data);
+        _verDetalhes(data);
         break;
       case 'qr':
-        _gerarQrCode(context, doc.id, data);
+        if (mounted) {
+          _showMessage('Funcionalidade em desenvolvimento...', Colors.orange);
+        }
         break;
       case 'eliminar':
-        _eliminarParticipante(context, doc, data);
+        _eliminarParticipante(doc, data);
         break;
     }
   }
 
-  // ============= DIÁLOGO PARA EDITAR/CRIAR EQUIPA =============
-  void _editarEquipa(
-    BuildContext context,
-    String userId,
-    Map<String, dynamic> userData,
-  ) async {
-    final equipaId = userData['equipaId'];
-    DocumentSnapshot? equipaDoc;
+  // ============= MÉTODOS PARA DIÁLOGOS SEM BUILDCONTEXT ASYNC =============
 
-    // Se existe equipaId, buscar dados da equipa
-    if (equipaId != null && equipaId.isNotEmpty) {
-      equipaDoc = await _getEquipaInfo(equipaId);
-      if (!mounted) return;
-    }
-
-    // Verificar se o widget ainda está montado antes de usar context
-    if (!mounted) return;
-
-    // CORREÇÃO: Mover declaração de equipaData para antes do uso
-    final equipaData = equipaDoc?.data() as Map<String, dynamic>?;
-    final isEdit = equipaData != null;
-
-    // Controllers para o formulário
-    final nomeController = TextEditingController(
-      text: equipaData?['nome'] ?? '',
-    );
-    final hinoController = TextEditingController(
-      text: equipaData?['hino'] ?? '',
-    );
-    String selectedGrupo = equipaData?['grupo'] ?? 'A';
-
-    if (!mounted) return; // Verificação adicional antes de showDialog
-    // Capturar o BuildContext antes de qualquer await
-    final ctx = context;
-    showDialog(
-      context: ctx,
-      builder:
-          (ctx) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text(
-              isEdit ? 'Editar Equipa' : 'Criar Nova Equipa',
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Nome da Equipa
-                    TextField(
-                      controller: nomeController,
-                      style: const TextStyle(color: Colors.black),
-                      decoration: InputDecoration(
-                        labelText: 'Nome da Equipa',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        hintText: 'Digite o nome da equipa',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.groups,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Hino (Grito de Guerra)
-                    TextField(
-                      controller: hinoController,
-                      style: const TextStyle(color: Colors.black),
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Hino/Grito de Guerra',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        hintText: 'Digite o grito de guerra da equipa',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.campaign,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Seleção do Grupo
-                    DropdownButtonFormField<String>(
-                      value: selectedGrupo,
-                      style: const TextStyle(color: Colors.black),
-                      dropdownColor: Colors.white,
-                      decoration: InputDecoration(
-                        labelText: 'Grupo',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(Icons.flag, color: Colors.green),
-                      ),
-                      items:
-                          ['A', 'B'].map((grupo) {
-                            return DropdownMenuItem(
-                              value: grupo,
-                              child: Text(
-                                'Grupo $grupo',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                            );
-                          }).toList(),
-                      onChanged: (value) {
-                        selectedGrupo = value!;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Cancelar',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (nomeController.text.trim().isEmpty) {
-                    if (!mounted) return;
-                    _showErrorSnackBar(
-                      ctx,
-                      'O nome da equipa é obrigatório',
-                    );
-                    return;
-                  }
-
-                  try {
-                    final equipaDataToSave = {
-                      'nome': nomeController.text.trim(),
-                      'hino': hinoController.text.trim(),
-                      'grupo': selectedGrupo,
-                      'pontuacaoTotal': equipaData?['pontuacaoTotal'] ?? 0,
-                      'ranking': equipaData?['ranking'] ?? 1,
-                      'membros': equipaData?['membros'] ?? [userId],
-                      'bandeiraUrl': equipaData?['bandeiraUrl'] ?? '',
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    };
-
-                    String finalEquipaId;
-
-                    if (isEdit) {
-                      // Atualizar equipa existente
-                      await FirebaseFirestore.instance
-                          .collection('equipas')
-                          .doc(equipaId)
-                          .update(equipaDataToSave);
-                      if (!mounted) return;
-                      finalEquipaId = equipaId;
-                    } else {
-                      // Criar nova equipa
-                      equipaDataToSave['createdAt'] =
-                          FieldValue.serverTimestamp();
-                      final docRef = await FirebaseFirestore.instance
-                          .collection('equipas')
-                          .add(equipaDataToSave);
-                      if (!mounted) return;
-                      finalEquipaId = docRef.id;
-                    }
-
-                    // Atualizar o user com o equipaId
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(userId)
-                        .update({'equipaId': finalEquipaId});
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _showSuccessSnackBar(
-                      ctx,
-                      isEdit
-                          ? 'Equipa atualizada com sucesso!'
-                          : 'Equipa criada com sucesso!',
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    _showErrorSnackBar(
-                      ctx,
-                      'Erro ao ${isEdit ? 'atualizar' : 'criar'} equipa: $e',
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(isEdit ? 'Atualizar' : 'Criar'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // ============= DIÁLOGO PARA EDITAR/CRIAR VEÍCULO =============
-  void _editarVeiculo(
-    BuildContext context,
-    String userId,
-    Map<String, dynamic> userData,
-  ) async {
-    final veiculoId = userData['veiculoId'];
-    DocumentSnapshot? veiculoDoc;
-
-    // Se existe veiculoId, buscar dados do veículo
-    if (veiculoId != null && veiculoId.isNotEmpty) {
-      veiculoDoc = await _getVeiculoInfo(veiculoId);
-      if (!mounted) return;
-    }
-
-    // Verificar se o widget ainda está montado antes de usar context
-    if (!mounted) return;
-
-    // CORREÇÃO: Mover declaração de veiculoData para antes do uso
-    final veiculoData = veiculoDoc?.data() as Map<String, dynamic>?;
-    final isEdit = veiculoData != null;
-
-    // Controllers para o formulário
-    final matriculaController = TextEditingController(
-      text: veiculoData?['matricula'] ?? '',
-    );
-    final modeloController = TextEditingController(
-      text: veiculoData?['modelo'] ?? '',
-    );
-    final disticoController = TextEditingController(
-      text: veiculoData?['distico'] ?? '',
-    );
-
-    if (!mounted) return; // Verificação adicional antes de showDialog
-
+  void _editarEquipa(String userId, Map<String, dynamic> userData) {
     showDialog(
       context: context,
       builder:
-          (ctx) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text(
-              isEdit ? 'Editar Veículo' : 'Registar Novo Veículo',
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Matrícula
-                    TextField(
-                      controller: matriculaController,
-                      style: const TextStyle(color: Colors.black),
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: 'Matrícula',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        hintText: 'Ex: AA-123-BB',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.directions_car,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Modelo
-                    TextField(
-                      controller: modeloController,
-                      style: const TextStyle(color: Colors.black),
-                      decoration: InputDecoration(
-                        labelText: 'Modelo do Veículo',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        hintText: 'Ex: Toyota Corolla',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.car_repair,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Dístico (código único)
-                    TextField(
-                      controller: disticoController,
-                      style: const TextStyle(color: Colors.black),
-                      decoration: InputDecoration(
-                        labelText: 'Dístico (Código)',
-                        labelStyle: const TextStyle(color: Colors.black87),
-                        hintText: 'Código único do veículo',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Colors.blue,
-                            width: 2,
-                          ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.qr_code,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Informação adicional
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info,
-                            color: Colors.blue.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'O condutor atual será definido como proprietário do veículo.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Cancelar',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (matriculaController.text.trim().isEmpty) {
-                    if (!mounted) return;
-                    _showErrorSnackBar(context, 'A matrícula é obrigatória');
-                    return;
-                  }
-
-                  try {
-                    // Buscar nome da equipa se existir
-                    String nomeEquipa = '';
-                    if (userData['equipaId'] != null &&
-                        userData['equipaId'].toString().isNotEmpty) {
-                      final equipaDoc = await _getEquipaInfo(
-                        userData['equipaId'],
-                      );
-                      if (!mounted) return;
-                      if (equipaDoc?.exists == true) {
-                        final equipaData =
-                            equipaDoc!.data() as Map<String, dynamic>;
-                        nomeEquipa = equipaData['nome'] ?? '';
-                      }
-                    }
-
-                    final veiculoDataToSave = {
-                      'matricula':
-                          matriculaController.text.trim().toUpperCase(),
-                      'modelo': modeloController.text.trim(),
-                      'distico': disticoController.text.trim(),
-                      'ownerId': userId,
-                      'nome_equipa': nomeEquipa,
-                      'passageiros': veiculoData?['passageiros'] ?? [userId],
-                      'checkpointId': veiculoData?['checkpointId'] ?? [],
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    };
-
-                    String finalVeiculoId;
-
-                    if (isEdit) {
-                      // Atualizar veículo existente
-                      await FirebaseFirestore.instance
-                          .collection('veiculos')
-                          .doc(veiculoId)
-                          .update(veiculoDataToSave);
-                      if (!mounted) return;
-                      finalVeiculoId = veiculoId;
-                    } else {
-                      // Criar novo veículo
-                      veiculoDataToSave['createdAt'] =
-                          FieldValue.serverTimestamp();
-                      final docRef = await FirebaseFirestore.instance
-                          .collection('veiculos')
-                          .add(veiculoDataToSave);
-                      if (!mounted) return;
-                      finalVeiculoId = docRef.id;
-                    }
-
-                    // Atualizar o user com o veiculoId
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(userId)
-                        .update({'veiculoId': finalVeiculoId});
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _showSuccessSnackBar(
-                      context,
-                      isEdit
-                          ? 'Veículo atualizado com sucesso!'
-                          : 'Veículo registado com sucesso!',
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    _showErrorSnackBar(
-                      context,
-                      'Erro ao ${isEdit ? 'atualizar' : 'registar'} veículo: $e',
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(isEdit ? 'Atualizar' : 'Registar'),
-              ),
-            ],
+          (dialogContext) => _EquipaDialog(
+            userId: userId,
+            userData: userData,
+            onSuccess: (message) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            onError: (message) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                SnackBar(content: Text(message), backgroundColor: Colors.red),
+              );
+            },
           ),
     );
   }
 
-  // ============= MÉTODOS AUXILIARES =============
+  void _editarVeiculo(String userId, Map<String, dynamic> userData) {
+    showDialog(
+      context: context,
+      builder:
+          (dialogContext) => _VeiculoDialog(
+            userId: userId,
+            userData: userData,
+            onSuccess: (message) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            onError: (message) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                SnackBar(content: Text(message), backgroundColor: Colors.red),
+              );
+            },
+          ),
+    );
+  }
+
   void _showBulkActions() {
     showDialog(
       context: context,
       builder:
-          (ctx) => AlertDialog(
+          (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
             title: const Text(
               'Ações em Lote',
@@ -1373,8 +961,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     style: TextStyle(color: Colors.black54),
                   ),
                   onTap: () {
-                    Navigator.pop(ctx);
-                    _criarEquipasAutomaticas();
+                    Navigator.pop(dialogContext);
+                    if (mounted) {
+                      _showMessage(
+                        'Funcionalidade em desenvolvimento...',
+                        Colors.orange,
+                      );
+                    }
                   },
                 ),
                 const Divider(),
@@ -1389,8 +982,13 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     style: TextStyle(color: Colors.black54),
                   ),
                   onTap: () {
-                    Navigator.pop(ctx);
-                    _gerarQrCodesTodos();
+                    Navigator.pop(dialogContext);
+                    if (mounted) {
+                      _showMessage(
+                        'Funcionalidade em desenvolvimento...',
+                        Colors.orange,
+                      );
+                    }
                   },
                 ),
                 const Divider(),
@@ -1405,15 +1003,20 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                     style: TextStyle(color: Colors.black54),
                   ),
                   onTap: () {
-                    Navigator.pop(ctx);
-                    _enviarConvites();
+                    Navigator.pop(dialogContext);
+                    if (mounted) {
+                      _showMessage(
+                        'Funcionalidade em desenvolvimento...',
+                        Colors.orange,
+                      );
+                    }
                   },
                 ),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Fechar',
                   style: TextStyle(color: Colors.blue),
@@ -1424,19 +1027,11 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     );
   }
 
-  void _editarAcompanhantes(BuildContext context, Map<String, dynamic> data) {
-    _showInfoDialog(
-      context,
-      'Editar Acompanhantes',
-      'Funcionalidade em desenvolvimento...',
-    );
-  }
-
-  void _verDetalhes(BuildContext context, Map<String, dynamic> data) {
+  void _verDetalhes(Map<String, dynamic> data) {
     showDialog(
       context: context,
       builder:
-          (ctx) => AlertDialog(
+          (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
             title: const Text(
               'Detalhes do Participante',
@@ -1476,7 +1071,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Fechar',
                   style: TextStyle(color: Colors.blue),
@@ -1511,23 +1106,14 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     );
   }
 
-  void _gerarQrCode(
-    BuildContext context,
-    String userId,
-    Map<String, dynamic> data,
-  ) {
-    _showInfoDialog(context, 'QR Code', 'Funcionalidade em desenvolvimento...');
-  }
-
   void _eliminarParticipante(
-    BuildContext context,
     QueryDocumentSnapshot doc,
     Map<String, dynamic> data,
   ) {
     showDialog(
       context: context,
       builder:
-          (ctx) => AlertDialog(
+          (dialogContext) => AlertDialog(
             backgroundColor: Colors.white,
             title: const Text(
               'Confirmar Eliminação',
@@ -1539,7 +1125,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text(
                   'Cancelar',
                   style: TextStyle(color: Colors.grey),
@@ -1552,17 +1138,23 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         .collection('users')
                         .doc(doc.id)
                         .delete();
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _showSuccessSnackBar(
-                      context,
-                      'Participante eliminado com sucesso!',
-                    );
+
+                    Navigator.pop(dialogContext);
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Participante eliminado com sucesso!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   } catch (e) {
-                    if (!mounted) return;
-                    _showErrorSnackBar(
-                      context,
-                      'Erro ao eliminar participante: $e',
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Erro ao eliminar participante: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 },
@@ -1577,102 +1169,527 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     );
   }
 
-  Future<void> _exportParticipantesCsv() async {
-    await Future.delayed(Duration(milliseconds: 1));
-    if (!mounted) return;
-    _showSuccessSnackBar(context, 'Exportação em desenvolvimento...');
+  void _showMessage(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    }
+  }
+}
+
+// ============= DIÁLOGO SEPARADO PARA EQUIPA =============
+class _EquipaDialog extends StatefulWidget {
+  final String userId;
+  final Map<String, dynamic> userData;
+  final Function(String) onSuccess;
+  final Function(String) onError;
+
+  const _EquipaDialog({
+    required this.userId,
+    required this.userData,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_EquipaDialog> createState() => _EquipaDialogState();
+}
+
+class _EquipaDialogState extends State<_EquipaDialog> {
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _hinoController = TextEditingController();
+  String _selectedGrupo = 'A';
+  bool _isLoading = true;
+  bool _isEdit = false;
+  String? _equipaId;
+  Map<String, dynamic>? _equipaData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEquipaData();
   }
 
-  Future<void> _exportListaCompleta() async {
-    await Future.delayed(Duration(milliseconds: 1));
-    if (!mounted) return;
-    _showSuccessSnackBar(context, 'Lista completa em desenvolvimento...');
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _hinoController.dispose();
+    super.dispose();
   }
 
-  void _criarEquipasAutomaticas() {
-    _showInfoDialog(
-      context,
-      'Criar Equipas Automáticas',
-      'Funcionalidade em desenvolvimento...',
-    );
+  Future<void> _loadEquipaData() async {
+    final equipaId = widget.userData['equipaId'];
+    if (equipaId != null && equipaId.isNotEmpty) {
+      try {
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('equipas')
+                .doc(equipaId)
+                .get();
+
+        if (doc.exists) {
+          _equipaData = doc.data() as Map<String, dynamic>;
+          _equipaId = equipaId;
+          _isEdit = true;
+
+          _nomeController.text = _equipaData?['nome'] ?? '';
+          _hinoController.text = _equipaData?['hino'] ?? '';
+          _selectedGrupo = _equipaData?['grupo'] ?? 'A';
+        }
+      } catch (e) {
+        // Erro ao carregar, mas continua como criação
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  void _gerarQrCodesTodos() {
-    _showInfoDialog(
-      context,
-      'Gerar QR Codes',
-      'Funcionalidade em desenvolvimento...',
-    );
-  }
-
-  void _enviarConvites() {
-    _showInfoDialog(
-      context,
-      'Enviar Convites',
-      'Funcionalidade em desenvolvimento...',
-    );
-  }
-
-  void _showSuccessSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Text(message, style: const TextStyle(color: Colors.white)),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const AlertDialog(
+        backgroundColor: Colors.white,
+        content: SizedBox(
+          height: 100,
+          child: Center(child: CircularProgressIndicator()),
         ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
+      );
+    }
 
-  void _showErrorSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(message, style: const TextStyle(color: Colors.white)),
-            ),
-          ],
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      title: Text(
+        _isEdit ? 'Editar Equipa' : 'Criar Nova Equipa',
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
         ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
       ),
-    );
-  }
-
-  void _showInfoDialog(BuildContext context, String title, String message) {
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nomeController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Nome da Equipa',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  hintText: 'Digite o nome da equipa',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.groups, color: Colors.blue),
+                ),
               ),
-            ),
-            content: Text(
-              message,
-              style: const TextStyle(color: Colors.black87),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK', style: TextStyle(color: Colors.blue)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _hinoController,
+                style: const TextStyle(color: Colors.black),
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Hino/Grito de Guerra',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  hintText: 'Digite o grito de guerra da equipa',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.campaign, color: Colors.orange),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedGrupo,
+                style: const TextStyle(color: Colors.black),
+                dropdownColor: Colors.white,
+                decoration: InputDecoration(
+                  labelText: 'Grupo',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.flag, color: Colors.green),
+                ),
+                items:
+                    ['A', 'B'].map((grupo) {
+                      return DropdownMenuItem(
+                        value: grupo,
+                        child: Text(
+                          'Grupo $grupo',
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                      );
+                    }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGrupo = value!;
+                  });
+                },
               ),
             ],
           ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: _salvarEquipa,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(_isEdit ? 'Atualizar' : 'Criar'),
+        ),
+      ],
     );
+  }
+
+  Future<void> _salvarEquipa() async {
+    if (_nomeController.text.trim().isEmpty) {
+      widget.onError('O nome da equipa é obrigatório');
+      return;
+    }
+
+    try {
+      final equipaDataToSave = {
+        'nome': _nomeController.text.trim(),
+        'hino': _hinoController.text.trim(),
+        'grupo': _selectedGrupo,
+        'pontuacaoTotal': _equipaData?['pontuacaoTotal'] ?? 0,
+        'ranking': _equipaData?['ranking'] ?? 1,
+        'membros': _equipaData?['membros'] ?? [widget.userId],
+        'bandeiraUrl': _equipaData?['bandeiraUrl'] ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      String finalEquipaId;
+
+      if (_isEdit && _equipaId != null) {
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(_equipaId)
+            .update(equipaDataToSave);
+        finalEquipaId = _equipaId!;
+      } else {
+        equipaDataToSave['createdAt'] = FieldValue.serverTimestamp();
+        final docRef = await FirebaseFirestore.instance
+            .collection('equipas')
+            .add(equipaDataToSave);
+        finalEquipaId = docRef.id;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'equipaId': finalEquipaId});
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess(
+          _isEdit
+              ? 'Equipa atualizada com sucesso!'
+              : 'Equipa criada com sucesso!',
+        );
+      }
+    } catch (e) {
+      widget.onError('Erro ao ${_isEdit ? 'atualizar' : 'criar'} equipa: $e');
+    }
+  }
+}
+
+// ============= DIÁLOGO SEPARADO PARA VEÍCULO =============
+class _VeiculoDialog extends StatefulWidget {
+  final String userId;
+  final Map<String, dynamic> userData;
+  final Function(String) onSuccess;
+  final Function(String) onError;
+
+  const _VeiculoDialog({
+    required this.userId,
+    required this.userData,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_VeiculoDialog> createState() => _VeiculoDialogState();
+}
+
+class _VeiculoDialogState extends State<_VeiculoDialog> {
+  final TextEditingController _matriculaController = TextEditingController();
+  final TextEditingController _modeloController = TextEditingController();
+  final TextEditingController _disticoController = TextEditingController();
+  bool _isLoading = true;
+  bool _isEdit = false;
+  String? _veiculoId;
+  Map<String, dynamic>? _veiculoData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVeiculoData();
+  }
+
+  @override
+  void dispose() {
+    _matriculaController.dispose();
+    _modeloController.dispose();
+    _disticoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadVeiculoData() async {
+    final veiculoId = widget.userData['veiculoId'];
+    if (veiculoId != null && veiculoId.isNotEmpty) {
+      try {
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('veiculos')
+                .doc(veiculoId)
+                .get();
+
+        if (doc.exists) {
+          _veiculoData = doc.data() as Map<String, dynamic>;
+          _veiculoId = veiculoId;
+          _isEdit = true;
+
+          _matriculaController.text = _veiculoData?['matricula'] ?? '';
+          _modeloController.text = _veiculoData?['modelo'] ?? '';
+          _disticoController.text = _veiculoData?['distico'] ?? '';
+        }
+      } catch (e) {
+        // Erro ao carregar, mas continua como criação
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const AlertDialog(
+        backgroundColor: Colors.white,
+        content: SizedBox(
+          height: 100,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      title: Text(
+        _isEdit ? 'Editar Veículo' : 'Registar Novo Veículo',
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _matriculaController,
+                style: const TextStyle(color: Colors.black),
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Matrícula',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  hintText: 'Ex: AA-123-BB',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.directions_car,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _modeloController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Modelo do Veículo',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  hintText: 'Ex: Toyota Corolla',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.car_repair, color: Colors.green),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _disticoController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Dístico (Código)',
+                  labelStyle: const TextStyle(color: Colors.black87),
+                  hintText: 'Código único do veículo',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.qr_code, color: Colors.orange),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'O condutor atual será definido como proprietário do veículo.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: _salvarVeiculo,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(_isEdit ? 'Atualizar' : 'Registar'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _salvarVeiculo() async {
+    if (_matriculaController.text.trim().isEmpty) {
+      widget.onError('A matrícula é obrigatória');
+      return;
+    }
+
+    try {
+      String nomeEquipa = '';
+      if (widget.userData['equipaId'] != null &&
+          widget.userData['equipaId'].toString().isNotEmpty) {
+        final equipaDoc =
+            await FirebaseFirestore.instance
+                .collection('equipas')
+                .doc(widget.userData['equipaId'])
+                .get();
+        if (equipaDoc.exists) {
+          final equipaData = equipaDoc.data() as Map<String, dynamic>;
+          nomeEquipa = equipaData['nome'] ?? '';
+        }
+      }
+
+      final veiculoDataToSave = {
+        'matricula': _matriculaController.text.trim().toUpperCase(),
+        'modelo': _modeloController.text.trim(),
+        'distico': _disticoController.text.trim(),
+        'ownerId': widget.userId,
+        'nome_equipa': nomeEquipa,
+        'passageiros': _veiculoData?['passageiros'] ?? [widget.userId],
+        'checkpointId': _veiculoData?['checkpointId'] ?? [],
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      String finalVeiculoId;
+
+      if (_isEdit && _veiculoId != null) {
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(_veiculoId)
+            .update(veiculoDataToSave);
+        finalVeiculoId = _veiculoId!;
+      } else {
+        veiculoDataToSave['createdAt'] = FieldValue.serverTimestamp();
+        final docRef = await FirebaseFirestore.instance
+            .collection('veiculos')
+            .add(veiculoDataToSave);
+        finalVeiculoId = docRef.id;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'veiculoId': finalVeiculoId});
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess(
+          _isEdit
+              ? 'Veículo atualizado com sucesso!'
+              : 'Veículo registado com sucesso!',
+        );
+      }
+    } catch (e) {
+      widget.onError(
+        'Erro ao ${_isEdit ? 'atualizar' : 'registar'} veículo: $e',
+      );
+    }
   }
 }
