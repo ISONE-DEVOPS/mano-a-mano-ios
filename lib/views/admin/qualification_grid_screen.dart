@@ -1,5 +1,5 @@
 // ================================
-// QUALIFICATION GRID SCREEN
+// QUALIFICATION GRID SCREEN - CABEÇALHO OTIMIZADO
 // ================================
 
 import 'package:flutter/material.dart';
@@ -156,11 +156,11 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         elevation: 0,
         title: const Row(
           children: [
-            Icon(Icons.grid_view, size: 28),
+            Icon(Icons.grid_view, size: 24),
             SizedBox(width: 12),
             Text(
               'Grelha de Qualificação',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -170,14 +170,14 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
             icon:
                 _isLoading
                     ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
                     )
-                    : const Icon(Icons.refresh),
+                    : const Icon(Icons.refresh, size: 20),
             tooltip: 'Atualizar dados',
           ),
           const SizedBox(width: 16),
@@ -185,10 +185,10 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
       ),
       body: Column(
         children: [
-          // Header com informações
+          // Header compacto otimizado
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -201,19 +201,19 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                 const Text(
                   'SHELL AO KM 2025',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'Posições organizadas por grupos de percurso',
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
-                const SizedBox(height: 16),
-                _buildQuickStats(),
+                const SizedBox(height: 12),
+                _buildCompactQuickStats(),
               ],
             ),
           ),
@@ -236,47 +236,47 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildCompactQuickStats() {
     final equipasGrupoA = _equipas.where((e) => e.grupo == 'A').length;
     final equipasGrupoB = _equipas.where((e) => e.grupo == 'B').length;
     final melhorPontuacao =
         _equipas.isNotEmpty ? _equipas.first.pontuacaoTotal : 0;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStatItem('Total', '${_equipas.length}', Icons.groups),
-        _buildStatItem('Grupo A', '$equipasGrupoA', Icons.flag),
-        _buildStatItem('Grupo B', '$equipasGrupoB', Icons.flag),
-        _buildStatItem('Melhor', '$melhorPontuacao pts', Icons.star),
+        _buildCompactStatItem('Total', '${_equipas.length}', Icons.groups),
+        _buildCompactStatItem('Grupo A', '$equipasGrupoA', Icons.flag),
+        _buildCompactStatItem('Grupo B', '$equipasGrupoB', Icons.flag),
+        _buildCompactStatItem('Melhor', '$melhorPontuacao pts', Icons.star),
       ],
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildCompactStatItem(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(51),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withAlpha(77)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.white70),
+            style: const TextStyle(fontSize: 10, color: Colors.white70),
           ),
         ],
       ),

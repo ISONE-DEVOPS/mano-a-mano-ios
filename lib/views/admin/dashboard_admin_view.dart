@@ -1,5 +1,5 @@
 // ================================
-// DASHBOARD ADMIN VIEW - ATUALIZADO
+// DASHBOARD ADMIN VIEW - COMPLETO ATUALIZADO
 // ================================
 
 import 'package:flutter/material.dart';
@@ -22,7 +22,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
       backgroundColor: Colors.grey.shade50,
       body: Column(
         children: [
-          // Header melhorado
+          // Header otimizado
           _buildHeader(context),
 
           // Dashboard principal
@@ -48,25 +48,25 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
       child: Column(
         children: [
-          // Título principal
+          // Título principal mais compacto
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(51),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.dashboard,
-                  size: 40,
+                  size: 28,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,24 +74,24 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                     Text(
                       'SHELL AO KM 2025',
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        letterSpacing: 1.2,
+                        letterSpacing: 1.0,
                       ),
                     ),
                     Text(
                       'Dashboard Administrativo',
-                      style: TextStyle(fontSize: 18, color: Colors.white70),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                   ],
                 ),
               ),
 
-              // Botões de navegação rápida
+              // Botões de navegação rápida mais compactos
               Row(
                 children: [
-                  _buildQuickActionButton(
+                  _buildCompactActionButton(
                     context,
                     'Grelha',
                     Icons.grid_view,
@@ -103,8 +103,8 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  _buildQuickActionButton(
+                  const SizedBox(width: 8),
+                  _buildCompactActionButton(
                     context,
                     'Ranking',
                     Icons.leaderboard,
@@ -121,16 +121,16 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
             ],
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
 
-          // Estatísticas melhoradas
-          _buildStatsHeader(),
+          // Estatísticas mais compactas
+          _buildCompactStatsHeader(),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionButton(
+  Widget _buildCompactActionButton(
     BuildContext context,
     String label,
     IconData icon,
@@ -139,15 +139,19 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
   ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      icon: Icon(icon, size: 16),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        elevation: 8,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        elevation: 4,
         shadowColor: color.withAlpha(102),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        minimumSize: const Size(80, 32),
       ),
     );
   }
@@ -750,7 +754,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildStatsHeader() {
+  Widget _buildCompactStatsHeader() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('equipas').snapshots(),
       builder: (context, equipasSnapshot) {
@@ -771,7 +775,15 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                 if (!equipasSnapshot.hasData ||
                     !checkpointsSnapshot.hasData ||
                     !usersSnapshot.hasData) {
-                  return const CircularProgressIndicator(color: Colors.white);
+                  return const SizedBox(
+                    height: 40,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  );
                 }
 
                 final equipasDocs = equipasSnapshot.data!.docs;
@@ -800,32 +812,38 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                       FirebaseFirestore.instance.collection('veiculos').get(),
                   builder: (context, veiculosSnapshot) {
                     if (!veiculosSnapshot.hasData) {
-                      return const CircularProgressIndicator(
-                        color: Colors.white,
+                      return const SizedBox(
+                        height: 40,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
                       );
                     }
 
                     final totalVeiculos = veiculosSnapshot.data!.docs.length;
 
                     return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatIndicator(
+                        _buildCompactStatIndicator(
                           Icons.groups,
                           'Equipas',
                           totalEquipas,
                         ),
-                        _buildStatIndicator(
+                        _buildCompactStatIndicator(
                           Icons.local_gas_station,
                           'Checkpoints',
                           totalCheckpoints,
                         ),
-                        _buildStatIndicator(
+                        _buildCompactStatIndicator(
                           Icons.person,
                           'Participantes',
                           totalParticipantes,
                         ),
-                        _buildStatIndicator(
+                        _buildCompactStatIndicator(
                           Icons.directions_car,
                           'Veículos',
                           totalVeiculos,
@@ -842,32 +860,32 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
     );
   }
 
-  Widget _buildStatIndicator(IconData icon, String label, int count) {
+  Widget _buildCompactStatIndicator(IconData icon, String label, int count) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(51),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withAlpha(77)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 36, color: Colors.white),
-          const SizedBox(height: 12),
+          Icon(icon, size: 20, color: Colors.white),
+          const SizedBox(height: 6),
           Text(
             '$count',
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 11,
               color: Colors.white70,
               fontWeight: FontWeight.w500,
             ),

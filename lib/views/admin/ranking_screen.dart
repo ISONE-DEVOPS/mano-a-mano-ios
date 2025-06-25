@@ -1,5 +1,5 @@
 // ================================
-// RANKING SCREEN - TELA DEDICADA
+// RANKING SCREEN - CABEÇALHO OTIMIZADO
 // ================================
 
 import 'package:flutter/material.dart';
@@ -27,23 +27,23 @@ class _RankingScreenState extends State<RankingScreen> {
         elevation: 0,
         title: const Row(
           children: [
-            Icon(Icons.leaderboard, size: 28),
+            Icon(Icons.leaderboard, size: 24),
             SizedBox(width: 12),
             Text(
               'Ranking Geral',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
         actions: [
           IconButton(
             onPressed: () => _showRankingManagement(context),
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings, size: 20),
             tooltip: 'Gestão do Ranking',
           ),
           IconButton(
             onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 20),
             tooltip: 'Atualizar',
           ),
           const SizedBox(width: 16),
@@ -51,10 +51,10 @@ class _RankingScreenState extends State<RankingScreen> {
       ),
       body: Column(
         children: [
-          // Header com informações
+          // Header compacto otimizado
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -67,19 +67,19 @@ class _RankingScreenState extends State<RankingScreen> {
                 const Text(
                   'SHELL AO KM 2025',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'Classificação geral por pontuação',
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
-                const SizedBox(height: 16),
-                _buildRankingStats(),
+                const SizedBox(height: 12),
+                _buildCompactRankingStats(),
               ],
             ),
           ),
@@ -94,7 +94,7 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 
-  Widget _buildRankingStats() {
+  Widget _buildCompactRankingStats() {
     return StreamBuilder<QuerySnapshot>(
       stream:
           FirebaseFirestore.instance
@@ -103,7 +103,15 @@ class _RankingScreenState extends State<RankingScreen> {
               .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const CircularProgressIndicator(color: Colors.white);
+          return const SizedBox(
+            height: 40,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            ),
+          );
         }
 
         final totalEquipas = snapshot.data!.docs.length;
@@ -123,42 +131,50 @@ class _RankingScreenState extends State<RankingScreen> {
                 .length;
 
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildStatItem('Total', '$totalEquipas', Icons.groups),
-            _buildStatItem('Com Pontos', '$equipasComPontos', Icons.star),
-            _buildStatItem('Melhor', '$pontucaoMais pts', Icons.emoji_events),
-            _buildStatItem('Status', 'Ativo', Icons.play_circle),
+            _buildCompactStatItem('Total', '$totalEquipas', Icons.groups),
+            _buildCompactStatItem(
+              'Com Pontos',
+              '$equipasComPontos',
+              Icons.star,
+            ),
+            _buildCompactStatItem(
+              'Melhor',
+              '$pontucaoMais pts',
+              Icons.emoji_events,
+            ),
+            _buildCompactStatItem('Status', 'Ativo', Icons.play_circle),
           ],
         );
       },
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildCompactStatItem(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(51),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withAlpha(77)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.white70),
+            style: const TextStyle(fontSize: 10, color: Colors.white70),
           ),
         ],
       ),
