@@ -112,62 +112,70 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         }
       }
 
-      // Buscar pontuações de todos os usuários de uma vez
+      // Buscar pontuações de todos os usuários em paralelo usando Future.wait
       Map<String, Map<String, CheckpointStatusEnum>> allCheckpointStatus = {};
       Map<String, Map<String, bool>> allJogoStatus = {};
 
-      for (var uid in allUIDs) {
-        try {
-          final pontuacoesSnapshot =
-              await _firestore
-                  .collection('users')
-                  .doc(uid)
-                  .collection('eventos')
-                  .doc('shell_km_02')
-                  .collection('pontuacoes')
-                  .get();
+      final pontuacoesSnapshots = await Future.wait(
+        allUIDs.map((uid) async {
+          try {
+            final snapshot =
+                await _firestore
+                    .collection('users')
+                    .doc(uid)
+                    .collection('eventos')
+                    .doc('shell_2025')
+                    .collection('pontuacoes')
+                    .get();
+            return {'uid': uid, 'snapshot': snapshot};
+          } catch (e) {
+            debugPrint('⚠️ Erro ao buscar dados do usuário $uid: $e');
+            return null;
+          }
+        }),
+      );
 
-          Map<String, CheckpointStatusEnum> userCheckpointStatus = {};
-          Map<String, bool> userJogoStatus = {};
+      for (var entry in pontuacoesSnapshots.where((e) => e != null)) {
+        final uid = entry!['uid'] as String;
+        final pontuacoesSnapshot = entry['snapshot'] as QuerySnapshot;
 
-          for (var doc in pontuacoesSnapshot.docs) {
-            final data = doc.data();
-            final checkpointId = doc.id;
+        Map<String, CheckpointStatusEnum> userCheckpointStatus = {};
+        Map<String, bool> userJogoStatus = {};
 
-            // 🔥 CORRIGIDO: verificar campos 'entrada' e 'saida' (não timestamp)
-            final entrada = data['entrada'] ?? data['timestampEntrada'];
-            final saida = data['saida'] ?? data['timestampSaida'];
+        for (var doc in pontuacoesSnapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          // Usar checkpointRef.id se existir, senão doc.id
+          final checkpointRef = (data)['checkpointRef'] as DocumentReference?;
+          final checkpointId = checkpointRef?.id ?? doc.id;
+          debugPrint('📍 Pontuação encontrada com checkpointId: $checkpointId');
 
-            if (entrada != null && saida != null) {
-              userCheckpointStatus[checkpointId] =
-                  CheckpointStatusEnum.completo;
-              debugPrint(
-                '    ✅ Checkpoint $checkpointId: COMPLETO (entrada + saída)',
-              );
-            } else if (entrada != null) {
-              userCheckpointStatus[checkpointId] =
-                  CheckpointStatusEnum.apenasEntrada;
-              debugPrint('    🟠 Checkpoint $checkpointId: APENAS ENTRADA');
-            } else {
-              userCheckpointStatus[checkpointId] =
-                  CheckpointStatusEnum.naoCompleto;
-              debugPrint('    🔘 Checkpoint $checkpointId: NÃO COMPLETO');
-            }
+          final entrada = data['entrada'] ?? data['timestampEntrada'];
+          final saida = data['saida'] ?? data['timestampSaida'];
 
-            // Status dos jogos
-            final jogosPontuados =
-                data['jogosPontuados'] as Map<String, dynamic>? ?? {};
-            for (var jogoId in jogosPontuados.keys) {
-              userJogoStatus[jogoId] = true;
-              debugPrint('    🎮 Jogo $jogoId: FEITO');
-            }
+          if (entrada != null && saida != null) {
+            userCheckpointStatus[checkpointId] = CheckpointStatusEnum.completo;
+            debugPrint(
+              '✅ Checkpoint completo registrado: $checkpointId para user $uid',
+            );
+          } else if (entrada != null) {
+            userCheckpointStatus[checkpointId] =
+                CheckpointStatusEnum.apenasEntrada;
+            // Não loga para apenasEntrada, só para completo conforme pedido
+          } else {
+            userCheckpointStatus[checkpointId] =
+                CheckpointStatusEnum.naoCompleto;
           }
 
-          allCheckpointStatus[uid] = userCheckpointStatus;
-          allJogoStatus[uid] = userJogoStatus;
-        } catch (e) {
-          debugPrint('⚠️ Erro ao buscar dados do usuário $uid: $e');
+          final jogosPontuados =
+              data['jogosPontuados'] as Map<String, dynamic>? ?? {};
+          for (var jogoId in jogosPontuados.keys) {
+            userJogoStatus[jogoId] = true;
+            debugPrint('✅ Jogo pontuado registrado: $jogoId para user $uid');
+          }
         }
+
+        allCheckpointStatus[uid] = userCheckpointStatus;
+        allJogoStatus[uid] = userJogoStatus;
       }
 
       debugPrint('✅ Status carregados para ${allUIDs.length} usuários');
@@ -178,7 +186,20 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
       for (var equipaDoc in filteredEquipas) {
         try {
           final equipaData = equipaDoc.data() as Map<String, dynamic>;
-          final veiculoId = equipaData['veiculoId'] as String?;
+          String? veiculoId = equipaData['veiculoId'] as String?;
+
+          // Fallback: se veiculoId não estiver na equipa, procurar no condutor
+          if ((veiculoId == null || !veiculosMap.containsKey(veiculoId)) &&
+              equipaData['condutorId'] != null &&
+              usersMap.containsKey(equipaData['condutorId'])) {
+            final userData = usersMap[equipaData['condutorId']]!;
+            final veiculoIdDoCondutor = userData['veiculoId']?.toString();
+            if (veiculoIdDoCondutor != null &&
+                veiculosMap.containsKey(veiculoIdDoCondutor)) {
+              veiculoId = veiculoIdDoCondutor;
+            }
+          }
+
           final membros = equipaData['membros'] as List? ?? [];
 
           // Buscar dados do veículo
@@ -256,6 +277,13 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
           debugPrint('  ✅ Status final da equipa:');
           debugPrint('    📍 Checkpoints: ${equipaCheckpointStatus.length}');
           debugPrint('    🎮 Jogos: ${equipaJogoStatus.length}');
+          // Logar todos os checkpoints e jogos da equipa para diagnóstico:
+          debugPrint(
+            '📊 Checkpoints da equipa ${equipaData['nome']}: $equipaCheckpointStatus',
+          );
+          debugPrint(
+            '🎯 Jogos da equipa ${equipaData['nome']}: $equipaJogoStatus',
+          );
 
           equipasData.add(
             EquipaGridData(
@@ -374,6 +402,12 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
     debugPrint('🎯 Checkpoints processados:');
     debugPrint('   - Grupo A: ${_checkpointsGrupoA.length}');
     debugPrint('   - Grupo B: ${_checkpointsGrupoB.length}');
+    debugPrint(
+      '🔧 Checkpoints disponíveis (Grupo A): ${checkpointsA.map((c) => c.id).join(', ')}',
+    );
+    debugPrint(
+      '🔧 Checkpoints disponíveis (Grupo B): ${checkpointsB.map((c) => c.id).join(', ')}',
+    );
   }
 
   // ✅ MÉTODOS REMOVIDOS - AGORA FAZEMOS TUDO EM LOTE
@@ -875,7 +909,7 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
     final checkpoints = grupo == 'A' ? _checkpointsGrupoA : _checkpointsGrupoB;
 
     return Container(
-      height: 220, // Aumentar altura para mais informação
+      height: 240, // Aumentar altura para mais informação
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,13 +964,23 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                       ),
                     ],
                   ),
-                  child: Text(
-                    '#${equipa.distico}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.label_important,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Dístico ${equipa.distico}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -957,31 +1001,6 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    // Condutor mais visível
-                    if (equipa.condutorNome.isNotEmpty)
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person,
-                            size: 12,
-                            color: Colors.blue.shade600,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              equipa.condutorNome,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
                   ],
                 ),
               ),
@@ -1169,11 +1188,18 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                     // Checkpoints
                     Row(
                       children: List.generate(8, (index) {
-                        final checkpointIndex = index + 1;
-                        final checkpointId =
-                            checkpoints.length > index
-                                ? checkpoints[index].id
-                                : '';
+                        final checkpoint =
+                            index < checkpoints.length
+                                ? checkpoints[index]
+                                : CheckpointData(
+                                  id: '',
+                                  nome: '',
+                                  ordemA: 0,
+                                  ordemB: 0,
+                                  percurso: grupo,
+                                  codigosJogos: [],
+                                );
+                        final checkpointId = checkpoint.id;
                         final status =
                             checkpointId.isNotEmpty
                                 ? (equipa.checkpointStatus[checkpointId] ??
@@ -1182,31 +1208,35 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
 
                         // DEBUG: Mostrar status real
                         debugPrint(
-                          '🔍 Checkpoint C${checkpointIndex.toString().padLeft(2, '0')}: $status (ID: $checkpointId)',
+                          '🔎 Equipa ${equipa.nome} - Checkpoint $checkpointId → Status = $status',
                         );
 
                         return Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 1),
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: _getCheckpointStatusColor(status),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color:
-                                    status == CheckpointStatusEnum.naoCompleto
-                                        ? Colors.grey.shade400
-                                        : Colors.transparent,
-                                width: 0.5,
+                          child: Tooltip(
+                            message: '${checkpoint.nome} - ${status.name}',
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: _getCheckpointStatusColor(status),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color:
+                                      status == CheckpointStatusEnum.naoCompleto
+                                          ? Colors.grey.shade400
+                                          : Colors.transparent,
+                                  width: 0.5,
+                                ),
                               ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'C${checkpointIndex.toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
+                              child: Center(
+                                child: Text(
+                                  // Rótulo fixo: C01...C08
+                                  ('C${index + 1}').padLeft(3, '0'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1220,52 +1250,72 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                     // Jogos (alinhados com checkpoints)
                     Row(
                       children: List.generate(8, (index) {
-                        final jogoIndex = index + 1;
-                        final checkpointId =
-                            checkpoints.length > index
-                                ? checkpoints[index].id
-                                : '';
+                        final checkpoint =
+                            index < checkpoints.length
+                                ? checkpoints[index]
+                                : CheckpointData(
+                                  id: '',
+                                  nome: '',
+                                  ordemA: 0,
+                                  ordemB: 0,
+                                  percurso: grupo,
+                                  codigosJogos: [],
+                                );
+                        final checkpointId = checkpoint.id;
 
                         // Verificar se algum jogo deste checkpoint foi feito
                         bool jogoFeito = false;
-                        if (checkpointId.isNotEmpty &&
-                            checkpoints.length > index) {
-                          final checkpoint = checkpoints[index];
+                        if (checkpointId.isNotEmpty) {
                           jogoFeito = checkpoint.codigosJogos.any(
                             (codigo) => equipa.jogoStatus[codigo] == true,
                           );
                         }
 
-                        // DEBUG: Mostrar status real
+                        // DEBUG: Mostrar status do jogo
                         debugPrint(
-                          '🎮 Jogo J${jogoIndex.toString().padLeft(2, '0')}: $jogoFeito (Checkpoint: $checkpointId)',
+                          '🎮 Equipa ${equipa.nome} - Jogo ${('J${index + 1}').padLeft(3, '0')} (checkpoint $checkpointId) → feito=$jogoFeito',
                         );
 
                         return Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 1),
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color:
-                                  jogoFeito
-                                      ? Colors.green.shade600
-                                      : Colors.grey.shade500,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
+                          child: Tooltip(
+                            message:
+                                checkpoint.codigosJogos.isEmpty
+                                    ? 'Sem jogo'
+                                    : 'Jogos: ${checkpoint.codigosJogos.join(', ')} - Feito: $jogoFeito',
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              height: 22,
+                              decoration: BoxDecoration(
                                 color:
                                     jogoFeito
-                                        ? Colors.transparent
-                                        : Colors.grey.shade400,
-                                width: 0.5,
+                                        ? Colors.green.shade600
+                                        : _getCheckpointStatusColor(
+                                          checkpointId.isNotEmpty
+                                              ? (equipa
+                                                      .checkpointStatus[checkpointId] ??
+                                                  CheckpointStatusEnum
+                                                      .naoCompleto)
+                                              : CheckpointStatusEnum
+                                                  .naoCompleto,
+                                        ),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color:
+                                      jogoFeito
+                                          ? Colors.transparent
+                                          : Colors.grey.shade400,
+                                  width: 0.5,
+                                ),
                               ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'J${jogoIndex.toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
+                              child: Center(
+                                child: Text(
+                                  // Rótulo fixo: J01...J08
+                                  ('J${index + 1}').padLeft(3, '0'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
