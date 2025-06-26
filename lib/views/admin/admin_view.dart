@@ -369,7 +369,7 @@ class _AdminViewState extends State<AdminView> {
     const EditionView(),
     const GenerateQrView(),
     const perguntas_view.PerguntasView(),
-    const JogosCreateView(),
+    const JogosManagementView(),
     const CreateUserView(),
     // const ReportsView(), // Removed
     const ParticipantesView(),

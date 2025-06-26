@@ -505,6 +505,7 @@ class _CheckinViewState extends State<CheckinView> {
         }, SetOptions(merge: true));
       } else {
         await pontuacaoRef.update({'timestampSaida': now});
+      await _atualizarTempoTotal(uid);
       }
 
       // Atualizar checkpoints visitados
@@ -513,9 +514,104 @@ class _CheckinViewState extends State<CheckinView> {
       });
 
       log('>>> Checkpoint registrado com sucesso!');
+      await _atualizarPontuacaoTotal(uid);
+      await _atualizarClassificacaoGeral();
     } catch (e) {
       log('>>> Erro ao registrar: $e');
       rethrow;
+    }
+  }
+
+  Future<void> _atualizarPontuacaoTotal(String uid) async {
+    try {
+      final pontuacoesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc('shell_2025')
+              .collection('pontuacoes')
+              .get();
+
+      int total = 0;
+
+      for (var doc in pontuacoesSnapshot.docs) {
+        final data = doc.data();
+        total +=
+            ((data['pontuacaoPergunta'] ?? 0) as num).toInt() +
+            ((data['pontuacaoJogo'] ?? 0) as num).toInt();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc('shell_2025')
+          .update({'pontuacaoTotal': total});
+
+      log('>>> pontuacaoTotal atualizada: $total');
+    } catch (e) {
+      log('>>> Erro ao atualizar pontuacaoTotal: $e');
+    }
+  }
+
+  Future<void> _atualizarTempoTotal(String uid) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc('shell_2025')
+          .collection('pontuacoes')
+          .get();
+
+      int totalSegundos = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final entrada = (data['timestampEntrada'] != null)
+            ? DateTime.tryParse(data['timestampEntrada'])
+            : null;
+        final saida = (data['timestampSaida'] != null)
+            ? DateTime.tryParse(data['timestampSaida'])
+            : null;
+
+        if (entrada != null && saida != null) {
+          totalSegundos += saida.difference(entrada).inSeconds;
+        }
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc('shell_2025')
+          .update({'tempoTotal': totalSegundos});
+
+      log('>>> tempoTotal atualizado: $totalSegundos segundos');
+    } catch (e) {
+      log('>>> Erro ao atualizar tempoTotal: $e');
+    }
+  }
+
+  Future<void> _atualizarClassificacaoGeral() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup('shell_2025')
+          .orderBy('pontuacaoTotal', descending: true)
+          .orderBy('tempoTotal')
+          .get();
+
+      int posicao = 1;
+
+      for (var doc in snapshot.docs) {
+        await doc.reference.update({'classificacao': posicao});
+        posicao++;
+      }
+
+      log('>>> classificacoes atualizadas');
+    } catch (e) {
+      log('>>> Erro ao atualizar classificacao: $e');
     }
   }
 

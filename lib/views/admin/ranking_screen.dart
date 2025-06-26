@@ -280,6 +280,9 @@ class _RankingScreenState extends State<RankingScreen> {
   ) {
     final data = doc.data() as Map<String, dynamic>;
 
+    // Adiciona a linha para pegar o tempo total
+    final tempoTotal = data['tempoTotal'] ?? 0;
+
     return FutureBuilder<DocumentSnapshot>(
       future:
           FirebaseFirestore.instance
@@ -370,6 +373,26 @@ class _RankingScreenState extends State<RankingScreen> {
                         fontWeight: FontWeight.bold,
                         color: Colors.green.shade800,
                         fontSize: 16,
+                      ),
+                    ),
+                  ),
+
+                  // Adiciona o bloco do tempo total
+                  const SizedBox(height: 8),
+
+                  // Tempo Total
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${(tempoTotal / 60).toStringAsFixed(1)} min',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade800,
                       ),
                     ),
                   ),
@@ -543,6 +566,7 @@ class _RankingScreenState extends State<RankingScreen> {
 
         final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
         final grupo = equipaData?['grupo'] ?? 'A';
+        final tempoTotal = data['tempoTotal'] ?? 0;
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -637,6 +661,25 @@ class _RankingScreenState extends State<RankingScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Tempo Total
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${(tempoTotal / 60).toStringAsFixed(1)} min',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
                   ),
                 ),
               ),

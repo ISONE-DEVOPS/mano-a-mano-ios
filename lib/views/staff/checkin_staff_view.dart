@@ -1128,6 +1128,10 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
 
+      // Chamada para atualizar pontuacaoTotal agregada
+      await _atualizarPontuacaoTotal(uid);
+      await _atualizarClassificacaoGeral();
+
       // Atualizar lista de jogos já pontuados
       setState(() {
         _jogosJaPontuados.add(_selectedJogoId!);
@@ -1355,6 +1359,58 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
     _pontuacaoController.clear();
     _scannerController.start();
+  }
+
+  /// Atualiza o campo pontuacaoTotal do documento do evento para o participante,
+  /// somando todas as pontuações de perguntas e jogos dos checkpoints.
+  Future<void> _atualizarPontuacaoTotal(String uid) async {
+    try {
+      final pontuacoesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc('shell_km_02')
+          .collection('pontuacoes')
+          .get();
+
+      int total = 0;
+
+      for (var doc in pontuacoesSnapshot.docs) {
+        final data = doc.data();
+        total += ((data['pontuacaoPergunta'] ?? 0) as num).toInt() +
+                 ((data['pontuacaoJogo'] ?? 0) as num).toInt();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc('shell_km_02')
+          .update({'pontuacaoTotal': total});
+    } catch (e) {
+      developer.log('Erro ao atualizar pontuacaoTotal: $e', name: 'StaffScoreInput');
+    }
+  }
+
+  /// Atualiza a classificação geral dos participantes do evento shell_km_02
+  Future<void> _atualizarClassificacaoGeral() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup('shell_km_02')
+          .orderBy('pontuacaoTotal', descending: true)
+          .orderBy('tempoTotal')
+          .get();
+
+      int posicao = 1;
+      for (var doc in snapshot.docs) {
+        await doc.reference.update({'classificacao': posicao});
+        posicao++;
+      }
+
+      developer.log('>>> classificacoes atualizadas');
+    } catch (e) {
+      developer.log('Erro ao atualizar classificacao: $e', name: 'StaffScoreInput');
+    }
   }
 
   @override

@@ -605,6 +605,25 @@ class _HomeViewState extends State<HomeView> {
                                   return total + pontuacaoFinal;
                                 });
 
+                            // Calcular tempo total em segundos somando diferença entre entrada e saída de cada checkpoint
+                            final tempoTotal = processedCheckpoints.values.fold<
+                              int
+                            >(0, (total, cp) {
+                              final entradaStr = cp['timestampEntrada'];
+                              final saidaStr = cp['timestampSaida'];
+                              if (entradaStr is String && saidaStr is String) {
+                                final entrada = DateTime.tryParse(entradaStr);
+                                final saida = DateTime.tryParse(saidaStr);
+                                if (entrada != null && saida != null) {
+                                  total +=
+                                      (saida.difference(entrada).inSeconds
+                                              as num)
+                                          .toInt();
+                                }
+                              }
+                              return total;
+                            });
+
                             return Column(
                               children: [
                                 Container(
@@ -680,6 +699,12 @@ class _HomeViewState extends State<HomeView> {
                                                 ),
                                               Text(
                                                 'Pontuação Total: $pontuacaoTotal',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Tempo Total: ${(tempoTotal / 60).toStringAsFixed(1)} min',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                 ),
