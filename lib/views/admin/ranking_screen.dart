@@ -63,6 +63,9 @@ class _RankingScreenState extends State<RankingScreen> {
       child: StreamBuilder<QuerySnapshot>(
         stream: _rankingStream,
         builder: (context, snapshot) {
+          debugPrint(
+            '🔍 snapshot connection: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, error: ${snapshot.error}',
+          );
           if (!snapshot.hasData) {
             return const Center(
               child: Column(

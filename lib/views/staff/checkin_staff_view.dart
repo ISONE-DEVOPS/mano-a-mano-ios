@@ -680,8 +680,24 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
               jogosNaoPontuados.map((jogo) {
                 return DropdownMenuItem<String>(
                   value: jogo['id'],
-                  child: Text(
-                    '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                  child: Row(
+                    children: [
+                      if (jogo['desempate'] == true)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8.0),
+                          child: Icon(
+                            Icons.gavel,
+                            size: 16,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      Flexible(
+                        child: Text(
+                          '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }).toList(),
@@ -1121,9 +1137,17 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         }, SetOptions(merge: true));
       }
 
+      final isDesempate =
+          _jogosDisponiveis.firstWhere(
+            (j) => j['id'] == _selectedJogoId,
+          )['desempate'] ==
+          true;
+
       await docRef.update({
         'jogosPontuados.$_selectedJogoId': _pontuacao,
         'pontuacaoJogo': FieldValue.increment(_pontuacao ?? 0),
+        if (isDesempate)
+          'pontuacaoDesempate': FieldValue.increment(_pontuacao ?? 0),
         'pontuacaoTotal': FieldValue.increment(_pontuacao ?? 0),
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
@@ -1365,20 +1389,23 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   /// somando todas as pontuações de perguntas e jogos dos checkpoints.
   Future<void> _atualizarPontuacaoTotal(String uid) async {
     try {
-      final pontuacoesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('eventos')
-          .doc('shell_km_02')
-          .collection('pontuacoes')
-          .get();
+      final pontuacoesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc('shell_km_02')
+              .collection('pontuacoes')
+              .get();
 
       int total = 0;
 
       for (var doc in pontuacoesSnapshot.docs) {
         final data = doc.data();
-        total += ((data['pontuacaoPergunta'] ?? 0) as num).toInt() +
-                 ((data['pontuacaoJogo'] ?? 0) as num).toInt();
+        total +=
+            ((data['pontuacaoPergunta'] ?? 0) as num).toInt() +
+            ((data['pontuacaoJogo'] ?? 0) as num).toInt() +
+            ((data['pontuacaoDesempate'] ?? 0) as num).toInt();
       }
 
       await FirebaseFirestore.instance
@@ -1388,18 +1415,22 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
           .doc('shell_km_02')
           .update({'pontuacaoTotal': total});
     } catch (e) {
-      developer.log('Erro ao atualizar pontuacaoTotal: $e', name: 'StaffScoreInput');
+      developer.log(
+        'Erro ao atualizar pontuacaoTotal: $e',
+        name: 'StaffScoreInput',
+      );
     }
   }
 
   /// Atualiza a classificação geral dos participantes do evento shell_km_02
   Future<void> _atualizarClassificacaoGeral() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collectionGroup('shell_km_02')
-          .orderBy('pontuacaoTotal', descending: true)
-          .orderBy('tempoTotal')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collectionGroup('shell_km_02')
+              .orderBy('pontuacaoTotal', descending: true)
+              .orderBy('tempoTotal')
+              .get();
 
       int posicao = 1;
       for (var doc in snapshot.docs) {
@@ -1409,7 +1440,10 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
       developer.log('>>> classificacoes atualizadas');
     } catch (e) {
-      developer.log('Erro ao atualizar classificacao: $e', name: 'StaffScoreInput');
+      developer.log(
+        'Erro ao atualizar classificacao: $e',
+        name: 'StaffScoreInput',
+      );
     }
   }
 
