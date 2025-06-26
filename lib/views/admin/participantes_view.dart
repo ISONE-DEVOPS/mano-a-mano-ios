@@ -282,7 +282,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         minimumSize: const Size(0, 40),
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withAlpha((0.1 * 255).round()),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -563,7 +563,9 @@ class _ParticipantesViewState extends State<ParticipantesView> {
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.3),
+                            color: const Color(
+                              0xFF3B82F6,
+                            ).withAlpha((0.3 * 255).round()),
                             spreadRadius: 0,
                             blurRadius: 4,
                             offset: const Offset(0, 2),
@@ -647,7 +649,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha((0.05 * 255).round()),
             spreadRadius: 0,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -908,7 +910,10 @@ class _ParticipantesViewState extends State<ParticipantesView> {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor.withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: textColor.withAlpha((0.3 * 255).round()),
+          width: 1,
+        ),
       ),
       child: Text(
         label,
@@ -1299,15 +1304,15 @@ class _ParticipantesViewState extends State<ParticipantesView> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withAlpha((0.05 * 255).round()),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withAlpha((0.2 * 255).round())),
       ),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha((0.1 * 255).round()),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -1738,7 +1743,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              color: const Color(0xFF3B82F6).withAlpha((0.1 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -1784,7 +1789,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                 color: const Color(0xFFF0F9FF),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFF3B82F6).withOpacity(0.2),
+                  color: const Color(0xFF3B82F6).withAlpha((0.2 * 255).round()),
                 ),
               ),
               child: Column(
@@ -2005,7 +2010,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                 color: const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                  color: const Color(0xFFF59E0B).withAlpha((0.3 * 255).round()),
                 ),
               ),
               child: Row(
@@ -2167,7 +2172,7 @@ class _PassageirosDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              color: const Color(0xFF3B82F6).withAlpha((0.1 * 255).round()),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -2213,7 +2218,7 @@ class _PassageirosDialog extends StatelessWidget {
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: const Color(0xFF3B82F6).withOpacity(0.3),
+                  color: const Color(0xFF3B82F6).withAlpha((0.3 * 255).round()),
                 ),
               ),
               child: Text(
@@ -2286,7 +2291,7 @@ class _PassageirosDialog extends StatelessWidget {
                                       border: Border.all(
                                         color: const Color(
                                           0xFFEF4444,
-                                        ).withOpacity(0.3),
+                                        ).withAlpha((0.3 * 255).round()),
                                       ),
                                     ),
                                     child: ListTile(
@@ -2917,7 +2922,9 @@ class _VeiculoDialogState extends State<_VeiculoDialog> {
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF3B82F6).withOpacity(0.3),
+                    color: const Color(
+                      0xFF3B82F6,
+                    ).withAlpha((0.3 * 255).round()),
                   ),
                 ),
                 child: Row(

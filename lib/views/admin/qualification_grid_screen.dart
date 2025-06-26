@@ -1,5 +1,5 @@
 // ================================
-// QUALIFICATION GRID SCREEN - CABEÇALHO OTIMIZADO
+// QUALIFICATION GRID SCREEN - VERSÃO MELHORADA
 // ================================
 
 import 'package:flutter/material.dart';
@@ -16,6 +16,8 @@ class QualificationGridScreen extends StatefulWidget {
 class _QualificationGridScreenState extends State<QualificationGridScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<EquipaGridData> _equipas = [];
+  List<CheckpointData> _checkpointsGrupoA = [];
+  List<CheckpointData> _checkpointsGrupoB = [];
   bool _isLoading = true;
   String? _error;
 
@@ -42,12 +44,24 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         _firestore.collection('users').get(),
         _firestore.collection('veiculos').get(),
         _firestore.collection('ranking').get(),
+        _firestore.collectionGroup('checkpoints').get(),
+        _firestore.collection('jogos').get(),
       ]);
 
       final equipasSnapshot = futures[0] as QuerySnapshot;
       final usersSnapshot = futures[1] as QuerySnapshot;
       final veiculosSnapshot = futures[2] as QuerySnapshot;
       final rankingSnapshot = futures[3] as QuerySnapshot;
+      final checkpointsSnapshot = futures[4] as QuerySnapshot;
+      final jogosSnapshot = futures[5] as QuerySnapshot;
+
+      debugPrint('✅ Dados carregados:');
+      debugPrint('   - Equipas: ${equipasSnapshot.docs.length}');
+      debugPrint('   - Users: ${usersSnapshot.docs.length}');
+      debugPrint('   - Veículos: ${veiculosSnapshot.docs.length}');
+      debugPrint('   - Rankings: ${rankingSnapshot.docs.length}');
+      debugPrint('   - Checkpoints: ${checkpointsSnapshot.docs.length}');
+      debugPrint('   - Jogos: ${jogosSnapshot.docs.length}');
 
       // Criar mapas para acesso rápido
       final Map<String, Map<String, dynamic>> usersMap = {
@@ -66,6 +80,14 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               doc.data() as Map<String, dynamic>,
       };
 
+      final Map<String, Map<String, dynamic>> jogosMap = {
+        for (var doc in jogosSnapshot.docs)
+          doc.id: doc.data() as Map<String, dynamic>,
+      };
+
+      // Processar checkpoints
+      _processCheckpoints(checkpointsSnapshot.docs, jogosMap);
+
       // Filtrar equipas (excluir admins)
       final filteredEquipas =
           equipasSnapshot.docs.where((doc) {
@@ -75,6 +97,81 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
             return !membros.any((uid) => usersMap[uid]?['tipo'] == 'admin');
           }).toList();
 
+      debugPrint('🔍 Equipas filtradas: ${filteredEquipas.length}');
+
+      // 🔥 BUSCAR TODOS OS STATUS DE UMA VEZ (SEM LOOPS)
+      debugPrint('🔍 Buscando status de checkpoints e jogos...');
+
+      // Coletar todos os UIDs únicos
+      Set<String> allUIDs = {};
+      for (var equipaDoc in filteredEquipas) {
+        final equipaData = equipaDoc.data() as Map<String, dynamic>;
+        final membros = equipaData['membros'] as List? ?? [];
+        for (var uid in membros) {
+          if (uid is String) allUIDs.add(uid);
+        }
+      }
+
+      // Buscar pontuações de todos os usuários de uma vez
+      Map<String, Map<String, CheckpointStatusEnum>> allCheckpointStatus = {};
+      Map<String, Map<String, bool>> allJogoStatus = {};
+
+      for (var uid in allUIDs) {
+        try {
+          final pontuacoesSnapshot =
+              await _firestore
+                  .collection('users')
+                  .doc(uid)
+                  .collection('eventos')
+                  .doc('shell_km_02')
+                  .collection('pontuacoes')
+                  .get();
+
+          Map<String, CheckpointStatusEnum> userCheckpointStatus = {};
+          Map<String, bool> userJogoStatus = {};
+
+          for (var doc in pontuacoesSnapshot.docs) {
+            final data = doc.data();
+            final checkpointId = doc.id;
+
+            // 🔥 CORRIGIDO: verificar campos 'entrada' e 'saida' (não timestamp)
+            final entrada = data['entrada'] ?? data['timestampEntrada'];
+            final saida = data['saida'] ?? data['timestampSaida'];
+
+            if (entrada != null && saida != null) {
+              userCheckpointStatus[checkpointId] =
+                  CheckpointStatusEnum.completo;
+              debugPrint(
+                '    ✅ Checkpoint $checkpointId: COMPLETO (entrada + saída)',
+              );
+            } else if (entrada != null) {
+              userCheckpointStatus[checkpointId] =
+                  CheckpointStatusEnum.apenasEntrada;
+              debugPrint('    🟠 Checkpoint $checkpointId: APENAS ENTRADA');
+            } else {
+              userCheckpointStatus[checkpointId] =
+                  CheckpointStatusEnum.naoCompleto;
+              debugPrint('    🔘 Checkpoint $checkpointId: NÃO COMPLETO');
+            }
+
+            // Status dos jogos
+            final jogosPontuados =
+                data['jogosPontuados'] as Map<String, dynamic>? ?? {};
+            for (var jogoId in jogosPontuados.keys) {
+              userJogoStatus[jogoId] = true;
+              debugPrint('    🎮 Jogo $jogoId: FEITO');
+            }
+          }
+
+          allCheckpointStatus[uid] = userCheckpointStatus;
+          allJogoStatus[uid] = userJogoStatus;
+        } catch (e) {
+          debugPrint('⚠️ Erro ao buscar dados do usuário $uid: $e');
+        }
+      }
+
+      debugPrint('✅ Status carregados para ${allUIDs.length} usuários');
+
       // Processar equipas
       List<EquipaGridData> equipasData = [];
 
@@ -82,21 +179,31 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         try {
           final equipaData = equipaDoc.data() as Map<String, dynamic>;
           final veiculoId = equipaData['veiculoId'] as String?;
+          final membros = equipaData['membros'] as List? ?? [];
 
           // Buscar dados do veículo
           String modelo = '';
           String matricula = '';
           String condutorNome = '';
+          String distico = '';
 
           if (veiculoId != null && veiculosMap.containsKey(veiculoId)) {
             final veiculoData = veiculosMap[veiculoId]!;
             modelo = veiculoData['modelo']?.toString() ?? '';
             matricula = veiculoData['matricula']?.toString() ?? '';
+            distico = veiculoData['distico']?.toString() ?? '';
 
-            final condutorId = veiculoData['condutorId'] as String?;
-            if (condutorId != null && usersMap.containsKey(condutorId)) {
-              condutorNome = usersMap[condutorId]!['nome']?.toString() ?? '';
+            // 🔥 CORRIGIDO: ownerId é o condutor, não condutorId
+            final ownerId = veiculoData['ownerId'] as String?;
+            if (ownerId != null && usersMap.containsKey(ownerId)) {
+              condutorNome = usersMap[ownerId]!['nome']?.toString() ?? '';
             }
+
+            debugPrint(
+              '🚗 Veículo $veiculoId: modelo=$modelo, matricula=$matricula, distico=$distico, ownerId=$ownerId, condutor=$condutorNome',
+            );
+          } else {
+            debugPrint('⚠️ Veículo $veiculoId não encontrado no mapa');
           }
 
           // Buscar pontuação
@@ -104,6 +211,51 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
           if (rankingMap.containsKey(equipaDoc.id)) {
             pontuacaoTotal = rankingMap[equipaDoc.id]!['pontuacao'] ?? 0;
           }
+
+          // 🔥 COMBINAR STATUS DE TODOS OS MEMBROS DA EQUIPA
+          Map<String, CheckpointStatusEnum> equipaCheckpointStatus = {};
+          Map<String, bool> equipaJogoStatus = {};
+
+          debugPrint(
+            '🔍 Processando equipa: ${equipaData['nome']} (Membros: ${membros.length})',
+          );
+
+          for (var uid in membros) {
+            if (uid is! String) continue;
+
+            debugPrint('  👤 Membro: $uid');
+
+            // Checkpoint status - pegar o melhor status de qualquer membro
+            final userCheckpointStatus = allCheckpointStatus[uid] ?? {};
+            debugPrint(
+              '    📍 Checkpoints do membro: ${userCheckpointStatus.keys.length}',
+            );
+
+            for (var entry in userCheckpointStatus.entries) {
+              final checkpointId = entry.key;
+              final status = entry.value;
+
+              debugPrint('      Checkpoint $checkpointId: $status');
+
+              if (!equipaCheckpointStatus.containsKey(checkpointId) ||
+                  status.index > equipaCheckpointStatus[checkpointId]!.index) {
+                equipaCheckpointStatus[checkpointId] = status;
+              }
+            }
+
+            // Jogo status - se qualquer membro fez o jogo, a equipa fez
+            final userJogoStatus = allJogoStatus[uid] ?? {};
+            debugPrint('    🎮 Jogos do membro: ${userJogoStatus.keys.length}');
+
+            for (var entry in userJogoStatus.entries) {
+              debugPrint('      Jogo ${entry.key}: ${entry.value}');
+              equipaJogoStatus[entry.key] = true;
+            }
+          }
+
+          debugPrint('  ✅ Status final da equipa:');
+          debugPrint('    📍 Checkpoints: ${equipaCheckpointStatus.length}');
+          debugPrint('    🎮 Jogos: ${equipaJogoStatus.length}');
 
           equipasData.add(
             EquipaGridData(
@@ -114,10 +266,17 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               condutorNome: condutorNome,
               modelo: modelo,
               matricula: matricula,
+              distico: distico,
               grupo: equipaData['grupo']?.toString() ?? 'A',
               pontuacaoTotal: pontuacaoTotal,
               bandeiraUrl: equipaData['bandeiraUrl']?.toString(),
+              checkpointStatus: equipaCheckpointStatus,
+              jogoStatus: equipaJogoStatus,
             ),
+          );
+
+          debugPrint(
+            '  💾 Equipa adicionada: ${equipaData['nome']} (Dístico: $distico, Condutor: $condutorNome, Veículo: $modelo $matricula)',
           );
         } catch (e) {
           debugPrint('⚠️ Erro ao processar equipa ${equipaDoc.id}: $e');
@@ -128,14 +287,17 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
       // Ordenar por pontuação
       equipasData.sort((a, b) => b.pontuacaoTotal.compareTo(a.pontuacaoTotal));
 
+      debugPrint('✅ Processamento concluído: ${equipasData.length} equipas');
+
       if (!mounted) return;
 
       setState(() {
         _equipas = equipasData;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Erro ao carregar dados: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       if (!mounted) return;
 
@@ -145,6 +307,77 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
       });
     }
   }
+
+  void _processCheckpoints(
+    List<QueryDocumentSnapshot> checkpointDocs,
+    Map<String, Map<String, dynamic>> jogosMap,
+  ) {
+    List<CheckpointData> checkpointsA = [];
+    List<CheckpointData> checkpointsB = [];
+
+    for (var doc in checkpointDocs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final percurso = data['percurso'] as String? ?? '';
+      final ordemA = data['ordemA'] as int? ?? 0;
+      final ordemB = data['ordemB'] as int? ?? 0;
+
+      // Buscar jogos deste checkpoint
+      List<String> codigosJogos = [];
+
+      // jogoRef (jogo único)
+      if (data['jogoRef'] != null) {
+        final jogoId = (data['jogoRef'] as DocumentReference).id;
+        if (jogosMap.containsKey(jogoId)) {
+          final codigo = jogosMap[jogoId]!['codigo']?.toString() ?? '';
+          if (codigo.isNotEmpty) codigosJogos.add(codigo);
+        }
+      }
+
+      // jogosRefs (múltiplos jogos)
+      if (data['jogosRefs'] != null && data['jogosRefs'] is List) {
+        for (var jogoRef in data['jogosRefs']) {
+          if (jogoRef is DocumentReference) {
+            final jogoId = jogoRef.id;
+            if (jogosMap.containsKey(jogoId)) {
+              final codigo = jogosMap[jogoId]!['codigo']?.toString() ?? '';
+              if (codigo.isNotEmpty) codigosJogos.add(codigo);
+            }
+          }
+        }
+      }
+
+      final checkpoint = CheckpointData(
+        id: doc.id,
+        nome: data['nome']?.toString() ?? '',
+        ordemA: ordemA,
+        ordemB: ordemB,
+        percurso: percurso,
+        codigosJogos: codigosJogos,
+      );
+
+      // Adicionar aos grupos apropriados
+      if (percurso == 'A' || percurso == 'Ambos') {
+        checkpointsA.add(checkpoint);
+      }
+      if (percurso == 'B' || percurso == 'Ambos') {
+        checkpointsB.add(checkpoint);
+      }
+    }
+
+    // Ordenar por ordem
+    checkpointsA.sort((a, b) => a.ordemA.compareTo(b.ordemA));
+    checkpointsB.sort((a, b) => a.ordemB.compareTo(b.ordemB));
+
+    _checkpointsGrupoA = checkpointsA;
+    _checkpointsGrupoB = checkpointsB;
+
+    debugPrint('🎯 Checkpoints processados:');
+    debugPrint('   - Grupo A: ${_checkpointsGrupoA.length}');
+    debugPrint('   - Grupo B: ${_checkpointsGrupoB.length}');
+  }
+
+  // ✅ MÉTODOS REMOVIDOS - AGORA FAZEMOS TUDO EM LOTE
+  // _getCheckpointStatus() e _getJogoStatus() removidos para evitar loops
 
   @override
   Widget build(BuildContext context) {
@@ -554,14 +787,14 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                         colors: [Colors.blue.shade50, Colors.blue.shade100],
                       ),
                     ),
-                    child: _buildGridPosition(equipaA, index + 1, Colors.blue),
+                    child: _buildGridPosition(equipaA, index + 1, 'A'),
                   ),
                 ),
 
                 // Divisor central
                 Container(
                   width: 6,
-                  height: 120,
+                  height: 220,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -581,7 +814,7 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                         colors: [Colors.green.shade100, Colors.green.shade50],
                       ),
                     ),
-                    child: _buildGridPosition(equipaB, index + 1, Colors.green),
+                    child: _buildGridPosition(equipaB, index + 1, 'B'),
                   ),
                 ),
               ],
@@ -595,11 +828,11 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
   Widget _buildGridPosition(
     EquipaGridData? equipa,
     int position,
-    MaterialColor groupColor,
+    String grupo,
   ) {
     if (equipa == null) {
       return Container(
-        height: 120,
+        height: 200,
         padding: const EdgeInsets.all(16),
         child: Center(
           child: Column(
@@ -639,31 +872,29 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
       );
     }
 
+    final checkpoints = grupo == 'A' ? _checkpointsGrupoA : _checkpointsGrupoB;
+
     return Container(
-      height: 120,
+      height: 220, // Aumentar altura para mais informação
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Linha principal - posição, nome e pontuação
+          // Linha 1: Posição, Dístico, Nome, Pontuação
           Row(
             children: [
-              // Número da posição
+              // Posição
               Container(
-                width: 50,
-                height: 50,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      _getPositionColor(position),
-                      _getPositionColor(position).withAlpha(204),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _getPositionColor(position),
+                  borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
                       color: _getPositionColor(position).withAlpha(77),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
@@ -673,13 +904,43 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 16,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+
+              // Dístico (mais visível)
+              if (equipa.distico.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withAlpha(77),
+                        blurRadius: 3,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '#${equipa.distico}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
 
               // Nome da equipa
               Expanded(
@@ -690,28 +951,30 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                       equipa.nome,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                         color: Colors.black87,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
+                    // Condutor mais visível
                     if (equipa.condutorNome.isNotEmpty)
                       Row(
                         children: [
                           Icon(
                             Icons.person,
-                            size: 14,
-                            color: Colors.grey.shade600,
+                            size: 12,
+                            color: Colors.blue.shade600,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               equipa.condutorNome,
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
+                                fontSize: 11,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -726,59 +989,302 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               // Pontuação
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                  horizontal: 10,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: groupColor.shade300),
+                  gradient: LinearGradient(
+                    colors: [Colors.white, Colors.grey.shade50],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
                   boxShadow: [
                     BoxShadow(
-                      color: groupColor.shade100,
-                      blurRadius: 4,
+                      color: Colors.grey.shade200,
+                      blurRadius: 3,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Text(
-                  '${equipa.pontuacaoTotal} pts',
-                  style: TextStyle(
+                  '${equipa.pontuacaoTotal}',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: groupColor.shade700,
+                    color: Colors.black87,
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Informações do veículo
-          if (equipa.modelo.isNotEmpty || equipa.matricula.isNotEmpty)
-            Row(
-              children: [
-                Icon(
-                  Icons.directions_car,
-                  size: 14,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
+          // Linha 2: Condutor e Veículo (SEMPRE VISÍVEIS)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Condutor
+              if (equipa.condutorNome.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person, size: 12, color: Colors.blue.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        equipa.condutorNome,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
                   child: Text(
-                    '${equipa.modelo} • ${equipa.matricula}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    'Condutor não definido',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
-              ],
-            ),
+
+              // Veículo
+              if (equipa.modelo.isNotEmpty || equipa.matricula.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${equipa.modelo} ${equipa.matricula}'.trim(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    'Veículo não definido',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Linha 3: Checkpoints e Jogos alinhados
+          Row(
+            children: [
+              // Labels
+              SizedBox(
+                width: 80,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Checkpoints:',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Jogos:',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Checkpoints e Jogos alinhados verticalmente
+              Expanded(
+                child: Column(
+                  children: [
+                    // Checkpoints
+                    Row(
+                      children: List.generate(8, (index) {
+                        final checkpointIndex = index + 1;
+                        final checkpointId =
+                            checkpoints.length > index
+                                ? checkpoints[index].id
+                                : '';
+                        final status =
+                            checkpointId.isNotEmpty
+                                ? (equipa.checkpointStatus[checkpointId] ??
+                                    CheckpointStatusEnum.naoCompleto)
+                                : CheckpointStatusEnum.naoCompleto;
+
+                        // DEBUG: Mostrar status real
+                        debugPrint(
+                          '🔍 Checkpoint C${checkpointIndex.toString().padLeft(2, '0')}: $status (ID: $checkpointId)',
+                        );
+
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: _getCheckpointStatusColor(status),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color:
+                                    status == CheckpointStatusEnum.naoCompleto
+                                        ? Colors.grey.shade400
+                                        : Colors.transparent,
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'C${checkpointIndex.toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // Jogos (alinhados com checkpoints)
+                    Row(
+                      children: List.generate(8, (index) {
+                        final jogoIndex = index + 1;
+                        final checkpointId =
+                            checkpoints.length > index
+                                ? checkpoints[index].id
+                                : '';
+
+                        // Verificar se algum jogo deste checkpoint foi feito
+                        bool jogoFeito = false;
+                        if (checkpointId.isNotEmpty &&
+                            checkpoints.length > index) {
+                          final checkpoint = checkpoints[index];
+                          jogoFeito = checkpoint.codigosJogos.any(
+                            (codigo) => equipa.jogoStatus[codigo] == true,
+                          );
+                        }
+
+                        // DEBUG: Mostrar status real
+                        debugPrint(
+                          '🎮 Jogo J${jogoIndex.toString().padLeft(2, '0')}: $jogoFeito (Checkpoint: $checkpointId)',
+                        );
+
+                        return Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color:
+                                  jogoFeito
+                                      ? Colors.green.shade600
+                                      : Colors.grey.shade500,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color:
+                                    jogoFeito
+                                        ? Colors.transparent
+                                        : Colors.grey.shade400,
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'J${jogoIndex.toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
+
+  // ✅ Método removido - já não é necessário
+  // _getAllJogoCodigos() foi substituído pela lógica direta nos checkpoints
 
   Color _getPositionColor(int position) {
     switch (position) {
@@ -801,11 +1307,24 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         return Colors.red.shade600; // Restantes
     }
   }
+
+  Color _getCheckpointStatusColor(CheckpointStatusEnum status) {
+    switch (status) {
+      case CheckpointStatusEnum.completo:
+        return Colors.green.shade600; // 🟢 Completo (entrada + saída)
+      case CheckpointStatusEnum.apenasEntrada:
+        return Colors.orange.shade600; // 🟠 Apenas entrada
+      case CheckpointStatusEnum.naoCompleto:
+        return Colors.grey.shade500; // 🔘 Não visitado (era vermelho)
+    }
+  }
 }
 
 // ================================
-// DATA CLASSES
+// ENUMS E CLASSES AUXILIARES
 // ================================
+
+enum CheckpointStatusEnum { naoCompleto, apenasEntrada, completo }
 
 class EquipaGridData {
   final String id;
@@ -813,9 +1332,12 @@ class EquipaGridData {
   final String condutorNome;
   final String modelo;
   final String matricula;
+  final String distico;
   final String grupo;
   final int pontuacaoTotal;
   final String? bandeiraUrl;
+  final Map<String, CheckpointStatusEnum> checkpointStatus;
+  final Map<String, bool> jogoStatus;
 
   EquipaGridData({
     required this.id,
@@ -823,8 +1345,29 @@ class EquipaGridData {
     required this.condutorNome,
     required this.modelo,
     required this.matricula,
+    required this.distico,
     required this.grupo,
     required this.pontuacaoTotal,
     this.bandeiraUrl,
+    required this.checkpointStatus,
+    required this.jogoStatus,
+  });
+}
+
+class CheckpointData {
+  final String id;
+  final String nome;
+  final int ordemA;
+  final int ordemB;
+  final String percurso;
+  final List<String> codigosJogos;
+
+  CheckpointData({
+    required this.id,
+    required this.nome,
+    required this.ordemA,
+    required this.ordemB,
+    required this.percurso,
+    required this.codigosJogos,
   });
 }
