@@ -731,7 +731,7 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
                       ),
                     ),
                     Text(
-                      'Rotas configuradas para os grupos A e B',
+                      'Rotas sincronizadas com dados reais',
                       style: TextStyle(
                         fontSize: 16,
                         color: Color(0xFF6B7280),
@@ -743,51 +743,70 @@ class _DashboardAdminViewState extends State<DashboardAdminView> {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
+          _buildRouteCardsFromFirestore(),
+        ],
+      ),
+    );
+  }
 
-          // Percursos
-          Column(
-            children: [
+  Widget _buildRouteCardsFromFirestore() {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('editions')
+          .doc('shell_2025')
+          .collection('events')
+          .doc('shell_km_02')
+          .collection('checkpoints')
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data!.docs;
+        final grupoA = <MapEntry<int, String>>[];
+        final grupoB = <MapEntry<int, String>>[];
+
+        for (var doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final descricao = data['descricao']?.toString() ?? doc.id;
+          final percurso = data['percurso']?.toString().toUpperCase();
+          if (percurso == 'A' || percurso == 'AMBOS') {
+            final ordemA = data['ordemA'];
+            if (ordemA is int) grupoA.add(MapEntry(ordemA, descricao));
+          }
+          if (percurso == 'B' || percurso == 'AMBOS') {
+            final ordemB = data['ordemB'];
+            if (ordemB is int) grupoB.add(MapEntry(ordemB, descricao));
+          }
+        }
+
+        grupoA.sort((a, b) => a.key.compareTo(b.key));
+        grupoB.sort((a, b) => a.key.compareTo(b.key));
+
+        return Column(
+          children: [
+            if (grupoA.isNotEmpty)
               _buildDetailedRouteCard(
-                'GRUPO A - PERCURSO NORTE',
-                'Sentido horário pela cidade da Praia',
-                [
-                  'Kebra Canela (Partida)',
-                  'Cidadela',
-                  'São Filipe',
-                  'Fazenda',
-                  'Tira-Chapéu',
-                  'Aeroporto',
-                  'Várzea',
-                  'Chã de Areia (Meta)',
-                ],
+                'GRUPO A',
+                'Ordem oficial dos checkpoints',
+                grupoA.map((e) => e.value).toList(),
                 const Color(0xFF2563EB),
                 Icons.north_rounded,
               ),
-
-              const SizedBox(height: 16),
-
+            const SizedBox(height: 16),
+            if (grupoB.isNotEmpty)
               _buildDetailedRouteCard(
-                'GRUPO B - PERCURSO SUL',
-                'Sentido anti-horário pela cidade da Praia',
-                [
-                  'Kebra Canela (Partida)',
-                  'Chã de Areia',
-                  'Várzea',
-                  'Aeroporto',
-                  'Tira-Chapéu',
-                  'Fazenda',
-                  'São Filipe',
-                  'Cidadela (Meta)',
-                ],
+                'GRUPO B',
+                'Ordem oficial dos checkpoints',
+                grupoB.map((e) => e.value).toList(),
                 const Color(0xFF059669),
                 Icons.south_rounded,
               ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 

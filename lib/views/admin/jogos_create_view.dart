@@ -10,6 +10,7 @@ class JogosManagementView extends StatefulWidget {
 
 class _JogosManagementViewState extends State<JogosManagementView>
     with TickerProviderStateMixin {
+  final _codigoController = TextEditingController();
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
   final _searchController = TextEditingController();
@@ -80,6 +81,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
     _regrasController.dispose();
     _materialController.dispose();
     _tempoEstimadoController.dispose();
+    _codigoController.dispose();
     super.dispose();
   }
 
@@ -90,6 +92,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
     _regrasController.clear();
     _materialController.clear();
     _tempoEstimadoController.clear();
+    _codigoController.clear();
     setState(() {
       _tipoSelecionado = 'pontaria';
       _dificuldadeSelecionada = 'média';
@@ -111,6 +114,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
     _regrasController.text = data['regras'] ?? '';
     _materialController.text = data['materialNecessario'] ?? '';
     _tempoEstimadoController.text = (data['tempoEstimado'] ?? 0).toString();
+    _codigoController.text = data['codigo'] ?? '';
 
     setState(() {
       _tipoSelecionado = data['tipo'] ?? 'pontaria';
@@ -143,6 +147,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
         'materialNecessario': _materialController.text,
         'tempoEstimado': int.tryParse(_tempoEstimadoController.text) ?? 0,
         'avaliacaoAutomatica': _avaliacaoAutomatica,
+        'codigo': _codigoController.text,
         'criadoEm': _isEditing ? null : FieldValue.serverTimestamp(),
         'atualizadoEm': FieldValue.serverTimestamp(),
       };
@@ -419,6 +424,16 @@ class _JogosManagementViewState extends State<JogosManagementView>
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 20),
+                    _buildTextField(
+                      controller: _codigoController,
+                      label: 'Código do Jogo',
+                      hint: 'Ex: J01, DESAFIO05',
+                      icon: Icons.code,
+                      required: true,
                     ),
                     const SizedBox(height: 20),
 

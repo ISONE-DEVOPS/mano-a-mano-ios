@@ -18,15 +18,19 @@ class _RankingScreenState extends State<RankingScreen> {
   bool _isRecalculating = false;
   DateTime? _lastUpdate;
   late Stream<QuerySnapshot> _rankingStream;
+  late Future<QuerySnapshot> _veiculosFuture;
 
   @override
   void initState() {
     super.initState();
+    _veiculosFuture = FirebaseFirestore.instance.collection('veiculos').get();
     // Stream em tempo real
     _rankingStream =
         FirebaseFirestore.instance
             .collection('ranking')
             .orderBy('pontuacao', descending: true)
+            .orderBy('tempoTotal')
+            .orderBy('pontuacaoDesempate', descending: true)
             .snapshots();
   }
 
@@ -295,8 +299,11 @@ class _RankingScreenState extends State<RankingScreen> {
                 ? (equipaSnapshot.data?.data() as Map<String, dynamic>?)
                 : null;
 
-        final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
-        final grupo = equipaData?['grupo'] ?? 'A';
+        final equipaNome =
+            data['nome'] ?? equipaData?['nome'] ?? 'Equipa $position';
+        final grupo = data['grupo'] ?? equipaData?['grupo'] ?? 'A';
+        final distico = data['distico'] ?? equipaData?['distico'];
+        final matricula = data['matricula'] ?? equipaData?['matricula'];
 
         return Column(
           children: [
@@ -354,6 +361,23 @@ class _RankingScreenState extends State<RankingScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
 
+                  // Dístico e matrícula (abaixo do nome)
+                  if (distico != null || matricula != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        [
+                          if (distico != null) 'Dístico $distico',
+                          if (matricula != null) matricula,
+                        ].join(' · '),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+
                   const SizedBox(height: 8),
 
                   // Pontuação
@@ -377,12 +401,29 @@ class _RankingScreenState extends State<RankingScreen> {
                     ),
                   ),
 
+                  // Desempate
+                  if ((data['pontuacaoDesempate'] ?? 0) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: Text(
+                        'Desempate: ${data['pontuacaoDesempate']} pts',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                    ),
+
                   // Adiciona o bloco do tempo total
                   const SizedBox(height: 8),
 
                   // Tempo Total
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade100,
                       borderRadius: BorderRadius.circular(8),
@@ -481,212 +522,273 @@ class _RankingScreenState extends State<RankingScreen> {
   }
 
   Widget _buildRemainingTeams(List<QueryDocumentSnapshot> remaining) {
-    return Container(
-      margin: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade700, Colors.blue.shade500],
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.list, color: Colors.white, size: 24),
-                SizedBox(width: 12),
-                Text(
-                  'CLASSIFICAÇÃO COMPLETA',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance.collection('equipas').get(),
+      builder: (context, equipaSnapshot) {
+        if (!equipaSnapshot.hasData) return const SizedBox();
+
+        final equipasMap = {
+          for (var doc in equipaSnapshot.data!.docs)
+            doc.id: doc.data() as Map<String, dynamic>,
+        };
+
+        return FutureBuilder<QuerySnapshot>(
+          future: _veiculosFuture,
+          builder: (context, veiculoSnapshot) {
+            if (!veiculoSnapshot.hasData) return const SizedBox();
+
+            final veiculos = veiculoSnapshot.data!.docs;
+
+            return Container(
+              margin: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade300,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                Spacer(),
-                Text(
-                  'Posição | Equipa | Pontos | Checkpoints',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildRemainingTeamsHeader(),
+                  ...remaining.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final doc = entry.value;
+                    final position = index + 4;
+                    final data = doc.data() as Map<String, dynamic>;
+                    final equipaId = data['equipaId'];
+                    final equipaData = equipasMap[equipaId] ?? {};
+
+                    final membros = equipaData['membros'] ?? [];
+                    final condutorId =
+                        (membros is List && membros.isNotEmpty)
+                            ? membros[0]
+                            : null;
+
+                    final veiculosFiltrados =
+                        veiculos.where((doc) {
+                          final vdata = doc.data() as Map<String, dynamic>;
+                          return vdata['ownerId'] == condutorId ||
+                              vdata['condutorId'] == condutorId;
+                        }).toList();
+
+                    final veiculo =
+                        veiculosFiltrados.isNotEmpty
+                            ? veiculosFiltrados.first
+                            : null;
+
+                    final veiculoData =
+                        veiculo != null
+                            ? veiculo.data() as Map<String, dynamic>
+                            : {};
+
+                    return _buildTeamRowCard(
+                      position: position,
+                      equipaNome:
+                          data['nome'] ??
+                          equipaData['nome'] ??
+                          'Equipa $position',
+                      grupo: data['grupo'] ?? equipaData['grupo'] ?? 'A',
+                      pontuacao: data['pontuacao'] ?? 0,
+                      tempoTotal: data['tempoTotal'] ?? 0,
+                      checkpointCount: data['checkpointCount'] ?? 0,
+                      distico:
+                          data['distico'] ??
+                          equipaData['distico'] ??
+                          veiculoData['distico']?.toString(),
+                      matricula:
+                          data['matricula'] ??
+                          equipaData['matricula'] ??
+                          veiculoData['matricula']?.toString(),
+                      pontuacaoDesempate: data['pontuacaoDesempate'] ?? 0,
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRemainingTeamsHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade700, Colors.blue.shade500],
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.list, color: Colors.white, size: 24),
+          SizedBox(width: 12),
+          Text(
+            'CLASSIFICAÇÃO COMPLETA',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-
-          // Lista das equipas
-          ...remaining.asMap().entries.map((entry) {
-            final index = entry.key;
-            final doc = entry.value;
-            final position = index + 4; // Começa no 4º lugar
-            final data = doc.data() as Map<String, dynamic>;
-
-            return _buildTeamRow(data, position);
-          }),
+          Spacer(),
+          Text(
+            'Posição | Equipa | Pontos | Checkpoints',
+            style: TextStyle(fontSize: 14, color: Colors.white70),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTeamRow(Map<String, dynamic> data, int position) {
-    if (data['equipaId'] == null ||
-        data['equipaId'].toString().trim().isEmpty) {
-      return const ListTile(
-        leading: Icon(Icons.error, color: Colors.red),
-        title: Text('Equipa desconhecida'),
-        subtitle: Text('ID da equipa ausente'),
-      );
-    }
-    return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance
-              .collection('equipas')
-              .doc(data['equipaId'])
-              .get(),
-      builder: (context, equipaSnapshot) {
-        final equipaData =
-            equipaSnapshot.hasData
-                ? (equipaSnapshot.data?.data() as Map<String, dynamic>?)
-                : null;
-
-        final equipaNome = equipaData?['nome'] ?? 'Equipa $position';
-        final grupo = equipaData?['grupo'] ?? 'A';
-        final tempoTotal = data['tempoTotal'] ?? 0;
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: position % 2 == 0 ? Colors.grey.shade50 : Colors.white,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+  Widget _buildTeamRowCard({
+    required int position,
+    required String equipaNome,
+    required String grupo,
+    required int pontuacao,
+    required int tempoTotal,
+    required int checkpointCount,
+    required int pontuacaoDesempate,
+    String? distico,
+    String? matricula,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: position % 2 == 0 ? Colors.grey.shade50 : Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          // Posição
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: _getPositionColor(position),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Center(
+              child: Text(
+                '$position',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
           ),
-          child: Row(
-            children: [
-              // Posição
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: _getPositionColor(position),
-                  borderRadius: BorderRadius.circular(25),
+
+          const SizedBox(width: 20),
+
+          // Nome da equipa
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  equipaNome,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
-                child: Center(
-                  child: Text(
-                    '$position',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                const SizedBox(height: 4),
+                Text(
+                  'Grupo $grupo',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+                // Dístico e matrícula em linha, se existirem
+                if ((distico != null && distico.isNotEmpty) ||
+                    (matricula != null && matricula.isNotEmpty))
+                  Text(
+                    [
+                      if (distico != null && distico.isNotEmpty)
+                        'Dístico $distico',
+                      if (matricula != null && matricula.isNotEmpty) matricula,
+                    ].join(' · '),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                if (pontuacaoDesempate > 0)
+                  Text(
+                    'Desempate: $pontuacaoDesempate pts',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple,
                     ),
                   ),
-                ),
-              ),
-
-              const SizedBox(width: 20),
-
-              // Nome da equipa
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      equipaNome,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Grupo $grupo',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Pontuação
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.shade300),
-                ),
-                child: Text(
-                  '${data['pontuacao'] ?? 0} pts',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              // Checkpoints
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '${data['checkpointCount'] ?? 0}/8',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              // Tempo Total
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '${(tempoTotal / 60).toStringAsFixed(1)} min',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade800,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        );
-      },
+
+          // Pontuação
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.green.shade300),
+            ),
+            child: Text(
+              '$pontuacao pts',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          // Checkpoints
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '$checkpointCount/8',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade800,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          // Tempo Total
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '${(tempoTotal / 60).toStringAsFixed(1)} min',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange.shade800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
