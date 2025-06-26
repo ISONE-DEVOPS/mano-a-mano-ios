@@ -4,7 +4,7 @@ import 'dart:developer';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../services/auth_service.dart';
@@ -21,7 +21,8 @@ class CheckinView extends StatefulWidget {
 }
 
 class _CheckinViewState extends State<CheckinView> {
-  final MobileScannerController _controller = MobileScannerController();
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _controller;
   final AuthService _authService = AuthService.to;
 
   bool isScanned = false;
@@ -161,11 +162,10 @@ class _CheckinViewState extends State<CheckinView> {
                 borderRadius: BorderRadius.circular(8),
                 child: Stack(
                   children: [
-                    MobileScanner(
-                      controller: _controller,
-                      onDetect: (barcode) => _handleQRScan(barcode),
+                    QRView(
+                      key: qrKey,
+                      onQRViewCreated: _onQRViewCreated,
                     ),
-
                     if (isProcessing)
                       Container(
                         color: Colors.black54,
@@ -245,18 +245,22 @@ class _CheckinViewState extends State<CheckinView> {
     );
   }
 
-  Future<void> _handleQRScan(BarcodeCapture barcode) async {
+  Future<void> _handleQRScan(dynamic barcode) async {
     if (isScanned || isProcessing) return;
 
     setState(() {
       isProcessing = true;
     });
 
-    final qrCode = barcode.barcodes.first.rawValue ?? '';
+    // Suporta Barcode (QRView)
+    String qrCode = '';
+    if (barcode is Barcode) {
+      qrCode = barcode.code ?? '';
+    }
     log('>>> QR Code detectado: $qrCode');
 
     try {
-      await _controller.stop();
+      await _controller?.pauseCamera();
 
       if (!_authService.isLoggedIn) {
         _showError('Usuário não autenticado');
@@ -288,6 +292,13 @@ class _CheckinViewState extends State<CheckinView> {
         isProcessing = false;
       });
     }
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((barcode) {
+      _handleQRScan(barcode);
+    });
   }
 
   Future<Map<String, String>?> _getCheckpointData(String qrCode) async {
@@ -674,9 +685,9 @@ class _CheckinViewState extends State<CheckinView> {
       );
     }
 
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () async {
       if (mounted) {
-        _controller.start();
+        await _controller?.resumeCamera();
         setState(() {
           isProcessing = false;
           isScanned = false;
@@ -699,7 +710,7 @@ class _CheckinViewState extends State<CheckinView> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 }

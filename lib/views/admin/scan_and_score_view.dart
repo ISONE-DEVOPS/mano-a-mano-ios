@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+
 
 class ScanAndScoreView extends StatefulWidget {
   const ScanAndScoreView({super.key});
@@ -14,10 +15,11 @@ class ScanAndScoreView extends StatefulWidget {
 }
 
 class _ScanAndScoreViewState extends State<ScanAndScoreView> {
-  final MobileScannerController _scannerController = MobileScannerController();
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _scannerController;
   final AuthService _authService = AuthService.to;
   final TextEditingController _pointsController = TextEditingController();
-  
+
   // Estado da tela
   Map<String, dynamic> _participanteData = {};
   String _selectedCheckpoint = '';
@@ -25,7 +27,7 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
   bool _isScanned = false;
   bool _isLoading = false;
   bool _isSaving = false;
-  
+
   // Listas dinâmicas
   List<Map<String, dynamic>> _checkpoints = [];
   List<Map<String, dynamic>> _jogosDisponiveis = [];
@@ -65,26 +67,28 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
 
   Future<void> _loadCheckpoints() async {
     setState(() => _isLoading = true);
-    
+
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('editions')
-          .doc('shell_2025')
-          .collection('events')
-          .doc('shell_km_02')
-          .collection('checkpoints')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('editions')
+              .doc('shell_2025')
+              .collection('events')
+              .doc('shell_km_02')
+              .collection('checkpoints')
+              .get();
 
       setState(() {
-        _checkpoints = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            'nome': data['nome'] ?? doc.id,
-            'jogosRefs': data['jogosRefs'] ?? [],
-            'jogoRef': data['jogoRef'],
-          };
-        }).toList();
+        _checkpoints =
+            snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'nome': data['nome'] ?? doc.id,
+                'jogosRefs': data['jogosRefs'] ?? [],
+                'jogoRef': data['jogoRef'],
+              };
+            }).toList();
       });
     } catch (e) {
       debugPrint('Erro ao carregar checkpoints: $e');
@@ -163,266 +167,294 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
         title: const Text('Registo de Pontuação - Admin'),
         backgroundColor: AppColors.primary,
         actions: [
-          Obx(() => Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
-              child: Text(
-                'Admin: ${_authService.userData['nome'] ?? 'N/A'}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          Obx(
+            () => Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Center(
+                child: Text(
+                  'Admin: ${_authService.userData['nome'] ?? 'N/A'}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          )),
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Instruções
-                  Card(
-                    color: Colors.blue[50],
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          Icon(Icons.admin_panel_settings, color: Colors.blue[700]),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Escaneie o QR Code do participante para registrar pontuação',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-
-                  // Scanner QR
-                  if (!_isScanned)
-                    Expanded(
-                      flex: 3,
-                      child: Card(
-                        elevation: 4,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: MobileScanner(
-                            controller: _scannerController,
-                            onDetect: _handleQRScan,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Dados do participante escaneado
-                  if (_isScanned) ...[
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Instruções
                     Card(
-                      elevation: 3,
+                      color: Colors.blue[50],
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.person, color: Colors.green),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _participanteData['nome'] ?? 'Nome não encontrado',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            Icon(
+                              Icons.admin_panel_settings,
+                              color: Colors.blue[700],
                             ),
-                            const SizedBox(height: 8),
-                            if (_participanteData['uid'] != null)
-                              Text(
-                                'UID: ${_participanteData['uid']}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.restart_alt),
-                                label: const Text('Escanear outro'),
-                                onPressed: _resetScanner,
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Escaneie o QR Code do participante para registrar pontuação',
+                                style: TextStyle(fontWeight: FontWeight.w500),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
-                    // Formulário
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        children: [
-                          // Dropdown Checkpoint
-                          DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'Selecione o checkpoint',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.location_on),
+
+                    // Scanner QR
+                    if (!_isScanned)
+                      Expanded(
+                        flex: 3,
+                        child: Card(
+                          elevation: 4,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: QRView(
+                              key: qrKey,
+                              onQRViewCreated: _onQRViewCreated,
                             ),
-                            value: _selectedCheckpoint.isEmpty ? null : _selectedCheckpoint,
-                            items: _checkpoints.map((checkpoint) {
-                              return DropdownMenuItem<String>(
-                                value: checkpoint['id'],
-                                child: Text(checkpoint['nome']),
-                              );
-                            }).toList(),
-                            onChanged: (value) async {
-                              if (value != null) {
-                                setState(() {
-                                  _selectedCheckpoint = value;
-                                  _selectedGame = '';
-                                });
-                                await _loadJogosFromCheckpoint(value);
-                              }
-                            },
                           ),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Dropdown Jogo
-                          if (_selectedCheckpoint.isNotEmpty)
-                            DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Selecione o jogo',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.sports_esports),
-                              ),
-                              value: _selectedGame.isEmpty ? null : _selectedGame,
-                              items: [
-                                // Jogos do checkpoint (se houver)
-                                ..._jogosDisponiveis.map((jogo) {
-                                  return DropdownMenuItem<String>(
-                                    value: jogo['id'],
-                                    child: Text(
-                                      '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                        ),
+                      ),
+
+                    // Dados do participante escaneado
+                    if (_isScanned) ...[
+                      Card(
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.person, color: Colors.green),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _participanteData['nome'] ??
+                                        'Nome não encontrado',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                  );
-                                }),
-                                // Jogos estáticos como fallback
-                                if (_jogosDisponiveis.isEmpty)
-                                  ..._jogosEstaticos.map((jogo) {
-                                    return DropdownMenuItem<String>(
-                                      value: jogo,
-                                      child: Text(jogo),
-                                    );
-                                  }),
-                              ],
-                              onChanged: (value) {
-                                setState(() => _selectedGame = value ?? '');
-                              },
-                            ),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Campo de pontos
-                          if (_selectedGame.isNotEmpty)
-                            TextFormField(
-                              controller: _pointsController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: 'Pontos (0 - ${_getMaxPoints()})',
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.score),
+                                  ),
+                                ],
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Digite a pontuação';
-                                }
-                                final points = int.tryParse(value);
-                                if (points == null || points < 0) {
-                                  return 'Digite um número válido';
-                                }
-                                final maxPoints = _getMaxPoints();
-                                if (points > maxPoints) {
-                                  return 'Pontuação máxima é $maxPoints';
-                                }
-                                return null;
-                              },
-                            ),
-                          
-                          const Spacer(),
-                          
-                          // Botão salvar
-                          if (_selectedGame.isNotEmpty && _pointsController.text.isNotEmpty)
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                              const SizedBox(height: 8),
+                              if (_participanteData['uid'] != null)
+                                Text(
+                                  'UID: ${_participanteData['uid']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
-                                onPressed: _isSaving ? null : _submitScore,
-                                child: _isSaving
-                                    ? const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.restart_alt),
+                                  label: const Text('Escanear outro'),
+                                  onPressed: _resetScanner,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Formulário
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          children: [
+                            // Dropdown Checkpoint
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Selecione o checkpoint',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.location_on),
+                              ),
+                              value:
+                                  _selectedCheckpoint.isEmpty
+                                      ? null
+                                      : _selectedCheckpoint,
+                              items:
+                                  _checkpoints.map((checkpoint) {
+                                    return DropdownMenuItem<String>(
+                                      value: checkpoint['id'],
+                                      child: Text(checkpoint['nome']),
+                                    );
+                                  }).toList(),
+                              onChanged: (value) async {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedCheckpoint = value;
+                                    _selectedGame = '';
+                                  });
+                                  await _loadJogosFromCheckpoint(value);
+                                }
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Dropdown Jogo
+                            if (_selectedCheckpoint.isNotEmpty)
+                              DropdownButtonFormField<String>(
+                                decoration: const InputDecoration(
+                                  labelText: 'Selecione o jogo',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.sports_esports),
+                                ),
+                                value:
+                                    _selectedGame.isEmpty
+                                        ? null
+                                        : _selectedGame,
+                                items: [
+                                  // Jogos do checkpoint (se houver)
+                                  ..._jogosDisponiveis.map((jogo) {
+                                    return DropdownMenuItem<String>(
+                                      value: jogo['id'],
+                                      child: Text(
+                                        '${jogo['nome']} (Max: ${jogo['pontuacaoMax']} pts)',
+                                      ),
+                                    );
+                                  }),
+                                  // Jogos estáticos como fallback
+                                  if (_jogosDisponiveis.isEmpty)
+                                    ..._jogosEstaticos.map((jogo) {
+                                      return DropdownMenuItem<String>(
+                                        value: jogo,
+                                        child: Text(jogo),
+                                      );
+                                    }),
+                                ],
+                                onChanged: (value) {
+                                  setState(() => _selectedGame = value ?? '');
+                                },
+                              ),
+
+                            const SizedBox(height: 16),
+
+                            // Campo de pontos
+                            if (_selectedGame.isNotEmpty)
+                              TextFormField(
+                                controller: _pointsController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'Pontos (0 - ${_getMaxPoints()})',
+                                  border: const OutlineInputBorder(),
+                                  prefixIcon: const Icon(Icons.score),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Digite a pontuação';
+                                  }
+                                  final points = int.tryParse(value);
+                                  if (points == null || points < 0) {
+                                    return 'Digite um número válido';
+                                  }
+                                  final maxPoints = _getMaxPoints();
+                                  if (points > maxPoints) {
+                                    return 'Pontuação máxima é $maxPoints';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                            const Spacer(),
+
+                            // Botão salvar
+                            if (_selectedGame.isNotEmpty &&
+                                _pointsController.text.isNotEmpty)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  onPressed: _isSaving ? null : _submitScore,
+                                  child:
+                                      _isSaving
+                                          ? const Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                        Color
+                                                      >(Colors.white),
+                                                ),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text('Salvando...'),
+                                            ],
+                                          )
+                                          : const Text(
+                                            'Salvar Pontuação',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          SizedBox(width: 8),
-                                          Text('Salvando...'),
-                                        ],
-                                      )
-                                    : const Text(
-                                        'Salvar Pontuação',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
     );
   }
 
-  void _handleQRScan(BarcodeCapture capture) async {
-    if (_isScanned) return;
+  void _onQRViewCreated(QRViewController controller) {
+    _scannerController = controller;
+    controller.scannedDataStream.listen((scanData) {
+      if (scanData.code != null) {
+        _handleQRScan(scanData.code!);
+      }
+    });
+  }
 
-    final barcode = capture.barcodes.first;
-    final qrData = barcode.rawValue ?? '';
+  void _handleQRScan(String qrData) async {
+    if (_isScanned) return;
 
     if (qrData.isEmpty) return;
 
     try {
-      await _scannerController.stop();
+      await _scannerController?.pauseCamera();
       setState(() => _isScanned = true);
 
       // Tentar fazer parse do QR
@@ -457,7 +489,6 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
-
     } catch (e) {
       Get.snackbar(
         'Erro',
@@ -466,7 +497,7 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      
+
       _resetScanner();
     }
   }
@@ -530,7 +561,6 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
       );
 
       _resetScanner();
-
     } catch (e) {
       Get.snackbar(
         'Erro',
@@ -553,13 +583,13 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
       _pointsController.clear();
       _jogosDisponiveis = [];
     });
-    
-    _scannerController.start();
+
+    _scannerController?.resumeCamera();
   }
 
   @override
   void dispose() {
-    _scannerController.dispose();
+    _scannerController?.dispose();
     _pointsController.dispose();
     super.dispose();
   }

@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -19,7 +19,8 @@ class StaffScoreInputView extends StatefulWidget {
 class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService.to;
-  final MobileScannerController _scannerController = MobileScannerController();
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _scannerController;
   final TextEditingController _pontuacaoController = TextEditingController();
 
   // Estado do formulário
@@ -177,10 +178,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 borderRadius: BorderRadius.circular(13),
                 child: Stack(
                   children: [
-                    MobileScanner(
-                      controller: _scannerController,
-                      onDetect: _handleParticipantQRScan,
-                    ),
+                    QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
                     // Overlay de foco
                     Center(
                       child: Container(
@@ -1026,14 +1024,13 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     }
   }
 
-  Future<void> _handleParticipantQRScan(BarcodeCapture capture) async {
+  Future<void> _handleParticipantQRScan(String qr) async {
     if (_qrLido) return;
 
-    final qr = capture.barcodes.first.rawValue;
-    if (qr == null) return;
+    if (qr.isEmpty) return;
 
     try {
-      await _scannerController.stop();
+      await _scannerController?.pauseCamera();
       setState(() => _qrLido = true);
 
       final data = jsonDecode(qr);
@@ -1087,6 +1084,16 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
 
       _resetParticipantData();
     }
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    _scannerController = controller;
+    controller.scannedDataStream.listen((scanData) {
+      final barcode = scanData.code;
+      if (barcode != null) {
+        _handleParticipantQRScan(barcode);
+      }
+    });
   }
 
   Future<void> _onCheckpointChanged(String? checkpointId) async {
@@ -1382,7 +1389,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     });
 
     _pontuacaoController.clear();
-    _scannerController.start();
+    _scannerController?.resumeCamera();
   }
 
   /// Atualiza o campo pontuacaoTotal do documento do evento para o participante,
@@ -1450,7 +1457,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
   @override
   void dispose() {
     _pontuacaoController.dispose();
-    _scannerController.dispose();
+    _scannerController?.dispose();
     super.dispose();
   }
 }
