@@ -38,13 +38,14 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
 
   Future<void> _loadCheckpointNomes() async {
     try {
-      final snapshot = await _firestore
-          .collection('editions')
-          .doc('shell_2025')
-          .collection('events')
-          .doc('shell_km_02')
-          .collection('checkpoints')
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('editions')
+              .doc('shell_2025')
+              .collection('events')
+              .doc('shell_km_02')
+              .collection('checkpoints')
+              .get();
 
       final nomes = <String, String>{};
       final ordemA = <MapEntry<int, String>>[];
@@ -93,14 +94,18 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               .where('editionId', isEqualTo: 'shell_2025')
               .get();
 
-      final codigos = snapshot.docs.map((doc) {
-        final codigo = doc['codigo']?.toString();
-        final descricao = doc['descricao']?.toString() ?? '';
-        if (codigo != null) {
-          return {'codigo': codigo, 'descricao': descricao};
-        }
-        return null;
-      }).whereType<Map<String, String>>().toList();
+      final codigos =
+          snapshot.docs
+              .map((doc) {
+                final codigo = doc['codigo']?.toString();
+                final descricao = doc['descricao']?.toString() ?? '';
+                if (codigo != null) {
+                  return {'codigo': codigo, 'descricao': descricao};
+                }
+                return null;
+              })
+              .whereType<Map<String, String>>()
+              .toList();
 
       codigos.sort((a, b) => a['codigo']!.compareTo(b['codigo']!));
       setState(() {
@@ -159,22 +164,92 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
         filteredEquipas.map((equipaDoc) async {
           try {
             final equipaData = equipaDoc.data() as Map<String, dynamic>;
-            final veiculoId = equipaData['veiculoId'] as String?;
+            // NOVA LÓGICA baseada em ownerId (condutorId == primeiro membro)
+            final membros = equipaData['membros'] as List<dynamic>? ?? [];
+            final condutorId =
+                membros.isNotEmpty ? membros[0].toString() : null;
 
-            // Buscar dados do veículo
             String modelo = '';
             String matricula = '';
             String condutorNome = '';
+            String distico = '';
 
-            if (veiculoId != null && veiculosMap.containsKey(veiculoId)) {
-              final veiculoData = veiculosMap[veiculoId]!;
+            MapEntry<String, Map<String, dynamic>>? veiculoMatch;
+            if (condutorId != null) {
+              try {
+                veiculoMatch = veiculosMap.entries.firstWhere(
+                  (entry) =>
+                      entry.value['ownerId'] == condutorId ||
+                      entry.value['condutorId'] == condutorId,
+                  orElse: () => const MapEntry('', {}),
+                );
+              } catch (_) {
+                veiculoMatch = null;
+              }
+            }
+
+            if (veiculoMatch != null && veiculoMatch.key.isNotEmpty) {
+              final veiculoData = veiculoMatch.value;
+              final statusData = await _loadEquipaStatusOptimized(
+                equipaDoc.id,
+                equipaData,
+              );
               modelo = veiculoData['modelo']?.toString() ?? '';
               matricula = veiculoData['matricula']?.toString() ?? '';
+              distico =
+                  veiculoData['distico'] != null
+                      ? veiculoData['distico'].toString()
+                      : '';
 
-              final condutorId = veiculoData['condutorId'] as String?;
-              if (condutorId != null && usersMap.containsKey(condutorId)) {
-                condutorNome = usersMap[condutorId]!['nome']?.toString() ?? '';
+              final condutorFieldId = veiculoData['condutorId'] as String?;
+              if (condutorFieldId != null &&
+                  usersMap.containsKey(condutorFieldId)) {
+                condutorNome =
+                    usersMap[condutorFieldId]!['nome']?.toString() ?? '';
               }
+
+              // Calcular pontuação real somando respostas e jogos dos membros
+              int pontuacaoTotal = 0;
+              int tempoTotal = 0;
+              for (var resultado in statusData['rawPontuacoes'] ?? []) {
+                if (resultado == null) continue;
+
+                final pontuacoesDocs =
+                    resultado['pontuacoes'] as List<QueryDocumentSnapshot>;
+
+                for (var doc in pontuacoesDocs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final pergunta = (data['pontuacaoPergunta'] ?? 0) as num;
+                  final jogo = (data['pontuacaoJogo'] ?? 0) as num;
+                  pontuacaoTotal += pergunta.toInt() + jogo.toInt();
+
+                  final entrada = data['timestampEntrada']?.toDate();
+                  final saida = data['timestampSaida']?.toDate();
+                  if (entrada != null && saida != null) {
+                    tempoTotal +=
+                        (saida.difference(entrada).inSeconds as num).toInt();
+                  }
+                }
+              }
+
+              return EquipaGridData(
+                id: equipaDoc.id,
+                nome:
+                    equipaData['nome']?.toString() ??
+                    'Equipa ${filteredEquipas.indexOf(equipaDoc) + 1}',
+                condutorNome: condutorNome,
+                modelo: modelo,
+                matricula: matricula,
+                distico: distico,
+                grupo: equipaData['grupo']?.toString() ?? 'A',
+                pontuacaoTotal: pontuacaoTotal,
+                tempoTotal: tempoTotal,
+                bandeiraUrl: equipaData['bandeiraUrl']?.toString(),
+                checkpointStatus: Map<String, CheckpointStatus>.from(
+                  statusData['checkpoints'] ?? {},
+                ),
+                jogosStatus: Map<String, bool>.from(statusData['jogos'] ?? {}),
+              );
             }
 
             // Buscar status otimizado
@@ -183,6 +258,7 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               equipaData,
             );
 
+            // Caso não haja veículo, usar distico vazio
             // Calcular pontuação real somando respostas e jogos dos membros
             int pontuacaoTotal = 0;
             int tempoTotal = 0;
@@ -215,6 +291,7 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               condutorNome: condutorNome,
               modelo: modelo,
               matricula: matricula,
+              distico: '',
               grupo: equipaData['grupo']?.toString() ?? 'A',
               pontuacaoTotal: pontuacaoTotal,
               tempoTotal: tempoTotal,
@@ -238,7 +315,11 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               .cast<EquipaGridData>()
               .toList();
 
-      equipasData.sort((a, b) => b.pontuacaoTotal.compareTo(a.pontuacaoTotal));
+      equipasData.sort((a, b) {
+        final aD = int.tryParse(a.distico) ?? 9999;
+        final bD = int.tryParse(b.distico) ?? 9999;
+        return aD.compareTo(bD);
+      });
 
       if (!mounted) return;
 
@@ -870,7 +951,7 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
           // Linha principal - posição, dístico, nome e pontuação
           Row(
             children: [
-              // Número da posição
+              // Bloco circular com número da posição
               Container(
                 width: 50,
                 height: 50,
@@ -892,11 +973,11 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    '$position',
+                    '$positionº',
                     style: const TextStyle(
                       color: Colors.white,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
                     ),
                   ),
                 ),
@@ -917,11 +998,13 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
                     const Icon(Icons.local_taxi, color: Colors.white, size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      'Dístico ${position + 20}',
+                      equipa.distico.isNotEmpty
+                          ? equipa.distico
+                          : 'Sem Dístico',
                       style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -1047,6 +1130,9 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
               ],
             ),
 
+          // Espaçamento extra entre dados do veículo e blocos de status
+          const SizedBox(height: 12),
+
           const Spacer(),
 
           // Status dos checkpoints e jogos (horizontal)
@@ -1154,36 +1240,37 @@ class _QualificationGridScreenState extends State<QualificationGridScreen> {
     final jogosCodigos = _jogosCodigos;
 
     return Row(
-      children: jogosCodigos.map((jogo) {
-        final codigo = jogo['codigo']!;
-        final descricao = jogo['descricao'] ?? codigo;
-        final feito = equipa.jogosStatus[codigo] == true;
+      children:
+          jogosCodigos.map((jogo) {
+            final codigo = jogo['codigo']!;
+            final descricao = jogo['descricao'] ?? codigo;
+            final feito = equipa.jogosStatus[codigo] == true;
 
-        return Expanded(
-          child: Container(
-            height: 24,
-            margin: const EdgeInsets.only(right: 2),
-            decoration: BoxDecoration(
-              color: feito ? Colors.green.shade600 : Colors.red.shade600,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Center(
-              child: Tooltip(
-                message: descricao,
-                child: Text(
-                  codigo,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            return Expanded(
+              child: Container(
+                height: 24,
+                margin: const EdgeInsets.only(right: 2),
+                decoration: BoxDecoration(
+                  color: feito ? Colors.green.shade600 : Colors.red.shade600,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Tooltip(
+                    message: descricao,
+                    child: Text(
+                      codigo,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
@@ -1220,6 +1307,7 @@ class EquipaGridData {
   final String condutorNome;
   final String modelo;
   final String matricula;
+  final String distico;
   final String grupo;
   final int pontuacaoTotal;
   final int tempoTotal;
@@ -1233,6 +1321,7 @@ class EquipaGridData {
     required this.condutorNome,
     required this.modelo,
     required this.matricula,
+    required this.distico,
     required this.grupo,
     required this.pontuacaoTotal,
     required this.tempoTotal,
