@@ -21,6 +21,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     });
 
     final email = _emailController.text.trim();
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      setState(() {
+        _loading = false;
+        _message = 'Por favor, insira um email válido.';
+      });
+      return;
+    }
+
     final exists = await _firebaseService.emailExists(email);
 
     if (!exists) {
@@ -34,9 +42,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     final success = await _firebaseService.sendPasswordResetEmail(email);
     setState(() {
       _loading = false;
-      _message = success
-          ? 'Instruções enviadas para $email.'
-          : 'Erro ao enviar email de recuperação.';
+      _message =
+          success
+              ? 'Instruções enviadas para $email.'
+              : 'Erro ao enviar email de recuperação.';
     });
   }
 
@@ -64,6 +73,8 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => !_loading ? _resetPassword() : null,
               decoration: InputDecoration(
                 labelText: 'Email',
                 prefixIcon: const Icon(Icons.email_outlined),
@@ -83,7 +94,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 child:
                     _loading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Enviar Instruções'),
+                        : const Text('Enviar link de redefinição'),
               ),
             ),
             if (_message != null)

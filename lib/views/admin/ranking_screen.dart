@@ -18,12 +18,14 @@ class _RankingScreenState extends State<RankingScreen> {
   bool _isRecalculating = false;
   DateTime? _lastUpdate;
   late Stream<QuerySnapshot> _rankingStream;
-  late Future<QuerySnapshot> _veiculosFuture;
+
+  List<QueryDocumentSnapshot> _equipas = [];
+  List<QueryDocumentSnapshot> _veiculos = [];
+  bool _dadosCarregados = false;
 
   @override
   void initState() {
     super.initState();
-    _veiculosFuture = FirebaseFirestore.instance.collection('veiculos').get();
     // Stream em tempo real
     _rankingStream =
         FirebaseFirestore.instance
@@ -32,6 +34,19 @@ class _RankingScreenState extends State<RankingScreen> {
             .orderBy('tempoTotal')
             .orderBy('pontuacaoDesempate', descending: true)
             .snapshots();
+
+    FirebaseFirestore.instance.collection('equipas').get().then((snapshot) {
+      setState(() {
+        _equipas = snapshot.docs;
+      });
+    });
+
+    FirebaseFirestore.instance.collection('veiculos').get().then((snapshot) {
+      setState(() {
+        _veiculos = snapshot.docs;
+        _dadosCarregados = true;
+      });
+    });
   }
 
   @override
@@ -522,97 +537,75 @@ class _RankingScreenState extends State<RankingScreen> {
   }
 
   Widget _buildRemainingTeams(List<QueryDocumentSnapshot> remaining) {
-    return FutureBuilder<QuerySnapshot>(
-      future: FirebaseFirestore.instance.collection('equipas').get(),
-      builder: (context, equipaSnapshot) {
-        if (!equipaSnapshot.hasData) return const SizedBox();
+    if (!_dadosCarregados) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final equipasMap = {
-          for (var doc in equipaSnapshot.data!.docs)
-            doc.id: doc.data() as Map<String, dynamic>,
-        };
+    final equipasMap = {
+      for (var doc in _equipas) doc.id: doc.data() as Map<String, dynamic>,
+    };
 
-        return FutureBuilder<QuerySnapshot>(
-          future: _veiculosFuture,
-          builder: (context, veiculoSnapshot) {
-            if (!veiculoSnapshot.hasData) return const SizedBox();
+    return Container(
+      margin: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildRemainingTeamsHeader(),
+          ...remaining.asMap().entries.map((entry) {
+            final index = entry.key;
+            final doc = entry.value;
+            final position = index + 4;
+            final data = doc.data() as Map<String, dynamic>;
+            final equipaId = data['equipaId'];
+            final equipaData = equipasMap[equipaId] ?? {};
 
-            final veiculos = veiculoSnapshot.data!.docs;
+            final membros = equipaData['membros'] ?? [];
+            final condutorId =
+                (membros is List && membros.isNotEmpty) ? membros[0] : null;
 
-            return Container(
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade300,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildRemainingTeamsHeader(),
-                  ...remaining.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final doc = entry.value;
-                    final position = index + 4;
-                    final data = doc.data() as Map<String, dynamic>;
-                    final equipaId = data['equipaId'];
-                    final equipaData = equipasMap[equipaId] ?? {};
+            final veiculosFiltrados =
+                _veiculos.where((doc) {
+                  final vdata = doc.data() as Map<String, dynamic>;
+                  return vdata['ownerId'] == condutorId ||
+                      vdata['condutorId'] == condutorId;
+                }).toList();
 
-                    final membros = equipaData['membros'] ?? [];
-                    final condutorId =
-                        (membros is List && membros.isNotEmpty)
-                            ? membros[0]
-                            : null;
+            final veiculo =
+                veiculosFiltrados.isNotEmpty ? veiculosFiltrados.first : null;
+            final veiculoData =
+                veiculo != null ? veiculo.data() as Map<String, dynamic> : {};
 
-                    final veiculosFiltrados =
-                        veiculos.where((doc) {
-                          final vdata = doc.data() as Map<String, dynamic>;
-                          return vdata['ownerId'] == condutorId ||
-                              vdata['condutorId'] == condutorId;
-                        }).toList();
-
-                    final veiculo =
-                        veiculosFiltrados.isNotEmpty
-                            ? veiculosFiltrados.first
-                            : null;
-
-                    final veiculoData =
-                        veiculo != null
-                            ? veiculo.data() as Map<String, dynamic>
-                            : {};
-
-                    return _buildTeamRowCard(
-                      position: position,
-                      equipaNome:
-                          data['nome'] ??
-                          equipaData['nome'] ??
-                          'Equipa $position',
-                      grupo: data['grupo'] ?? equipaData['grupo'] ?? 'A',
-                      pontuacao: data['pontuacao'] ?? 0,
-                      tempoTotal: data['tempoTotal'] ?? 0,
-                      checkpointCount: data['checkpointCount'] ?? 0,
-                      distico:
-                          data['distico'] ??
-                          equipaData['distico'] ??
-                          veiculoData['distico']?.toString(),
-                      matricula:
-                          data['matricula'] ??
-                          equipaData['matricula'] ??
-                          veiculoData['matricula']?.toString(),
-                      pontuacaoDesempate: data['pontuacaoDesempate'] ?? 0,
-                    );
-                  }),
-                ],
-              ),
+            return _buildTeamRowCard(
+              position: position,
+              equipaNome:
+                  data['nome'] ?? equipaData['nome'] ?? 'Equipa $position',
+              grupo: data['grupo'] ?? equipaData['grupo'] ?? 'A',
+              pontuacao: data['pontuacao'] ?? 0,
+              tempoTotal: data['tempoTotal'] ?? 0,
+              checkpointCount: data['checkpointCount'] ?? 0,
+              distico:
+                  data['distico'] ??
+                  equipaData['distico'] ??
+                  veiculoData['distico']?.toString(),
+              matricula:
+                  data['matricula'] ??
+                  equipaData['matricula'] ??
+                  veiculoData['matricula']?.toString(),
+              pontuacaoDesempate: data['pontuacaoDesempate'] ?? 0,
             );
-          },
-        );
-      },
+          }),
+        ],
+      ),
     );
   }
 
