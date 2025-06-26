@@ -1314,13 +1314,37 @@ class _JogosManagementViewState extends State<JogosManagementView>
 
         final checkpoints = snapshot.data?.docs ?? [];
         return _buildDropdown(
-          value: _selectedCheckpointId ?? '',
+          value:
+              (() {
+                final docList =
+                    checkpoints
+                        .where((doc) => doc.id == _selectedCheckpointId)
+                        .toList();
+                final doc = docList.isNotEmpty ? docList.first : null;
+                final data = doc?.data() as Map<String, dynamic>?;
+                return data?['descricao'] ?? '';
+              })(),
           label: 'Checkpoint (Opcional)',
           icon: Icons.location_on_outlined,
-          items: ['', ...checkpoints.map((doc) => doc.id)],
+          items: [
+            '',
+            ...checkpoints.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['descricao']?.toString() ?? doc.id;
+            }),
+          ],
           onChanged: (val) {
+            final docList =
+                checkpoints
+                    .where(
+                      (doc) =>
+                          (doc.data() as Map<String, dynamic>)['descricao'] ==
+                          val,
+                    )
+                    .toList();
+            final doc = docList.isNotEmpty ? docList.first : null;
             setState(() {
-              _selectedCheckpointId = val?.isEmpty == true ? null : val;
+              _selectedCheckpointId = doc?.id;
             });
           },
         );
