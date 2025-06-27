@@ -65,45 +65,18 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
           title: const Text(
-            'Inserir Pontuação',
+            'Pontuação',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: Colors.blue[700],
+          backgroundColor: Color(0xFFDD1D21),
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: _safeNavigateBack,
-          ),
           actions: [
-            // Botão para voltar aos Jogos
             IconButton(
               icon: const Icon(Icons.sports_esports, color: Colors.white),
               onPressed: () => Get.offNamed('/staff/jogos'),
               tooltip: 'Voltar aos Jogos',
             ),
-            // Botão Home
-            IconButton(
-              icon: const Icon(Icons.home, color: Colors.white),
-              onPressed: _safeNavigateHome,
-              tooltip: 'Menu Staff',
-            ),
             const SizedBox(width: 8),
-            // Nome do Staff
-            Obx(
-              () => Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: Center(
-                  child: Text(
-                    'Staff: ${_authService.userData['nome'] ?? 'N/A'}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
         body: SafeArea(
@@ -834,16 +807,6 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
     );
 
     return result ?? false;
-  }
-
-  Future<void> _safeNavigateBack() async {
-    final canExit = await _showExitConfirmation();
-    if (canExit) Get.back();
-  }
-
-  Future<void> _safeNavigateHome() async {
-    final canExit = await _showExitConfirmation();
-    if (canExit) Get.offAllNamed('/staff-home');
   }
 
   Future<void> _checkStaffPermission() async {

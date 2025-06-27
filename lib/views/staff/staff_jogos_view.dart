@@ -29,49 +29,54 @@ class _StaffJogosViewState extends State<StaffJogosView> {
             .collection('checkpoints')
             .get();
 
-    List<Map<String, dynamic>> result = [];
+    final result = await Future.wait(
+      checkpointSnap.docs.map((doc) async {
+        final data = doc.data();
+        final nome = data['nome']?.toString() ?? '';
+        final List<Map<String, dynamic>> jogos = [];
 
-    for (var doc in checkpointSnap.docs) {
-      final data = doc.data();
-      final nome = data['nome']?.toString() ?? '';
+        final List<Future<Map<String, dynamic>?>> jogoFetches = [];
 
-      List<Map<String, dynamic>> jogos = [];
-
-      // Adiciona jogo único (jogoRef)
-      if (data['jogoRef'] != null && data['jogoRef'] is DocumentReference) {
-        final ref = data['jogoRef'] as DocumentReference;
-        final jogoDoc = await ref.get();
-        if (jogoDoc.exists) {
-          final rawData = jogoDoc.data();
-          if (rawData == null) continue;
-          final jogoData = rawData as Map<String, dynamic>;
-          jogos.add({
-            'nome': jogoData['nome'] ?? 'Sem nome',
-            'tipo': jogoData['tipo'] ?? 'N/D',
-          });
+        if (data['jogoRef'] != null && data['jogoRef'] is DocumentReference) {
+          jogoFetches.add(
+            (data['jogoRef'] as DocumentReference).get().then((doc) {
+              if (!doc.exists) return null;
+              final d = doc.data() as Map<String, dynamic>?;
+              return d == null
+                  ? null
+                  : {
+                    'nome': d['nome'] ?? 'Sem nome',
+                    'tipo': d['tipo'] ?? 'N/D',
+                  };
+            }),
+          );
         }
-      }
 
-      // Adiciona múltiplos jogos (jogosRefs)
-      if (data['jogosRefs'] != null && data['jogosRefs'] is List) {
-        for (var ref in data['jogosRefs']) {
-          if (ref is DocumentReference) {
-            final jogoDoc = await ref.get();
-            if (jogoDoc.exists) {
-              final rawData = jogoDoc.data();
-              if (rawData == null) continue;
-              final jogoData = rawData as Map<String, dynamic>;
-              jogos.add({
-                'nome': jogoData['nome'] ?? 'Sem nome',
-                'tipo': jogoData['tipo'] ?? 'N/D',
-              });
+        if (data['jogosRefs'] != null && data['jogosRefs'] is List) {
+          for (var ref in data['jogosRefs']) {
+            if (ref is DocumentReference) {
+              jogoFetches.add(
+                ref.get().then((doc) {
+                  if (!doc.exists) return null;
+                  final d = doc.data() as Map<String, dynamic>?;
+                  return d == null
+                      ? null
+                      : {
+                        'nome': d['nome'] ?? 'Sem nome',
+                        'tipo': d['tipo'] ?? 'N/D',
+                      };
+                }),
+              );
             }
           }
         }
-      }
 
-      result.add({'nome': nome, 'jogos': jogos});
-    }
+        final jogoResults = await Future.wait(jogoFetches);
+        jogos.addAll(jogoResults.whereType<Map<String, dynamic>>());
+
+        return {'nome': nome, 'jogos': jogos};
+      }).toList(),
+    );
 
     setState(() {
       _checkpoints = result;
@@ -83,8 +88,22 @@ class _StaffJogosViewState extends State<StaffJogosView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Jogos por Checkpoint'),
-        backgroundColor: Colors.black,
+        title: const Text(
+          'Jogos por Checkpoint',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Color(0xFFDD1D21),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sports_esports, color: Colors.white),
+            onPressed:
+                () =>
+                    Navigator.of(context).pushReplacementNamed('/staff/jogos'),
+            tooltip: 'Voltar aos Jogos',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body:
           _loading

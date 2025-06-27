@@ -228,7 +228,7 @@ class AppPages {
     ),
     GetPage(
       name: '/scan-score',
-      page: () => const ScanAndScoreView(),
+      page: () => const StaffScoreInputView(),
       transition: Transition.rightToLeft,
       middlewares: [StaffMiddleware()],
     ),
