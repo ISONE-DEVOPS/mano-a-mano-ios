@@ -7,6 +7,7 @@ import '../views/dashboard/home_view.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
+import '../views/auth/criar_conta_view.dart';
 // Removido: closed_registration_view
 
 // Views Splash
@@ -88,6 +89,11 @@ class AppPages {
     GetPage(
       name: '/register',
       page: () => const RegisterView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/criar-conta',
+      page: () => const CriarContaView(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

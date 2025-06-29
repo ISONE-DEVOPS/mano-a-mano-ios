@@ -448,7 +448,7 @@ class _HomeViewState extends State<HomeView> {
                                   .collection('users')
                                   .doc(uid)
                                   .collection('eventos')
-                                  .doc('shell_2025')
+                                  .doc('shell_km_02')
                                   .collection('pontuacoes')
                                   .get(),
                           builder: (context, checkpointSnapshot) {
@@ -582,26 +582,32 @@ class _HomeViewState extends State<HomeView> {
                                         .clamp(0.0, 1.0)
                                     : 0.0;
 
-                            // CORREÇÃO: Calcular pontuação total somando pergunta + jogo
+                            // CORREÇÃO: Calcular pontuação total de forma robusta, tratando String/num
                             final pontuacaoTotal = processedCheckpoints.values
                                 .fold<int>(0, (total, cp) {
-                                  final pontuacaoPergunta =
-                                      cp['pontuacaoPergunta'] as int? ?? 0;
-                                  final pontuacaoJogo =
-                                      cp['pontuacaoJogo'] as int? ?? 0;
+                                  final perguntaRaw = cp['pontuacaoPergunta'];
+                                  final jogoRaw = cp['pontuacaoJogo'];
+                                  final totalRaw = cp['pontuacaoTotal'];
 
-                                  // Se pontuacaoTotal existe e é maior que a soma individual, usa ele
-                                  // Caso contrário, soma pergunta + jogo
-                                  final pontuacaoTotalCheckpoint =
-                                      cp['pontuacaoTotal'] as int? ?? 0;
-                                  final somaIndividual =
-                                      pontuacaoPergunta + pontuacaoJogo;
+                                  final pergunta =
+                                      int.tryParse(
+                                        perguntaRaw?.toString() ?? '',
+                                      ) ??
+                                      0;
+                                  final jogo =
+                                      int.tryParse(jogoRaw?.toString() ?? '') ??
+                                      0;
+                                  final somaIndividual = pergunta + jogo;
+                                  final fallback =
+                                      int.tryParse(
+                                        totalRaw?.toString() ?? '',
+                                      ) ??
+                                      0;
 
                                   final pontuacaoFinal =
-                                      pontuacaoTotalCheckpoint > somaIndividual
-                                          ? pontuacaoTotalCheckpoint
-                                          : somaIndividual;
-
+                                      somaIndividual > 0
+                                          ? somaIndividual
+                                          : fallback;
                                   return total + pontuacaoFinal;
                                 });
 

@@ -8,7 +8,15 @@ class RankingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ranking'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text(
+          'Ranking',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Color(0xFFDD1D21),
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -52,14 +60,39 @@ class RankingView extends StatelessWidget {
                         builder: (context, snapshot) {
                           if (!snapshot.hasData ||
                               snapshot.data?.data() == null) {
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.grey,
-                                child: Text('${index + 1}'),
+                            return Card(
+                              elevation: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              color: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              title: const Text('Equipa desconhecida'),
-                              subtitle: Text(
-                                'Pontos: ${data['pontuacao'] ?? 0}',
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor:
+                                      index == 0
+                                          ? Color(0xFFFFD700) // ouro
+                                          : index == 1
+                                          ? Color(0xFFC0C0C0) // prata
+                                          : index == 2
+                                          ? Color(0xFFCD7F32) // bronze
+                                          : Color(0xFFDD1D21),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                title: const Text(
+                                  'Equipa desconhecida',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  'Pontos: ${data['pontuacao'] ?? 0}',
+                                  style: const TextStyle(color: Colors.black87),
+                                ),
                               ),
                             );
                           }
@@ -68,14 +101,48 @@ class RankingView extends StatelessWidget {
                           return Card(
                             elevation: 2,
                             margin: const EdgeInsets.symmetric(vertical: 6),
+                            color: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: Colors.amber,
-                                child: Text('${index + 1}'),
+                                backgroundColor:
+                                    index == 0
+                                        ? Color(0xFFFFD700) // ouro
+                                        : index == 1
+                                        ? Color(0xFFC0C0C0) // prata
+                                        : index == 2
+                                        ? Color(0xFFCD7F32) // bronze
+                                        : Color(0xFFDD1D21),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              title: Text(equipaData?['nome'] ?? 'Equipa'),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      equipaData?['nome'] ?? 'Equipa',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (index == 0)
+                                    const Icon(
+                                      Icons.emoji_events,
+                                      color: Color(0xFFFFD700),
+                                    ),
+                                ],
+                              ),
                               subtitle: Text(
                                 'Pontos: ${data['pontuacao'] ?? 0}',
+                                style: const TextStyle(color: Colors.black87),
                               ),
                             ),
                           );
@@ -93,13 +160,16 @@ class RankingView extends StatelessWidget {
         currentIndex: 3,
         onTap: (index) {
           if (index != 3) {
-            Navigator.pushReplacementNamed(context, [
-              '/home',
-              '/my-events',
-              '/checkin',
-              '/ranking',
-              '/profile',
-            ][index]);
+            Navigator.pushReplacementNamed(
+              context,
+              [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index],
+            );
           }
         },
       ),

@@ -47,6 +47,7 @@ class _StaffJogosViewState extends State<StaffJogosView> {
                   : {
                     'nome': d['nome'] ?? 'Sem nome',
                     'tipo': d['tipo'] ?? 'N/D',
+                    'pontos': d['pontos'] ?? 0,
                   };
             }),
           );
@@ -64,6 +65,7 @@ class _StaffJogosViewState extends State<StaffJogosView> {
                       : {
                         'nome': d['nome'] ?? 'Sem nome',
                         'tipo': d['tipo'] ?? 'N/D',
+                        'pontos': d['pontos'] ?? 0,
                       };
                 }),
               );
@@ -126,7 +128,14 @@ class _StaffJogosViewState extends State<StaffJogosView> {
                             .map(
                               (jogo) => ListTile(
                                 title: Text(jogo['nome']),
-                                subtitle: Text('Tipo: ${jogo['tipo']}'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Tipo: ${jogo['tipo']}'),
+                                    if (jogo.containsKey('pontos'))
+                                      Text('Pontos: ${jogo['pontos']}'),
+                                  ],
+                                ),
                                 leading: const Icon(Icons.sports_esports),
                               ),
                             )

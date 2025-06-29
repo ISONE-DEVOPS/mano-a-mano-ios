@@ -1019,6 +1019,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
           'nome': nome,
           'grupo': userData['grupo'] ?? 'A',
           'equipaId': userData['equipaId'],
+          'veiculoId': userData['veiculoId'],
         };
       });
 
@@ -1122,9 +1123,45 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
         'timestampPontuacao': FieldValue.serverTimestamp(),
       });
 
-      // Chamada para atualizar pontuacaoTotal agregada
+      // Atualizar pontuação total do participante
       await _atualizarPontuacaoTotal(uid);
       await _atualizarClassificacaoGeral();
+
+      // Atualizar pontuação total da equipa
+      final equipaId = _participanteData['equipaId'];
+      if (equipaId != null && equipaId.toString().isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .update({
+              'pontuacao_total': FieldValue.increment(_pontuacao ?? 0),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      }
+
+      // Atualizar pontuação total do veiculo
+      final veiculoId = _participanteData['veiculoId'];
+      if (veiculoId != null && veiculoId.toString().isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .update({
+              'pontuacao_total': FieldValue.increment(_pontuacao ?? 0),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      }
+
+      // Atualizar ranking
+      if (equipaId != null && equipaId.toString().isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('ranking')
+            .doc(equipaId)
+            .set({
+              'equipaId': equipaId,
+              'pontuacao': FieldValue.increment(_pontuacao ?? 0),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      }
 
       // Atualizar lista de jogos já pontuados
       setState(() {

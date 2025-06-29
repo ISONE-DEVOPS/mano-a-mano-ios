@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/firebase_service.dart';
+import '../../services/auth_service.dart';
 
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
@@ -11,7 +11,6 @@ class ForgotPasswordView extends StatefulWidget {
 class _ForgotPasswordViewState extends State<ForgotPasswordView>
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
-  final _firebaseService = FirebaseService();
   final _formKey = GlobalKey<FormState>();
 
   bool _loading = false;
@@ -67,24 +66,14 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView>
 
     final email = _emailController.text.trim();
 
-    final exists = await _firebaseService.emailExists(email);
+    final success = await AuthService.to.sendPasswordResetEmail(email);
 
-    if (!exists) {
-      setState(() {
-        _loading = false;
-        _message = 'Este email não está registado. Por favor, crie uma conta.';
-        _isSuccess = false;
-      });
-      return;
-    }
-
-    final success = await _firebaseService.sendPasswordResetEmail(email);
     setState(() {
       _loading = false;
       _isSuccess = success;
       _message =
           success
-              ? 'Instruções enviadas para $email.\nVerifique sua caixa de entrada.'
+              ? 'Se o email estiver registado, você receberá um link de redefinição.'
               : 'Erro ao enviar email de recuperação. Tente novamente.';
     });
   }

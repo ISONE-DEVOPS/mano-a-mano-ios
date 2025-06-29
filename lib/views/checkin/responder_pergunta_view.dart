@@ -84,7 +84,7 @@ class _ResponderPerguntaViewState extends State<ResponderPerguntaView> {
           .collection('users')
           .doc(uid)
           .collection('eventos')
-          .doc('shell_2025')
+          .doc('shell_km_02')
           .collection('pontuacoes')
           .doc(widget.checkpointId)
           .update({

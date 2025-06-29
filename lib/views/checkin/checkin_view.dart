@@ -162,10 +162,7 @@ class _CheckinViewState extends State<CheckinView> {
                 borderRadius: BorderRadius.circular(8),
                 child: Stack(
                   children: [
-                    QRView(
-                      key: qrKey,
-                      onQRViewCreated: _onQRViewCreated,
-                    ),
+                    QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
                     if (isProcessing)
                       Container(
                         color: Colors.black54,
@@ -360,7 +357,7 @@ class _CheckinViewState extends State<CheckinView> {
               .collection('users')
               .doc(uid)
               .collection('eventos')
-              .doc('shell_2025')
+              .doc('shell_km_02')
               .collection('pontuacoes')
               .doc(checkpointId)
               .get();
@@ -480,6 +477,12 @@ class _CheckinViewState extends State<CheckinView> {
             },
           }, SetOptions(merge: true));
 
+      // Atualizar updatedAt no documento do veículo
+      await FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .update({'updatedAt': FieldValue.serverTimestamp()});
+
       // Criar/atualizar evento do usuário
       const eventId = 'shell_2025';
       final eventoDocRef = FirebaseFirestore.instance
@@ -514,9 +517,21 @@ class _CheckinViewState extends State<CheckinView> {
           'perguntaRespondida': false,
           'jogosPontuados': {},
         }, SetOptions(merge: true));
+        // Opcional: atualizar pontuacao_total no documento do veículo (caso tenha pontuado aqui)
+        final data = await pontuacaoRef.get();
+        if (data.exists) {
+          final pontos = (data.data()?['pontuacaoPergunta'] ?? 0) as int;
+          await FirebaseFirestore.instance
+              .collection('veiculos')
+              .doc(veiculoId)
+              .update({
+                'pontuacao_total': FieldValue.increment(pontos),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        }
       } else {
         await pontuacaoRef.update({'timestampSaida': now});
-      await _atualizarTempoTotal(uid);
+        await _atualizarTempoTotal(uid);
       }
 
       // Atualizar checkpoints visitados
@@ -540,7 +555,7 @@ class _CheckinViewState extends State<CheckinView> {
               .collection('users')
               .doc(uid)
               .collection('eventos')
-              .doc('shell_2025')
+              .doc('shell_km_02')
               .collection('pontuacoes')
               .get();
 
@@ -568,24 +583,27 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarTempoTotal(String uid) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('eventos')
-          .doc('shell_2025')
-          .collection('pontuacoes')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc('shell_km_02')
+              .collection('pontuacoes')
+              .get();
 
       int totalSegundos = 0;
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final entrada = (data['timestampEntrada'] != null)
-            ? DateTime.tryParse(data['timestampEntrada'])
-            : null;
-        final saida = (data['timestampSaida'] != null)
-            ? DateTime.tryParse(data['timestampSaida'])
-            : null;
+        final entrada =
+            (data['timestampEntrada'] != null)
+                ? DateTime.tryParse(data['timestampEntrada'])
+                : null;
+        final saida =
+            (data['timestampSaida'] != null)
+                ? DateTime.tryParse(data['timestampSaida'])
+                : null;
 
         if (entrada != null && saida != null) {
           totalSegundos += saida.difference(entrada).inSeconds;
@@ -607,11 +625,12 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarClassificacaoGeral() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collectionGroup('shell_2025')
-          .orderBy('pontuacaoTotal', descending: true)
-          .orderBy('tempoTotal')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collectionGroup('shell_2025')
+              .orderBy('pontuacaoTotal', descending: true)
+              .orderBy('tempoTotal')
+              .get();
 
       int posicao = 1;
 

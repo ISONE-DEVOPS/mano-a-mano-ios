@@ -293,4 +293,49 @@ class AuthService extends GetxService {
 
   // Verificar se dados estão carregados
   bool get isUserDataLoaded => _userData.isNotEmpty;
+
+  // Enviar email de recuperação de senha
+  Future<bool> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao enviar recuperação de senha: $e');
+      return false;
+    }
+  }
+
+  // Registro com email, nome e senha
+  Future<bool> registerWithEmail(
+    String nome,
+    String email,
+    String password,
+  ) async {
+    try {
+      UserCredential cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      await _firestore.collection('users').doc(cred.user!.uid).set({
+        'nome': nome,
+        'email': email,
+        'role': 'user',
+        'ativo': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      _user.value = cred.user;
+      await _loadUserData();
+
+      return true;
+    } catch (e) {
+      Get.snackbar(
+        'Erro ao criar conta',
+        _getErrorMessage(e.toString()),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    }
+  }
 }
