@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firebase_service.dart';
 import '../payment/payment_view.dart';
 import 'user_summary_view.dart';
+import 'dart:developer' as developer;
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -41,6 +42,8 @@ class _RegisterViewState extends State<RegisterView> {
   int _currentStep = 0;
 
   String? _selectedEventId;
+  Map<String, dynamic>? _activeEventData;
+  String? _activeEventName;
 
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
@@ -151,8 +154,6 @@ class _RegisterViewState extends State<RegisterView> {
       // Após salvar carro, verifica valor do evento
       final eventDoc =
           await FirebaseFirestore.instance
-              .collection('editions')
-              .doc('shell_2025')
               .collection('events')
               .doc(_selectedEventId)
               .get();
@@ -162,7 +163,8 @@ class _RegisterViewState extends State<RegisterView> {
         return;
       }
       final Map<String, dynamic> data = eventDoc.data()!;
-      final nomeEvento = data['nome'] ?? 'Sem nome';
+      final nomeEvento =
+          (data['nome'] ?? data['name'] ?? 'Sem nome').toString();
       final price = double.tryParse('${data['price'] ?? '0'}') ?? 0;
 
       // Gerar novos IDs para veiculo e equipa
@@ -232,7 +234,7 @@ class _RegisterViewState extends State<RegisterView> {
         'emergencia': _emergencyContactController.text.trim(),
         'tshirt': _selectedShirtSize ?? '',
         'role': 'user',
-        'eventoId': 'editions/shell_2025/events/$_selectedEventId',
+        'eventoId': 'events/$_selectedEventId',
         'eventoNome': nomeEvento,
         'ativo': true,
         'veiculoId': veiculoId,
@@ -443,7 +445,7 @@ class _RegisterViewState extends State<RegisterView> {
             margin: const EdgeInsets.symmetric(vertical: 5),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: DropdownButtonFormField<String>(
-              value: _selectedShirtSize,
+              initialValue: _selectedShirtSize,
               items:
                   _shirtSizes.map((size) {
                     return DropdownMenuItem(
@@ -789,7 +791,7 @@ class _RegisterViewState extends State<RegisterView> {
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: DropdownButtonFormField<String>(
-                            value:
+                            initialValue:
                                 passageirosControllers[i]['tshirt']!
                                         .text
                                         .isNotEmpty
@@ -949,12 +951,7 @@ class _RegisterViewState extends State<RegisterView> {
         ),
         const SizedBox(height: 16),
         FutureBuilder<QuerySnapshot>(
-          future:
-              FirebaseFirestore.instance
-                  .collection('editions')
-                  .doc('shell_2025')
-                  .collection('events')
-                  .get(),
+          future: FirebaseFirestore.instance.collection('events').get(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -962,7 +959,9 @@ class _RegisterViewState extends State<RegisterView> {
             final items =
                 snapshot.data!.docs.map((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final nome = data['nome'] ?? 'Evento sem nome';
+                  final nome =
+                      (data['name'] ?? data['nome'] ?? 'Evento sem nome')
+                          .toString();
                   return DropdownMenuItem<String>(
                     value: doc.id,
                     child: Text(nome),
@@ -970,7 +969,7 @@ class _RegisterViewState extends State<RegisterView> {
                 }).toList();
             return DropdownButtonFormField<String>(
               isExpanded: true,
-              value: _selectedEventId,
+              initialValue: _selectedEventId,
               hint: Text(
                 'Selecione um evento',
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -1122,12 +1121,41 @@ class _RegisterViewState extends State<RegisterView> {
   void initState() {
     super.initState();
     _loadAcceptedTerms();
+    _loadActiveEvent();
   }
 
   Future<void> _loadAcceptedTerms() async {
     final prefs = await SharedPreferences.getInstance();
     final accepted = prefs.getBool('acceptedTerms') ?? false;
     setState(() => _acceptedTerms = accepted);
+  }
+
+  Future<void> _loadActiveEvent() async {
+    try {
+      final q =
+          await FirebaseFirestore.instance
+              .collection('events')
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
+      if (q.docs.isNotEmpty) {
+        final d = q.docs.first;
+        setState(() {
+          _selectedEventId = d.id;
+          _activeEventData = d.data() as Map<String, dynamic>?;
+          _activeEventName =
+              (_activeEventData?['name'] ?? _activeEventData?['nome'] ?? '')
+                  .toString();
+        });
+        developer.log(
+          'Evento ativo carregado: $_activeEventName ($_selectedEventId)',
+        );
+      } else {
+        developer.log('Nenhum evento ativo encontrado.');
+      }
+    } catch (e) {
+      developer.log('Falha ao carregar evento ativo: $e');
+    }
   }
 
   @override
@@ -1166,11 +1194,7 @@ class _RegisterViewState extends State<RegisterView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/images/Logo_Shell_KM.png',
-                width: 40,
-                height: 40,
-              ),
+              Image.asset('assets/images/logo.jpeg', width: 40, height: 40),
             ],
           ),
         ),
@@ -1236,7 +1260,7 @@ class _RegisterViewState extends State<RegisterView> {
                 value: (_currentStep + 1) / 4,
                 backgroundColor: Theme.of(
                   context,
-                ).colorScheme.onPrimary.withAlpha(61),
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
                 valueColor: AlwaysStoppedAnimation<Color>(
                   Theme.of(context).colorScheme.primary,
                 ),

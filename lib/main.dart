@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'routes/app_pages.dart';
@@ -10,6 +11,131 @@ import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_backend_theme.dart' as backend;
 import 'dart:developer' as developer;
+
+// ===== Active Event Config (local, sem depender de outros ficheiros) =====
+class _EventConfig {
+  final String name;
+  final String brand; // 'mano' | 'shell' | outros
+  final String? logoUrl;
+  final String checkinMode; // 'single' | 'entry_exit'
+  final bool hasQuestions;
+  final bool hasGames;
+  final bool hasScoring;
+
+  const _EventConfig({
+    required this.name,
+    required this.brand,
+    required this.logoUrl,
+    required this.checkinMode,
+    required this.hasQuestions,
+    required this.hasGames,
+    required this.hasScoring,
+  });
+
+  bool get isMano => brand.toLowerCase() == 'mano';
+  bool get isShell => brand.toLowerCase() == 'shell';
+
+  factory _EventConfig.fromMap(Map<String, dynamic> m) {
+    final brand = (m['brand'] as String? ?? 'shell').toLowerCase();
+    return _EventConfig(
+      name: m['name'] as String? ?? 'Evento',
+      brand: brand,
+      logoUrl: m['logoUrl'] as String?,
+      checkinMode: (m['checkinMode'] as String? ?? 'entry_exit').toLowerCase(),
+      hasQuestions: (m['hasQuestions'] as bool?) ?? true,
+      hasGames: (m['hasGames'] as bool?) ?? true,
+      hasScoring: (m['hasScoring'] as bool?) ?? true,
+    );
+  }
+}
+
+/// Notificador global do evento ativo (para reatividade simples, sem novos serviços).
+final ValueNotifier<_EventConfig?> _activeEvent = ValueNotifier<_EventConfig?>(null);
+
+/// Inicia o watcher do evento ativo (events.where isActive==true). Reconstrói o tema em tempo real.
+Future<void> _initActiveEventWatcher() async {
+  try {
+    final db = FirebaseFirestore.instance;
+    final q = await db.collection('events').where('isActive', isEqualTo: true).limit(1).get();
+    if (q.docs.isEmpty) {
+      developer.log('Nenhum evento ativo encontrado. Usando tema padrão.', name: 'event');
+      _activeEvent.value = null;
+      return;
+    }
+    final doc = q.docs.first;
+    _activeEvent.value = _EventConfig.fromMap(doc.data());
+    developer.log('Evento ativo: ${_activeEvent.value!.name} (${_activeEvent.value!.brand})', name: 'event');
+
+    // Escuta alterações do evento ativo (ex.: alternar Shell & Mano no Admin)
+    doc.reference.snapshots().listen((snap) {
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      _activeEvent.value = _EventConfig.fromMap(data);
+      developer.log('Evento atualizado: ${_activeEvent.value!.name} (${_activeEvent.value!.brand})', name: 'event');
+    });
+  } catch (e) {
+    developer.log('Falha ao carregar evento ativo: $e', name: 'event', error: e);
+    _activeEvent.value = null; // fallback
+  }
+}
+
+/// Constrói um ThemeData dinâmico baseado no evento ativo.
+ThemeData _buildEventTheme(_EventConfig? cfg) {
+  if (cfg == null) {
+    // fallback: tema padrão já existente
+    return AppTheme.theme;
+  }
+
+  // Paletas: Shell (amarelo/vermelho) vs Mano (preto/laranja)
+  // Shell Yellow #FFC600 / Shell Red #DD1D21; Mano primary #FF6600 e onPrimary #000000
+  final bool isMano = cfg.isMano;
+  final Brightness brightness = isMano ? Brightness.dark : Brightness.light;
+  final Color primary = isMano ? const Color(0xFFFF6600) : const Color(0xFFFFC600);
+  final Color onPrimary = isMano ? const Color(0xFF000000) : const Color(0xFFDD1D21);
+  final Color surface = isMano ? const Color(0xFF121212) : Colors.white;
+  final Color onSurface = isMano ? Colors.white : Colors.black87;
+
+  final colorScheme = ColorScheme(
+    brightness: brightness,
+    primary: primary,
+    onPrimary: onPrimary,
+    secondary: primary,
+    onSecondary: onPrimary,
+    error: Colors.redAccent,
+    onError: Colors.white,
+    surface: surface,
+    onSurface: onSurface,
+  );
+
+  return ThemeData(
+    colorScheme: colorScheme,
+    useMaterial3: true,
+    scaffoldBackgroundColor: surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
+      elevation: 0,
+      centerTitle: true,
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        shape: const StadiumBorder(),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: const OutlineInputBorder(),
+      filled: true,
+      fillColor: brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5),
+    ),
+  );
+}
+// ===== Fim bloco: Active Event Config =====
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +147,9 @@ void main() async {
 
     // Registrar AuthService
     Get.put(AuthService());
+
+    // Iniciar watcher do evento ativo (para tema/fluxo dinâmico: Shell vs Mano)
+    await _initActiveEventWatcher();
 
     // Determinar rota inicial SEM depender do Firestore
     final initialRoute = _determineInitialRoute();
@@ -76,40 +205,49 @@ class ManoManoDashboard extends StatelessWidget {
       name: 'app',
     );
 
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Dashboard Mano Mano',
-      initialRoute: initialRoute,
-      getPages: AppPages.routes,
-      theme: AppTheme.theme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      scrollBehavior: MyCustomScrollBehavior(),
+    return ValueListenableBuilder<_EventConfig?>(
+      valueListenable: _activeEvent,
+      builder: (context, cfg, _) {
+        final dynamicTheme = _buildEventTheme(cfg);
 
-      // Configuração de localização
-      locale: const Locale('pt', 'CV'),
-      fallbackLocale: const Locale('pt', 'PT'),
+        return GetMaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Dashboard Mano Mano',
+          initialRoute: initialRoute,
+          getPages: AppPages.routes,
 
-      // Builder com error handling
-      builder: (context, child) {
-        return _buildWithDynamicTheme(context, child);
-      },
+          // Tema dinâmico por evento (Shell vs Mano). O builder abaixo ainda pode sobrepor para rotas admin.
+          theme: dynamicTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
+          scrollBehavior: MyCustomScrollBehavior(),
 
-      // Configurações de transição
-      defaultTransition: Transition.fadeIn,
-      transitionDuration: const Duration(milliseconds: 300),
+          // Configuração de localização
+          locale: const Locale('pt', 'CV'),
+          fallbackLocale: const Locale('pt', 'PT'),
 
-      // Tratamento de rotas não encontradas
-      unknownRoute: GetPage(
-        name: '/not-found',
-        page: () => const NotFoundPage(),
-      ),
+          // Builder com error handling + override de tema para rotas admin
+          builder: (context, child) {
+            return _buildWithDynamicTheme(context, child);
+          },
 
-      // Callback para monitorar navegação
-      routingCallback: (routing) {
-        if (routing?.current != null) {
-          developer.log('Navegando para: ${routing!.current}', name: 'routing');
-        }
+          // Configurações de transição
+          defaultTransition: Transition.fadeIn,
+          transitionDuration: const Duration(milliseconds: 300),
+
+          // Tratamento de rotas não encontradas
+          unknownRoute: GetPage(
+            name: '/not-found',
+            page: () => const NotFoundPage(),
+          ),
+
+          // Callback para monitorar navegação
+          routingCallback: (routing) {
+            if (routing?.current != null) {
+              developer.log('Navegando para: ${routing!.current}', name: 'routing');
+            }
+          },
+        );
       },
     );
   }

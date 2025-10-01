@@ -33,19 +33,23 @@ class SplashView extends StatelessWidget {
     });
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo_Shell_KM.png', width: 160),
+            Image.asset(
+              'assets/icons/logo.jpeg',
+              width: 160,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Mano a Mano - Shell KM',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ],

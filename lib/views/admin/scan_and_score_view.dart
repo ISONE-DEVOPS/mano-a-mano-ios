@@ -292,7 +292,7 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.location_on),
                               ),
-                              value:
+                              initialValue:
                                   _selectedCheckpoint.isEmpty
                                       ? null
                                       : _selectedCheckpoint,
@@ -324,7 +324,7 @@ class _ScanAndScoreViewState extends State<ScanAndScoreView> {
                                   border: OutlineInputBorder(),
                                   prefixIcon: Icon(Icons.sports_esports),
                                 ),
-                                value:
+                                initialValue:
                                     _selectedGame.isEmpty
                                         ? null
                                         : _selectedGame,

@@ -10,7 +10,6 @@ import 'dart:convert';
 import '../../services/firebase_service.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../widgets/shared/nav_topbar.dart';
-import '../../theme/app_colors.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -213,9 +212,12 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _locationErrorWidget() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary],
+          colors: [
+            Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.primary
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -237,10 +239,10 @@ class _HomeViewState extends State<HomeView> {
               });
               _determinePosition();
             },
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            label: const Text(
+            icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onPrimary),
+            label: Text(
               'Tentar Novamente',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -253,9 +255,12 @@ class _HomeViewState extends State<HomeView> {
     return Column(
       children: [
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primary],
+              colors: [
+                Theme.of(context).colorScheme.primary,
+                Theme.of(context).colorScheme.primary
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -285,9 +290,12 @@ class _HomeViewState extends State<HomeView> {
     return Column(
       children: [
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primary],
+              colors: [
+                Theme.of(context).colorScheme.primary,
+                Theme.of(context).colorScheme.primary
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -341,8 +349,8 @@ class _HomeViewState extends State<HomeView> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(40),
         child: AppBar(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 0,
         ),
       ),
@@ -633,11 +641,11 @@ class _HomeViewState extends State<HomeView> {
                             return Column(
                               children: [
                                 Container(
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        AppColors.primary,
-                                        AppColors.primary,
+                                        Theme.of(context).colorScheme.primary,
+                                        Theme.of(context).colorScheme.primary
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
@@ -665,7 +673,7 @@ class _HomeViewState extends State<HomeView> {
                                   child: Column(
                                     children: [
                                       Card(
-                                        color: AppColors.background,
+                                        color: Theme.of(context).colorScheme.surface,
                                         margin: const EdgeInsets.symmetric(
                                           vertical: 12,
                                         ),
@@ -683,10 +691,10 @@ class _HomeViewState extends State<HomeView> {
                                             children: [
                                               Text(
                                                 '${(carData['nome_condutor'] != null && carData['nome_condutor'].toString().trim().isNotEmpty) ? carData['nome_condutor'] : userName} - ${carData['matricula'] ?? 'Matrícula desconhecida'}',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.bold,
-                                                  color: AppColors.primary,
+                                                  color: Theme.of(context).colorScheme.primary,
                                                 ),
                                               ),
                                               const SizedBox(height: 12),
@@ -731,8 +739,7 @@ class _HomeViewState extends State<HomeView> {
                                               const SizedBox(height: 8),
                                               LinearProgressIndicator(
                                                 value: progress,
-                                                backgroundColor: Colors.white
-                                                    .withAlpha(61),
+                                                backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
                                                 color:
                                                     progress >= 1.0
                                                         ? Colors.green
@@ -745,7 +752,7 @@ class _HomeViewState extends State<HomeView> {
                                               Text(
                                                 'Postos restantes: ${totalCheckpoints - visitedCheckpoints}',
                                                 style: TextStyle(
-                                                  color: Colors.grey[700],
+                                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70),
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -759,8 +766,7 @@ class _HomeViewState extends State<HomeView> {
                                               const SizedBox(height: 8),
                                               LinearProgressIndicator(
                                                 value: perguntasProgress,
-                                                backgroundColor: Colors.white
-                                                    .withAlpha(61),
+                                                backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
                                                 color:
                                                     perguntasProgress >= 0.8
                                                         ? Colors.green
@@ -774,7 +780,7 @@ class _HomeViewState extends State<HomeView> {
                                               Text(
                                                 'Taxa de acerto: ${perguntasRespondidas > 0 ? ((perguntasCorretas / perguntasRespondidas) * 100).toStringAsFixed(1) : "0.0"}%',
                                                 style: TextStyle(
-                                                  color: Colors.grey[700],
+                                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70),
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -1024,8 +1030,7 @@ class _HomeViewState extends State<HomeView> {
                                                                             style: TextStyle(
                                                                               fontSize:
                                                                                   12,
-                                                                              color:
-                                                                                  Colors.grey[600],
+                                                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.60),
                                                                             ),
                                                                           ),
                                                                           // CORREÇÃO: Mostrar detalhamento da pontuação
@@ -1087,8 +1092,7 @@ class _HomeViewState extends State<HomeView> {
                                                                                     style: TextStyle(
                                                                                       fontSize:
                                                                                           10,
-                                                                                      color:
-                                                                                          Colors.grey[600],
+                                                                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.60),
                                                                                     ),
                                                                                   ),
                                                                               ],

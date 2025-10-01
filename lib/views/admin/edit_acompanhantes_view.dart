@@ -404,7 +404,7 @@ class _EditAcompanhantesViewState extends State<EditAcompanhantesView> {
                                       labelText: 'Tamanho de T-shirt',
                                       border: OutlineInputBorder(),
                                     ),
-                                    value:
+                                    initialValue:
                                         acompanhantes[index]['tshirt'].isEmpty
                                             ? null
                                             : acompanhantes[index]['tshirt'],

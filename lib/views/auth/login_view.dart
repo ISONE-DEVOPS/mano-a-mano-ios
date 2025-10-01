@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mano_mano_dashboard/theme/app_colors.dart';
 import 'package:get/get.dart';
 import 'package:flutter/gestures.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -97,7 +96,7 @@ class _LoginViewState extends State<LoginView> {
           ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Image.asset(
-              'assets/images/Logo_Shell_KM.png',
+              'assets/images/logo.jpeg',
               width: 90,
               fit: BoxFit.contain,
             ),
@@ -105,14 +104,16 @@ class _LoginViewState extends State<LoginView> {
           const SizedBox(height: 16),
           Text(
             'Bem-vindo(a)!',
-            style: textTheme.titleLarge?.copyWith(color: AppColors.primary),
+            style: textTheme.titleLarge?.copyWith(color: colorScheme.primary),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               'Entre com sua conta ou registre-se para participar dos eventos Shell ao KM.',
-              style: textTheme.bodyMedium,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -122,13 +123,14 @@ class _LoginViewState extends State<LoginView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, color: AppColors.primary),
+                  Icon(Icons.error_outline, color: colorScheme.error),
                   const SizedBox(width: 8),
                   Text(
                     _error!,
-                    style: const TextStyle(
-                      color: AppColors.primary,
+                    style: TextStyle(
+                      color: colorScheme.error,
                       fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -156,6 +158,19 @@ class _LoginViewState extends State<LoginView> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: colorScheme.onSurface.withAlpha(51),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 1.4,
+                      ),
+                    ),
                   ),
                   style: textTheme.bodyLarge,
                 ),
@@ -174,6 +189,19 @@ class _LoginViewState extends State<LoginView> {
                     fillColor: colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: colorScheme.onSurface.withAlpha(51),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 1.4,
+                      ),
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -207,7 +235,7 @@ class _LoginViewState extends State<LoginView> {
                         'Esqueceu a senha?',
                         style: textTheme.bodyMedium?.copyWith(
                           fontSize: 13,
-                          color: AppColors.secondary,
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
@@ -225,7 +253,7 @@ class _LoginViewState extends State<LoginView> {
                               text: 'Termos e Condições',
                               style: TextStyle(
                                 decoration: TextDecoration.underline,
-                                color: colorScheme.secondary,
+                                color: colorScheme.primary,
                               ),
                               recognizer:
                                   TapGestureRecognizer()
@@ -238,7 +266,7 @@ class _LoginViewState extends State<LoginView> {
                               text: 'Política de Privacidade',
                               style: TextStyle(
                                 decoration: TextDecoration.underline,
-                                color: colorScheme.secondary,
+                                color: colorScheme.primary,
                               ),
                               recognizer:
                                   TapGestureRecognizer()
@@ -259,16 +287,16 @@ class _LoginViewState extends State<LoginView> {
                   child: ElevatedButton(
                     onPressed: _loading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.black,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child:
                         _loading
-                            ? const CircularProgressIndicator(
-                              color: Colors.black,
+                            ? CircularProgressIndicator(
+                              color: colorScheme.onPrimary,
                             )
                             : Text('Entrar', style: textTheme.bodyLarge),
                   ),
@@ -281,7 +309,7 @@ class _LoginViewState extends State<LoginView> {
                   child: Text(
                     'Não tem uma conta? Criar uma conta',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.secondary,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ),
@@ -296,9 +324,10 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (kIsWeb) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: colorScheme.surface,
         body: Center(
           child: SizedBox(
             width: 420,
@@ -317,7 +346,7 @@ class _LoginViewState extends State<LoginView> {
       );
     }
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(child: _buildLoginForm(context)),
     );
   }

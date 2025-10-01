@@ -27,7 +27,7 @@ class _DoacaoWebViewState extends State<DoacaoWebView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Doação Colmeia')),
+      appBar: AppBar(title: const Text('Doação')),
       body: WebViewWidget(controller: _controller),
     );
   }

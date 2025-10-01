@@ -214,7 +214,7 @@ void showAddEventDialog(BuildContext context) {
                               Switch(
                                 value: status,
                                 onChanged: (v) => setState(() => status = v),
-                                activeColor: const Color(0xFF74C0FC),
+                                activeThumbColor: const Color(0xFF74C0FC),
                                 activeTrackColor: const Color(
                                   0xFF74C0FC,
                                 ).withAlpha(77),

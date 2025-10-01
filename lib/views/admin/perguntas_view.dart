@@ -75,15 +75,15 @@ class _PerguntasViewState extends State<PerguntasView> {
         categoria.isEmpty ||
         opcoes.any((o) => o.isEmpty) ||
         pontos == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(
-        content: Text(
-          'Preencha todos os campos',
-          style: TextStyle(color: Colors.black),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Preencha todos os campos',
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.white,
         ),
-        backgroundColor: Colors.white,
-      ));
+      );
       return;
     }
 
@@ -216,7 +216,7 @@ class _PerguntasViewState extends State<PerguntasView> {
                                 ),
                               )
                               .toList(),
-                      value: _edicaoSelecionada,
+                      initialValue: _edicaoSelecionada,
                       decoration: InputDecoration(
                         labelText: 'Edição',
                         labelStyle: const TextStyle(color: Colors.black),
@@ -253,7 +253,7 @@ class _PerguntasViewState extends State<PerguntasView> {
                                 ),
                               )
                               .toList(),
-                      value: _eventoSelecionado,
+                      initialValue: _eventoSelecionado,
                       decoration: InputDecoration(
                         labelText: 'Evento',
                         labelStyle: const TextStyle(color: Colors.black),
@@ -304,19 +304,23 @@ class _PerguntasViewState extends State<PerguntasView> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // TODO: When migrating fully to the new RadioGroup API, replace this section.
+                    // For now, we use the stable Radio with groupValue to keep compatibility.
                     Column(
                       children: List.generate(_opcoes.length, (index) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: Row(
                             children: [
+                              // ignore: deprecated_member_use
                               Radio<int>(
                                 value: index,
+                                // ignore: deprecated_member_use
                                 groupValue: _respostaCorreta,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _respostaCorreta = value!;
-                                  });
+                                // ignore: deprecated_member_use
+                                onChanged: (int? v) {
+                                  if (v == null) return;
+                                  setState(() => _respostaCorreta = v);
                                 },
                               ),
                               Expanded(

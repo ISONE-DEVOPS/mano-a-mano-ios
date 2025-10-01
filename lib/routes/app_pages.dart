@@ -35,8 +35,9 @@ import '../views/admin/pontuacoes_view.dart';
 import '../views/admin/participantes_view.dart';
 import '../views/admin/generate_qr_view.dart';
 import '../views/admin/perguntas_view.dart';
-import '../views/admin/create_user_view.dart';
 import '../views/admin/report_geral_view.dart';
+import '../views/admin/donation_pagali_view.dart';
+import '../views/admin/user_management_view.dart';
 
 // Views Check-in
 import '../views/checkin/checkin_view.dart';
@@ -49,6 +50,7 @@ import '../views/events/event_details_view.dart';
 
 // Views Ranking
 import '../views/ranking/ranking_view.dart';
+import '../views/admin/update_total_score_view.dart';
 
 // Views Pontuacao
 import '../views/pontuacao/pontuacao_detalhada_view.dart';
@@ -154,7 +156,7 @@ class AppPages {
     ),
     GetPage(
       name: '/gestao-utilizadores',
-      page: () => const CreateUserView(),
+      page: () => const UserManagementView(),
       transition: Transition.rightToLeft,
       middlewares: [AdminMiddleware()],
     ),
@@ -203,6 +205,18 @@ class AppPages {
     GetPage(
       name: '/admin/scan-score',
       page: () => const ScanAndScoreView(),
+      transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
+    ),
+    GetPage(
+      name: '/user_management',
+      page: () => const UserManagementView(),
+      transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
+    ),
+    GetPage(
+      name: '/donations',
+      page: () => const DonationShellScreen(),
       transition: Transition.rightToLeft,
       middlewares: [AdminMiddleware()],
     ),
@@ -313,6 +327,12 @@ class AppPages {
       name: '/resultados-finais',
       page: () => const ResultadosFinaisView(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/update_total_score',
+      page: () => const UpdateTotalScoreView(),
+      transition: Transition.rightToLeft,
+      middlewares: [AdminMiddleware()],
     ),
 
     // =================== EVENTOS ===================

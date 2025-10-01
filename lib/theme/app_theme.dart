@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFFDD1D21); // Shell Red
+  static const Color primary = Color(0xFFFF6600); // Mano a Mano Orange
   static const Color secondary = Color(0xFFFFC600); // Shell Yellow
   static const Color background = Color(0xFFFFF3E5); // Sunrise 50
   static const Color text = Colors.black87;
@@ -18,7 +18,7 @@ class AppBackendTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Colors.grey.shade100,
-        //error: AppColors.error,
+        error: Colors.red,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.black,
@@ -61,8 +61,7 @@ class AppBackendTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Color(0xFF1E1E1E),
-        // background removed (deprecated, surface is sufficient)
-        //error: AppColors.error,
+        error: Colors.red,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.white,
@@ -107,7 +106,7 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.background,
-        //error: AppColors.error,
+        error: Colors.red,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: AppColors.text,
@@ -171,7 +170,7 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Color(0xFF1E1E1E),
-        //error: AppColors.error,
+        error: Colors.red,
         onPrimary: Colors.white,
         onSecondary: Colors.black,
         onSurface: Colors.white,

@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../services/auth_service.dart';
 import '../../widgets/shared/nav_bottom.dart';
-import '../../theme/app_colors.dart';
 import '../checkin/responder_pergunta_view.dart';
 import '../checkin/hint_popup.dart';
 
@@ -32,10 +32,14 @@ class _CheckinViewState extends State<CheckinView> {
 
   String get _selectedTipo => _toggleSelections[0] ? 'entrada' : 'saida';
 
+  bool _isSingleMode = false;         // Mano a Mano: leitura única
+  String? _activeEventId;             // ID do evento ativo (events/{id})
+
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _loadActiveEventMode();
   }
 
   Future<void> _checkPermissions() async {
@@ -52,12 +56,34 @@ class _CheckinViewState extends State<CheckinView> {
     }
   }
 
+  Future<void> _loadActiveEventMode() async {
+    try {
+      final q = await FirebaseFirestore.instance
+          .collection('events')
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (q.docs.isNotEmpty) {
+        final d = q.docs.first;
+        final data = d.data();
+        _activeEventId = d.id;
+        final mode = (data['checkinMode'] as String? ?? 'entry_exit').toLowerCase();
+        setState(() {
+          _isSingleMode = mode == 'single';
+        });
+      }
+    } catch (e) {
+      log('>>> Falha ao carregar modo do evento ativo: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Leitura de QR Code'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
           Obx(
             () => Padding(
@@ -65,8 +91,8 @@ class _CheckinViewState extends State<CheckinView> {
               child: Center(
                 child: Text(
                   _authService.userData['nome'] ?? 'Usuário',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -82,20 +108,20 @@ class _CheckinViewState extends State<CheckinView> {
             // Info da equipa
             Obx(
               () => Card(
-                color: AppColors.background,
+                color: Theme.of(context).colorScheme.surface,
                 elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Row(
                     children: [
-                      const Icon(Icons.group, color: AppColors.primary),
+                      Icon(Icons.group, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       Text(
                         'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],
@@ -106,51 +132,52 @@ class _CheckinViewState extends State<CheckinView> {
 
             const SizedBox(height: 16),
 
-            // ToggleButtons para Entrada/Saída
-            Column(
-              children: [
-                ToggleButtons(
-                  isSelected: _toggleSelections,
-                  borderRadius: BorderRadius.circular(8),
-                  selectedColor: Colors.white,
-                  fillColor: AppColors.primary,
-                  color: AppColors.primary,
-                  borderColor: AppColors.primary,
-                  selectedBorderColor: AppColors.primary,
-                  onPressed: (int index) {
-                    setState(() {
-                      for (int i = 0; i < _toggleSelections.length; i++) {
-                        _toggleSelections[i] = i == index;
-                      }
-                    });
-                  },
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 8.0,
+            // ToggleButtons para Entrada/Saída (apenas quando NÃO for single)
+            if (!_isSingleMode)
+              Column(
+                children: [
+                  ToggleButtons(
+                    isSelected: _toggleSelections,
+                    borderRadius: BorderRadius.circular(8),
+                    selectedColor: Theme.of(context).colorScheme.onPrimary,
+                    fillColor: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
+                    borderColor: Theme.of(context).colorScheme.primary,
+                    selectedBorderColor: Theme.of(context).colorScheme.primary,
+                    onPressed: (int index) {
+                      setState(() {
+                        for (int i = 0; i < _toggleSelections.length; i++) {
+                          _toggleSelections[i] = i == index;
+                        }
+                      });
+                    },
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: 8.0,
+                        ),
+                        child: Text('Entrada', style: TextStyle(fontSize: 16)),
                       ),
-                      child: Text('Entrada', style: TextStyle(fontSize: 16)),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 8.0,
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: 8.0,
+                        ),
+                        child: Text('Saída', style: TextStyle(fontSize: 16)),
                       ),
-                      child: Text('Saída', style: TextStyle(fontSize: 16)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
 
-            const Text(
+            Text(
               'Escaneie o QR Code do posto',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -160,32 +187,49 @@ class _CheckinViewState extends State<CheckinView> {
               flex: 4,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Stack(
-                  children: [
-                    QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
-                    if (isProcessing)
-                      Container(
-                        color: Colors.black54,
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(color: Colors.white),
-                              SizedBox(height: 16),
-                              Text(
-                                'Processando QR Code...',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                child: kIsWeb
+                    ? Container(
+                        alignment: Alignment.center,
+                        color: Theme.of(context).colorScheme.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            'Leitura de QR não está disponível na versão Web. Use a app móvel para fazer o check-in.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.80),
+                              fontSize: 14,
+                              height: 1.4,
+                            ),
                           ),
                         ),
+                      )
+                    : Stack(
+                        children: [
+                          QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
+                          if (isProcessing)
+                            Container(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircularProgressIndicator(color: Theme.of(context).colorScheme.onSurface),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Processando QR Code...',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
               ),
             ),
 
@@ -193,31 +237,32 @@ class _CheckinViewState extends State<CheckinView> {
 
             Expanded(
               flex: 1,
-              child:
-                  resultMessage != null
-                      ? Card(
-                        color: AppColors.background,
-                        elevation: 2,
-                        margin: EdgeInsets.zero,
-                        child: Center(
-                          child: Text(
-                            resultMessage!,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
-                      : const Center(
+              child: resultMessage != null
+                  ? Card(
+                      color: Theme.of(context).colorScheme.surface,
+                      elevation: 2,
+                      margin: EdgeInsets.zero,
+                      child: Center(
                         child: Text(
-                          'Aponte a câmera para o QR do posto',
+                          resultMessage!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70),
+                          ),
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
+                    )
+                  : Center(
+                      child: Text(
+                        'Aponte a câmera para o QR do posto',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70),
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),
@@ -276,11 +321,9 @@ class _CheckinViewState extends State<CheckinView> {
         return;
       }
 
-      log(
-        '>>> Checkpoint encontrado: ${checkpointData['checkpointId']}, Tipo selecionado: $_selectedTipo',
-      );
-
-      await _processCheckpoint(checkpointData['checkpointId']!, _selectedTipo);
+      final tipoSelecionado = _isSingleMode ? 'single' : _selectedTipo;
+      log('>>> Checkpoint encontrado: ${checkpointData['checkpointId']}, Tipo selecionado: $tipoSelecionado');
+      await _processCheckpoint(checkpointData['checkpointId']!, tipoSelecionado);
     } catch (e) {
       log('>>> Erro no handleQRScan: $e');
       _showError('Erro ao processar QR Code: $e');
@@ -329,7 +372,10 @@ class _CheckinViewState extends State<CheckinView> {
               .get();
 
       if (!checkpointDoc.exists) {
-        log('>>> Checkpoint não encontrado no Firestore');
+        log('>>> Checkpoint não encontrado no Firestore, usando QR como ID');
+        if (qrCode.isNotEmpty) {
+          return {'checkpointId': qrCode};
+        }
         return null;
       }
 
@@ -346,10 +392,47 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _processCheckpoint(String checkpointId, String tipo) async {
     try {
+      final eventIdAtivo = _activeEventId ?? 'shell_2025';
       final uid = _authService.currentUser!.uid;
       final veiculoId = _authService.userData['veiculoId'];
 
       log('>>> Processando: $checkpointId ($tipo) - User: $uid');
+
+      if (_isSingleMode) {
+        // Leitura única: regista apenas um carimbo e impede duplicados
+        final docRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('eventos')
+            .doc(eventIdAtivo)
+            .collection('pontuacoes')
+            .doc(checkpointId);
+
+        final existing = await docRef.get();
+        if (existing.exists) {
+          _showError('Este checkpoint já foi validado.');
+          return;
+        }
+
+        await docRef.set({
+          'checkpointId': checkpointId,
+          'timestamp': DateTime.now().toUtc().toIso8601String(),
+          'validated': true,
+          'mode': 'single',
+        });
+
+        isScanned = true;
+        setState(() {
+          resultMessage = 'Checkpoint validado: $checkpointId';
+        });
+
+        SystemSound.play(SystemSoundType.click);
+        _showSuccessMessage('Checkpoint validado com sucesso!');
+
+        await Future.delayed(const Duration(seconds: 2));
+        // Em modo single não há perguntas/jogos; não navegar.
+        return;
+      }
 
       // Verificar estado atual usando a coleção de pontuações do usuário
       final pontuacaoDoc =
@@ -357,7 +440,7 @@ class _CheckinViewState extends State<CheckinView> {
               .collection('users')
               .doc(uid)
               .collection('eventos')
-              .doc('shell_km_02')
+              .doc(eventIdAtivo)
               .collection('pontuacoes')
               .doc(checkpointId)
               .get();
@@ -447,6 +530,7 @@ class _CheckinViewState extends State<CheckinView> {
     String checkpointId,
     String tipo,
   ) async {
+    final eventIdAtivo = _activeEventId ?? 'shell_2025';
     final now = DateTime.now().toUtc().toIso8601String();
 
     log('>>> Registrando: $checkpointId ($tipo)');
@@ -484,15 +568,14 @@ class _CheckinViewState extends State<CheckinView> {
           .update({'updatedAt': FieldValue.serverTimestamp()});
 
       // Criar/atualizar evento do usuário
-      const eventId = 'shell_2025';
       final eventoDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('eventos')
-          .doc(eventId);
+          .doc(eventIdAtivo);
 
       await eventoDocRef.set({
-        'editionId': eventId,
+        'editionId': eventIdAtivo,
         'grupo': _authService.userData['grupo'] ?? 'A',
         'checkpointsVisitados': [],
         'pontuacaoTotal': 0,
@@ -549,13 +632,14 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _atualizarPontuacaoTotal(String uid) async {
+    final eventIdAtivo = _activeEventId ?? 'shell_2025';
     try {
       final pontuacoesSnapshot =
           await FirebaseFirestore.instance
               .collection('users')
               .doc(uid)
               .collection('eventos')
-              .doc('shell_km_02')
+              .doc(eventIdAtivo)
               .collection('pontuacoes')
               .get();
 
@@ -572,7 +656,7 @@ class _CheckinViewState extends State<CheckinView> {
           .collection('users')
           .doc(uid)
           .collection('eventos')
-          .doc('shell_2025')
+          .doc(eventIdAtivo)
           .update({'pontuacaoTotal': total});
 
       log('>>> pontuacaoTotal atualizada: $total');
@@ -582,13 +666,14 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _atualizarTempoTotal(String uid) async {
+    final eventIdAtivo = _activeEventId ?? 'shell_2025';
     try {
       final snapshot =
           await FirebaseFirestore.instance
               .collection('users')
               .doc(uid)
               .collection('eventos')
-              .doc('shell_km_02')
+              .doc(eventIdAtivo)
               .collection('pontuacoes')
               .get();
 
@@ -614,7 +699,7 @@ class _CheckinViewState extends State<CheckinView> {
           .collection('users')
           .doc(uid)
           .collection('eventos')
-          .doc('shell_2025')
+          .doc(eventIdAtivo)
           .update({'tempoTotal': totalSegundos});
 
       log('>>> tempoTotal atualizado: $totalSegundos segundos');
@@ -624,10 +709,11 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _atualizarClassificacaoGeral() async {
+    final eventIdAtivo = _activeEventId ?? 'shell_2025';
     try {
       final snapshot =
           await FirebaseFirestore.instance
-              .collectionGroup('shell_2025')
+              .collectionGroup(eventIdAtivo)
               .orderBy('pontuacaoTotal', descending: true)
               .orderBy('tempoTotal')
               .get();

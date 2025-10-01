@@ -306,7 +306,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             icon: Icons.settings,
             children: [
               DropdownButtonFormField<String>(
-                value:
+                initialValue:
                     tamanhosTshirt.contains(tshirtController.text)
                         ? tshirtController.text
                         : null,
@@ -332,7 +332,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value:
+                initialValue:
                     equipas.containsKey(equipaSelecionada)
                         ? equipaSelecionada
                         : null,
@@ -358,7 +358,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value:
+                initialValue:
                     veiculos.containsKey(veiculoSelecionado)
                         ? veiculoSelecionado
                         : null,

@@ -241,7 +241,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: DropdownButtonFormField<String>(
-                  value: _edicaoSelecionada,
+                  initialValue: _edicaoSelecionada,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     filled: true,
@@ -292,7 +292,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: DropdownButtonFormField<String>(
-                  value: _eventoSelecionado,
+                  initialValue: _eventoSelecionado,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     filled: true,
@@ -341,7 +341,7 @@ class _GenerateQrViewState extends State<GenerateQrView> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: DropdownButtonFormField<String>(
-                  value: _postoSelecionado,
+                  initialValue: _postoSelecionado,
                   style: const TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     filled: true,

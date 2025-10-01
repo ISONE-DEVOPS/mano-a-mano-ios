@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mano_mano_dashboard/theme/app_colors.dart';
@@ -31,21 +29,29 @@ class ChallengeView extends StatelessWidget {
               final activity = controller.activities[index];
               final isSelected = controller.selectedActivity.value == activity;
               return Card(
-                color: isSelected
-                    ? AppColors.primary.withAlpha(20)
-                    : AppColors.surface,
+                color:
+                    isSelected
+                        ? AppColors.primary.withAlpha(20)
+                        : AppColors.surface,
                 child: ListTile(
                   title: Text(
                     activity,
                     style: TextStyle(
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                      color:
+                          isSelected
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
                       fontWeight:
                           isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: AppColors.primary)
-                      : null,
+                  trailing:
+                      isSelected
+                          ? const Icon(
+                            Icons.check_circle,
+                            color: AppColors.primary,
+                          )
+                          : null,
                   onTap: () => controller.selectActivity(activity),
                 ),
               );

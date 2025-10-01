@@ -224,7 +224,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
               if (!snapshot.hasData) return const CircularProgressIndicator();
               final perguntas = snapshot.data!.docs;
               return DropdownButtonFormField<String>(
-                value:
+                initialValue:
                     _pergunta1IdController.text.isEmpty
                         ? null
                         : _pergunta1IdController.text,
@@ -284,7 +284,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                 );
               } else {
                 return DropdownButtonFormField<String>(
-                  value:
+                  initialValue:
                       _jogoIdController.text.isEmpty
                           ? null
                           : _jogoIdController.text,
@@ -391,7 +391,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _percurso,
+                    initialValue: _percurso,
                     onChanged: (value) {
                       setState(() {
                         _percurso = value ?? 'ambos';

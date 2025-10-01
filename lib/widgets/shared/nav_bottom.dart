@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../theme/app_colors.dart';
 
 class UserTypeProvider with ChangeNotifier {
   final String userType;
@@ -45,17 +44,20 @@ class BottomNavBar extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: Theme.of(context).colorScheme.primary,
             border: Border(
-              top: BorderSide(color: Colors.white.withAlpha(25), width: 0.5),
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.10),
+                width: 0.5,
+              ),
             ),
           ),
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             onTap: onTap,
             backgroundColor: Colors.transparent,
-            selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.white70,
+            selectedItemColor: Theme.of(context).colorScheme.onPrimary,
+            unselectedItemColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.70),
             selectedFontSize: 12,
             unselectedFontSize: 11,
             iconSize: 28,
@@ -74,7 +76,7 @@ class BottomNavBar extends StatelessWidget {
                   decoration:
                       isSelected
                           ? BoxDecoration(
-                            color: Colors.white.withAlpha(51),
+                            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.20),
                             borderRadius: BorderRadius.circular(16),
                           )
                           : null,

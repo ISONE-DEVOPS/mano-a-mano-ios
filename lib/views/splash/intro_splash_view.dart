@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../../theme/app_colors.dart';
 
 class IntroSplashView extends StatefulWidget {
   const IntroSplashView({super.key});
@@ -17,34 +16,34 @@ class _IntroSplashViewState extends State<IntroSplashView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Stack(
         children: [
           PageView(
             controller: controller,
             physics: const BouncingScrollPhysics(),
             onPageChanged: (index) => setState(() => onLastPage = index == 2),
-            children: const [
+            children: [
               _Slide(
                 imagePath: 'assets/images/qr.jpg',
                 title: 'Check-in QR',
                 description:
                     'Faça scan dos códigos QR em cada posto para registar a sua passagem.',
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               _Slide(
                 imagePath: 'assets/images/pontuacao.jpg',
                 title: 'Pontuação',
                 description:
                     'Ganhe 10 pontos por cada resposta correta e pontos extras em mini-jogos.',
-                color: AppColors.secondaryDark,
+                color: Theme.of(context).colorScheme.primary,
               ),
               _Slide(
                 imagePath: 'assets/images/ranking.png',
                 title: 'Ranking',
                 description:
                     'Acompanhe a sua posição em tempo real e compita com outras equipas.',
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ],
           ),
@@ -56,8 +55,9 @@ class _IntroSplashViewState extends State<IntroSplashView> {
               child: SmoothPageIndicator(
                 controller: controller,
                 count: 3,
-                effect: const WormEffect(
-                  activeDotColor: AppColors.primary,
+                effect: WormEffect(
+                  activeDotColor: Theme.of(context).colorScheme.primary,
+                  dotColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.30),
                   dotHeight: 10,
                   dotWidth: 10,
                 ),
@@ -78,8 +78,8 @@ class _IntroSplashViewState extends State<IntroSplashView> {
                   child: ElevatedButton(
                     onPressed: () => Get.offAllNamed('/login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 14,
@@ -137,14 +137,17 @@ class _Slide extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: color,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   description,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.87),
+                  ),
                 ),
               ],
             ),

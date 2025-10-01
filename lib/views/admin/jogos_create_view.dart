@@ -537,7 +537,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
                             value: _avaliacaoAutomatica,
                             onChanged:
                                 (v) => setState(() => _avaliacaoAutomatica = v),
-                            activeColor: _secondaryColor,
+                            activeThumbColor: _secondaryColor,
                           ),
                         ],
                       ),
@@ -1111,7 +1111,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: _textSecondary),
@@ -1159,7 +1159,7 @@ class _JogosManagementViewState extends State<JogosManagementView>
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: _textSecondary),

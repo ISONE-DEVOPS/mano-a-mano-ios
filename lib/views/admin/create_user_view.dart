@@ -153,7 +153,7 @@ class _CreateUserViewState extends State<CreateUserView> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: tipoSelecionado,
+                  initialValue: tipoSelecionado,
                   style: const TextStyle(color: Colors.white),
                   items: [
                     DropdownMenuItem(

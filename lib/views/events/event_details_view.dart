@@ -29,7 +29,7 @@ class EventDetailsView extends StatelessWidget {
         child: ListView(
           children: [
             Text(
-              evento['nome'] ?? 'Evento',
+              (evento['nome'] ?? evento['name'] ?? 'Evento').toString(),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
@@ -77,6 +77,29 @@ class EventDetailsView extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => const DoacaoWebView(),
                   ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              icon: const Icon(Icons.event_available),
+              label: const Text('Inscrever-se no Evento'),
+              onPressed: () {
+                Navigator.of(context).pushNamed(
+                  '/event-inscription',
+                  arguments: evento,
                 );
               },
             ),

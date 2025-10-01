@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../services/auth_service.dart';
@@ -147,138 +148,156 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.blue[200]!, width: 2),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: Stack(
-                  children: [
-                    QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
-                    // Overlay de foco
-                    Center(
-                      child: Container(
-                        width: 160,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 3),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Stack(
-                          children: [
-                            // Cantos do scanner
-                            Positioned(
-                              top: 10,
-                              left: 10,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    top: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                    left: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                  ),
-                                ),
-                              ),
+              child:
+                  kIsWeb
+                      ? Container(
+                        alignment: Alignment.center,
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            'Leitura de QR não está disponível na versão Web. Use a app móvel para o check-in do staff.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.black.withValues(alpha: 0.80),
+                              fontSize: 14,
+                              height: 1.4,
                             ),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    top: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                    right: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 10,
-                              left: 10,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                    left: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 10,
-                              right: 10,
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                    right: BorderSide(
-                                      color: Colors.green,
-                                      width: 4,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Instruções na parte inferior
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withAlpha(179),
-                            ],
                           ),
                         ),
-                        child: const Text(
-                          '🧪 TESTE DE BUILD: Camera ativa - Altura 200 OK',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                      )
+                      : Stack(
+                        children: [
+                          QRView(key: qrKey, onQRViewCreated: _onQRViewCreated),
+                          // Overlay de foco
+                          Center(
+                            child: Container(
+                              width: 160,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Stack(
+                                children: [
+                                  // Cantos do scanner
+                                  Positioned(
+                                    top: 10,
+                                    left: 10,
+                                    child: Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: const BoxDecoration(
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                          left: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: const BoxDecoration(
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                          right: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    left: 10,
+                                    child: Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: const BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                          left: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    right: 10,
+                                    child: Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: const BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                          right: BorderSide(
+                                            color: Colors.green,
+                                            width: 4,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                          // Instruções na parte inferior
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.70),
+                                  ],
+                                ),
+                              ),
+                              child: const Text(
+                                '🧪 TESTE DE BUILD: Camera ativa - Altura 200 OK',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
             ),
             const SizedBox(height: 20),
             // Dicas de uso
@@ -388,7 +407,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha((0.7 * 255).round()),
+                  color: Colors.white.withValues(alpha: 0.70),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.green[200]!),
                 ),
@@ -451,7 +470,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                         child: Text(checkpoint['nome'] ?? 'Sem nome'),
                       );
                     }).toList(),
-                value: _selectedCheckpointId,
+                initialValue: _selectedCheckpointId,
                 onChanged: _onCheckpointChanged,
                 validator: (v) => v == null ? 'Selecione um checkpoint' : null,
               ),
@@ -672,7 +691,7 @@ class _StaffScoreInputViewState extends State<StaffScoreInputView> {
                   ),
                 );
               }).toList(),
-          value: _selectedJogoId,
+          initialValue: _selectedJogoId,
           onChanged: (v) {
             setState(() {
               _selectedJogoId = v;

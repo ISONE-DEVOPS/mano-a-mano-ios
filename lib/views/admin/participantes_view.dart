@@ -298,7 +298,7 @@ class _ParticipantesViewState extends State<ParticipantesView> {
     return SizedBox(
       height: 40,
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
@@ -1838,7 +1838,7 @@ class _AcompanhantesDialogState extends State<_AcompanhantesDialog> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _selectedTshirt,
+                          initialValue: _selectedTshirt,
                           style: const TextStyle(color: Color(0xFF1A1A1A)),
                           decoration: const InputDecoration(
                             labelText: 'T-Shirt',
@@ -2613,7 +2613,7 @@ class _EquipaDialogState extends State<_EquipaDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedGrupo,
+                initialValue: _selectedGrupo,
                 style: const TextStyle(color: Color(0xFF1A1A1A)),
                 dropdownColor: Colors.white,
                 decoration: InputDecoration(
