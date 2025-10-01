@@ -46,10 +46,9 @@ class _RegisterViewState extends State<RegisterView>
   late AnimationController _animationController;
 
   String? _selectedEventId;
-  Map<String, dynamic>? _activeEventData;
+  String? _selectedEventPath; // ex.: editions/{editionId}/events/{eventId}
   String? _activeEventName;
 
-  // Cores Shell
   static const Color shellYellow = Color(0xFFFFCB05);
   static const Color shellRed = Color(0xFFDD1D21);
   static const Color shellOrange = Color(0xFFFF6F00);
@@ -86,6 +85,31 @@ class _RegisterViewState extends State<RegisterView>
     super.dispose();
   }
 
+  // Método para obter padding responsivo
+  double _getResponsivePadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 360) return 16.0;
+    if (width < 600) return 20.0;
+    if (width < 900) return 32.0;
+    return 48.0;
+  }
+
+  // Método para obter tamanho de fonte responsivo
+  double _getResponsiveFontSize(BuildContext context, double baseSize) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 360) return baseSize * 0.85;
+    if (width < 600) return baseSize;
+    return baseSize * 1.1;
+  }
+
+  // Método para obter espaçamento responsivo
+  double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 360) return baseSpacing * 0.75;
+    if (width < 600) return baseSpacing;
+    return baseSpacing * 1.2;
+  }
+
   Future<void> _loadAcceptedTerms() async {
     final prefs = await SharedPreferences.getInstance();
     final accepted = prefs.getBool('acceptedTerms') ?? false;
@@ -98,26 +122,38 @@ class _RegisterViewState extends State<RegisterView>
     try {
       final q =
           await FirebaseFirestore.instance
-              .collection('events')
-              .where('isActive', isEqualTo: true)
+              .collectionGroup('events')
+              .where('status', isEqualTo: true)
               .limit(1)
               .get();
       if (q.docs.isNotEmpty) {
         final d = q.docs.first;
+        final path = d.reference.path; // editions/{editionId}/events/{eventId}
+        final data = d.data() as Map<String, dynamic>?;
+        final parentEditionRef = d.reference.parent.parent;
+        String? editionName;
+        if (parentEditionRef != null) {
+          final editionSnap = await parentEditionRef.get();
+          if (editionSnap.exists) {
+            final editionData = editionSnap.data() as Map<String, dynamic>?;
+            editionName = (editionData?['name'] ?? editionData?['nome'])?.toString();
+          }
+        }
+        final nome = (data?['name'] ?? data?['nome'] ?? editionName ?? '').toString();
         if (mounted) {
           setState(() {
+            _selectedEventPath = path;
             _selectedEventId = d.id;
-            _activeEventData = d.data() as Map<String, dynamic>?;
-            _activeEventName =
-                (_activeEventData?['name'] ?? _activeEventData?['nome'] ?? '')
-                    .toString();
+            _activeEventName = nome;
           });
         }
         developer.log(
-          'Evento ativo carregado: $_activeEventName ($_selectedEventId)',
+          'Evento ativo carregado: $_activeEventName ($_selectedEventId) em $_selectedEventPath',
         );
       } else {
-        developer.log('Nenhum evento ativo encontrado.');
+        developer.log(
+          'Nenhum evento ativo encontrado (status==true em collectionGroup).',
+        );
       }
     } catch (e) {
       developer.log('Falha ao carregar evento ativo: $e');
@@ -224,18 +260,24 @@ class _RegisterViewState extends State<RegisterView>
               .toList();
 
       final eventDoc =
-          await FirebaseFirestore.instance
-              .collection('events')
-              .doc(_selectedEventId)
-              .get();
+          await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
       if (!mounted) return;
       if (!eventDoc.exists) {
         setState(() => _error = 'Evento selecionado inválido.');
         return;
       }
       final Map<String, dynamic> data = eventDoc.data()!;
+      String? editionName;
+      final parentEditionRef = eventDoc.reference.parent.parent;
+      if (parentEditionRef != null) {
+        final editionSnap = await parentEditionRef.get();
+        if (editionSnap.exists) {
+          final editionData = editionSnap.data() as Map<String, dynamic>?;
+          editionName = (editionData?['name'] ?? editionData?['nome'])?.toString();
+        }
+      }
       final nomeEvento =
-          (data['nome'] ?? data['name'] ?? 'Sem nome').toString();
+          (data['nome'] ?? data['name'] ?? editionName ?? 'Sem nome').toString();
       final price = double.tryParse('${data['price'] ?? '0'}') ?? 0;
 
       final veiculoId =
@@ -281,7 +323,7 @@ class _RegisterViewState extends State<RegisterView>
         'emergencia': _emergencyContactController.text.trim(),
         'tshirt': _selectedShirtSize ?? '',
         'role': 'user',
-        'eventoId': 'events/$_selectedEventId',
+        'eventoId': _selectedEventPath,
         'eventoNome': nomeEvento,
         'ativo': true,
         'veiculoId': veiculoId,
@@ -342,18 +384,21 @@ class _RegisterViewState extends State<RegisterView>
     }
   }
 
-  Widget _buildStepIndicator() {
+  Widget _buildStepIndicator(BuildContext context) {
+    final padding = _getResponsivePadding(context);
+    final spacing = _getResponsiveSpacing(context, 20);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: spacing),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [shellRed, shellOrange, shellYellow],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(spacing * 1.6),
+          bottomRight: Radius.circular(spacing * 1.6),
         ),
         boxShadow: [
           BoxShadow(
@@ -368,20 +413,24 @@ class _RegisterViewState extends State<RegisterView>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/logo.jpeg', width: 50, height: 50),
-              const SizedBox(width: 12),
-              const Text(
+              Image.asset(
+                'assets/images/logo.jpeg',
+                width: _getResponsiveSpacing(context, 50),
+                height: _getResponsiveSpacing(context, 50),
+              ),
+              SizedBox(width: _getResponsiveSpacing(context, 12)),
+              Text(
                 'Criar Conta',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: _getResponsiveFontSize(context, 24),
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: spacing),
           Row(
             children: List.generate(4, (index) {
               final isActive = index == _currentStep;
@@ -402,14 +451,15 @@ class _RegisterViewState extends State<RegisterView>
               );
             }),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: _getResponsiveSpacing(context, 12)),
           Text(
             _getStepTitle(_currentStep),
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: _getResponsiveFontSize(context, 16),
               fontWeight: FontWeight.w600,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -432,6 +482,7 @@ class _RegisterViewState extends State<RegisterView>
   }
 
   Widget _inputCard({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required TextEditingController controller,
@@ -443,9 +494,11 @@ class _RegisterViewState extends State<RegisterView>
     List<TextInputFormatter>? inputFormatters,
     Widget? suffixIcon,
   }) {
+    final spacing = _getResponsiveSpacing(context, 16);
+
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(spacing),
         color: Colors.white,
         border: Border.all(
           color: isError ? shellRed : Colors.grey.shade200,
@@ -462,31 +515,34 @@ class _RegisterViewState extends State<RegisterView>
           ),
         ],
       ),
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: spacing),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
-        style: const TextStyle(fontSize: 15),
+        style: TextStyle(fontSize: _getResponsiveFontSize(context, 15)),
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
           prefixIcon: Icon(
             icon,
             color: isError ? shellRed : shellOrange,
-            size: 22,
+            size: _getResponsiveSpacing(context, 22),
           ),
           suffixIcon: suffixIcon,
           labelText: isRequired ? '$label *' : label,
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: _getResponsiveFontSize(context, 14),
+          ),
           labelStyle: TextStyle(
             color: isError ? shellRed : Colors.grey.shade700,
-            fontSize: 14,
+            fontSize: _getResponsiveFontSize(context, 14),
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: spacing,
+            vertical: spacing,
           ),
         ),
       ),
@@ -494,535 +550,124 @@ class _RegisterViewState extends State<RegisterView>
   }
 
   Widget _buildStepCondutor() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _inputCard(
-              icon: Icons.person_outline,
-              label: 'Nome Completo',
-              controller: _nameController,
-              hintText: 'Ex: João Silva',
-              isRequired: true,
-              isError: _error != null && _nameController.text.trim().isEmpty,
-            ),
-            _inputCard(
-              icon: Icons.phone_outlined,
-              label: 'Telefone',
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              hintText: 'Ex: 912345678',
-              isRequired: true,
-              isError: _error != null && _phoneController.text.trim().isEmpty,
-            ),
-            _inputCard(
-              icon: Icons.emergency_outlined,
-              label: 'Contato de Emergência',
-              controller: _emergencyContactController,
-              keyboardType: TextInputType.phone,
-              hintText: 'Ex: 991234567',
-              isRequired: true,
-              isError:
-                  _error != null &&
-                  _emergencyContactController.text.trim().isEmpty,
-            ),
-            _inputCard(
-              icon: Icons.email_outlined,
-              label: 'Email',
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              hintText: 'exemplo@email.com',
-              isRequired: true,
-              isError: _error != null && _emailController.text.trim().isEmpty,
-            ),
-            _inputCard(
-              icon: Icons.lock_outline,
-              label: 'Senha',
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              hintText: 'Mínimo 6 caracteres',
-              isRequired: true,
-              isError:
-                  _error != null && _passwordController.text.trim().isEmpty,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey.shade600,
-                  size: 20,
-                ),
-                onPressed:
-                    () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            _inputCard(
-              icon: Icons.lock_outline,
-              label: 'Confirmar Senha',
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              hintText: 'Repita a senha',
-              isRequired: true,
-              isError:
-                  _error != null &&
-                  _confirmPasswordController.text.trim().isEmpty,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: Colors.grey.shade600,
-                  size: 20,
-                ),
-                onPressed:
-                    () => setState(
-                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                    ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-                border: Border.all(
-                  color:
-                      (_error != null && _selectedShirtSize == null)
-                          ? shellRed
-                          : Colors.grey.shade200,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedShirtSize,
-                items:
-                    _shirtSizes.map((size) {
-                      return DropdownMenuItem(value: size, child: Text(size));
-                    }).toList(),
-                onChanged: (val) => setState(() => _selectedShirtSize = val),
-                decoration: InputDecoration(
-                  prefixIcon: Icon(
-                    Icons.checkroom_outlined,
-                    color: shellOrange,
-                  ),
-                  labelText: 'Tamanho da T-shirt *',
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildNavigationButtons(
-              showBack: false,
-              onNext: () {
-                if (_nameController.text.trim().isEmpty ||
-                    _phoneController.text.trim().isEmpty ||
-                    _emergencyContactController.text.trim().isEmpty ||
-                    _emailController.text.trim().isEmpty ||
-                    _passwordController.text.trim().isEmpty ||
-                    _confirmPasswordController.text.trim().isEmpty ||
-                    _selectedShirtSize == null) {
-                  setState(
-                    () => _error = 'Preencha todos os campos obrigatórios.',
-                  );
-                  return;
-                }
-                setState(() {
-                  _error = null;
-                  _currentStep = 1;
-                });
-                _pageController.jumpToPage(1);
-              },
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: shellRed.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: shellRed),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: shellRed),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: shellRed,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = _getResponsivePadding(context);
+        final spacing = _getResponsiveSpacing(context, 24);
 
-  Widget _buildStepCarro() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            _inputCard(
-              icon: Icons.directions_car_outlined,
-              label: 'Matrícula',
-              controller: _licensePlateController,
-              hintText: 'Ex: AB-12-CD',
-              isRequired: true,
-              isError:
-                  _error != null && _licensePlateController.text.trim().isEmpty,
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(8),
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  final digitsOnly =
-                      newValue.text
-                          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-                          .toUpperCase();
-                  final buffer = StringBuffer();
-                  for (int i = 0; i < digitsOnly.length; i++) {
-                    buffer.write(digitsOnly[i]);
-                    if ((i + 1) % 2 == 0 && i < 5) buffer.write('-');
-                  }
-                  final newText = buffer.toString();
-                  return TextEditingValue(
-                    text: newText,
-                    selection: TextSelection.collapsed(offset: newText.length),
-                  );
-                }),
-              ],
-            ),
-            _inputCard(
-              icon: Icons.drive_eta_outlined,
-              label: 'Modelo do Veículo',
-              controller: _carModelController,
-              hintText: 'Ex: Toyota Corolla',
-              isRequired: true,
-              isError:
-                  _error != null && _carModelController.text.trim().isEmpty,
-            ),
-            _inputCard(
-              icon: Icons.group_outlined,
-              label: 'Nome da Equipa',
-              controller: _teamNameController,
-              hintText: 'Ex: Os Velozes',
-              isRequired: true,
-              isError:
-                  _error != null && _teamNameController.text.trim().isEmpty,
-            ),
-            const SizedBox(height: 24),
-            _buildNavigationButtons(
-              showBack: true,
-              onBack: () {
-                setState(() {
-                  _error = null;
-                  _currentStep = 0;
-                });
-                _pageController.jumpToPage(0);
-              },
-              onNext: () {
-                if (_licensePlateController.text.trim().isEmpty ||
-                    _carModelController.text.trim().isEmpty ||
-                    _teamNameController.text.trim().isEmpty) {
-                  setState(
-                    () => _error = 'Preencha todos os campos obrigatórios.',
-                  );
-                  return;
-                }
-                setState(() {
-                  _error = null;
-                  _currentStep = 2;
-                });
-                _pageController.jumpToPage(2);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepPassageiros() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Adicione os passageiros',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: shellRed,
-              ),
-            ),
-            Text(
-              'Máximo de 4 passageiros',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            ...List.generate(passageirosControllers.length, (i) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _inputCard(
+                  context: context,
+                  icon: Icons.person_outline,
+                  label: 'Nome Completo',
+                  controller: _nameController,
+                  hintText: 'Ex: João Silva',
+                  isRequired: true,
+                  isError:
+                      _error != null && _nameController.text.trim().isEmpty,
                 ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            shellYellow.withValues(alpha: 0.3),
-                            shellOrange.withValues(alpha: 0.2),
-                          ],
+                _inputCard(
+                  context: context,
+                  icon: Icons.phone_outlined,
+                  label: 'Telefone',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  hintText: 'Ex: 912345678',
+                  isRequired: true,
+                  isError:
+                      _error != null && _phoneController.text.trim().isEmpty,
+                ),
+                _inputCard(
+                  context: context,
+                  icon: Icons.emergency_outlined,
+                  label: 'Contato de Emergência',
+                  controller: _emergencyContactController,
+                  keyboardType: TextInputType.phone,
+                  hintText: 'Ex: 991234567',
+                  isRequired: true,
+                  isError:
+                      _error != null &&
+                      _emergencyContactController.text.trim().isEmpty,
+                ),
+                _inputCard(
+                  context: context,
+                  icon: Icons.email_outlined,
+                  label: 'Email',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  hintText: 'exemplo@email.com',
+                  isRequired: true,
+                  isError:
+                      _error != null && _emailController.text.trim().isEmpty,
+                ),
+                _inputCard(
+                  context: context,
+                  icon: Icons.lock_outline,
+                  label: 'Senha',
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  hintText: 'Mínimo 6 caracteres',
+                  isRequired: true,
+                  isError:
+                      _error != null && _passwordController.text.trim().isEmpty,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey.shade600,
+                      size: _getResponsiveSpacing(context, 20),
+                    ),
+                    onPressed:
+                        () => setState(
+                          () => _obscurePassword = !_obscurePassword,
                         ),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: shellOrange,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Passageiro ${i + 1}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline, color: shellRed),
-                            onPressed:
-                                () => setState(
-                                  () => passageirosControllers.removeAt(i),
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: passageirosControllers[i]['nome'],
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(
-                                Icons.person_outline,
-                                size: 20,
-                              ),
-                              labelText: 'Nome *',
-                              hintText: 'Ex: Maria Silva',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: passageirosControllers[i]['telefone'],
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(
-                                Icons.phone_outlined,
-                                size: 20,
-                              ),
-                              labelText: 'Telefone *',
-                              hintText: 'Ex: 912345678',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                passageirosControllers[i]['tshirt']!
-                                        .text
-                                        .isNotEmpty
-                                    ? passageirosControllers[i]['tshirt']!.text
-                                    : null,
-                            items:
-                                _shirtSizes.map((size) {
-                                  return DropdownMenuItem(
-                                    value: size,
-                                    child: Text(size),
-                                  );
-                                }).toList(),
-                            onChanged: (val) {
-                              setState(
-                                () =>
-                                    passageirosControllers[i]['tshirt']!.text =
-                                        val ?? '',
-                              );
-                            },
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(
-                                Icons.checkroom_outlined,
-                                size: 20,
-                              ),
-                              labelText: 'T-shirt *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            if (passageirosControllers.length < 4)
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: shellOrange, width: 2),
-                  color: shellYellow.withValues(alpha: 0.1),
-                ),
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      passageirosControllers.add({
-                        'nome': TextEditingController(),
-                        'telefone': TextEditingController(),
-                        'tshirt': TextEditingController(),
-                      });
-                    });
-                  },
-                  icon: Icon(Icons.add_circle_outline, color: shellOrange),
-                  label: Text(
-                    'Adicionar Passageiro',
-                    style: TextStyle(
-                      color: shellOrange,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
                   ),
                 ),
-              ),
-            const SizedBox(height: 24),
-            _buildNavigationButtons(
-              showBack: true,
-              onBack: () {
-                setState(() {
-                  _error = null;
-                  _currentStep = 1;
-                });
-                _pageController.jumpToPage(1);
-              },
-              onNext: () {
-                if (passageirosControllers.isEmpty) {
-                  setState(() => _error = 'Adicione pelo menos 1 passageiro.');
-                  return;
-                }
-                for (final passageiro in passageirosControllers) {
-                  if (passageiro['nome']!.text.trim().isEmpty ||
-                      passageiro['telefone']!.text.trim().isEmpty ||
-                      passageiro['tshirt']!.text.trim().isEmpty) {
-                    setState(
-                      () => _error = 'Preencha todos os dados dos passageiros.',
-                    );
-                    return;
-                  }
-                }
-                setState(() {
-                  _error = null;
-                  _currentStep = 3;
-                });
-                _pageController.jumpToPage(3);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepEvento() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Selecione o Evento',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: shellRed,
-              ),
-            ),
-            const SizedBox(height: 20),
-            FutureBuilder<QuerySnapshot>(
-              future: FirebaseFirestore.instance.collection('events').get(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final items =
-                    snapshot.data!.docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final nome =
-                          (data['name'] ?? data['nome'] ?? 'Evento sem nome')
-                              .toString();
-                      return DropdownMenuItem<String>(
-                        value: doc.id,
-                        child: Text(nome),
-                      );
-                    }).toList();
-                return Container(
+                _inputCard(
+                  context: context,
+                  icon: Icons.lock_outline,
+                  label: 'Confirmar Senha',
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  hintText: 'Repita a senha',
+                  isRequired: true,
+                  isError:
+                      _error != null &&
+                      _confirmPasswordController.text.trim().isEmpty,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey.shade600,
+                      size: _getResponsiveSpacing(context, 20),
+                    ),
+                    onPressed:
+                        () => setState(
+                          () =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                        ),
+                  ),
+                ),
+                Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(
+                      _getResponsiveSpacing(context, 16),
+                    ),
                     color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(
+                      color:
+                          (_error != null && _selectedShirtSize == null)
+                              ? shellRed
+                              : Colors.grey.shade200,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.03),
@@ -1031,116 +676,752 @@ class _RegisterViewState extends State<RegisterView>
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedEventId,
-                    hint: const Text('Escolha um evento'),
-                    items: items,
-                    onChanged: (val) => setState(() => _selectedEventId = val),
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.event_outlined),
-                      border: InputBorder.none,
-                      labelText: 'Evento *',
-                    ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _getResponsiveSpacing(context, 16),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: shellYellow.withValues(alpha: 0.1),
-                border: Border.all(color: shellYellow.withValues(alpha: 0.5)),
-              ),
-              child: CheckboxListTile(
-                value: _acceptedTerms,
-                onChanged:
-                    (value) => setState(() => _acceptedTerms = value ?? false),
-                activeColor: shellOrange,
-                title: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
-                    children: [
-                      const TextSpan(text: 'Li e aceito os '),
-                      TextSpan(
-                        text: 'Termos e Condições',
-                        style: TextStyle(
-                          color: shellOrange,
-                          decoration: TextDecoration.underline,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        recognizer:
-                            TapGestureRecognizer()
-                              ..onTap = () => Get.toNamed('/terms'),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedShirtSize,
+                    items:
+                        _shirtSizes.map((size) {
+                          return DropdownMenuItem(
+                            value: size,
+                            child: Text(size),
+                          );
+                        }).toList(),
+                    onChanged:
+                        (val) => setState(() => _selectedShirtSize = val),
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(
+                        Icons.checkroom_outlined,
+                        color: shellOrange,
+                        size: _getResponsiveSpacing(context, 22),
                       ),
-                      const TextSpan(text: ' e a '),
-                      TextSpan(
-                        text: 'Política de Privacidade',
-                        style: TextStyle(
-                          color: shellOrange,
-                          decoration: TextDecoration.underline,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        recognizer:
-                            TapGestureRecognizer()
-                              ..onTap = () => Get.toNamed('/privacy'),
+                      labelText: 'Tamanho da T-shirt *',
+                      labelStyle: TextStyle(
+                        fontSize: _getResponsiveFontSize(context, 14),
                       ),
-                    ],
+                      border: InputBorder.none,
+                    ),
                   ),
                 ),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
+                SizedBox(height: spacing),
+                _buildNavigationButtons(
+                  context: context,
+                  showBack: false,
+                  onNext: () {
+                    if (_nameController.text.trim().isEmpty ||
+                        _phoneController.text.trim().isEmpty ||
+                        _emergencyContactController.text.trim().isEmpty ||
+                        _emailController.text.trim().isEmpty ||
+                        _passwordController.text.trim().isEmpty ||
+                        _confirmPasswordController.text.trim().isEmpty ||
+                        _selectedShirtSize == null) {
+                      setState(
+                        () => _error = 'Preencha todos os campos obrigatórios.',
+                      );
+                      return;
+                    }
+                    setState(() {
+                      _error = null;
+                      _currentStep = 1;
+                    });
+                    _pageController.jumpToPage(1);
+                  },
+                ),
+                if (_error != null) ...[
+                  SizedBox(height: _getResponsiveSpacing(context, 16)),
+                  Container(
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    decoration: BoxDecoration(
+                      color: shellRed.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 12),
+                      ),
+                      border: Border.all(color: shellRed),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: shellRed,
+                          size: _getResponsiveSpacing(context, 24),
+                        ),
+                        SizedBox(width: _getResponsiveSpacing(context, 12)),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: shellRed,
+                              fontWeight: FontWeight.w500,
+                              fontSize: _getResponsiveFontSize(context, 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 24),
-            _buildNavigationButtons(
-              showBack: true,
-              onBack: () {
-                setState(() {
-                  _error = null;
-                  _currentStep = 2;
-                });
-                _pageController.jumpToPage(2);
-              },
-              onNext: () {
-                if (_selectedEventId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Selecione um evento.')),
-                  );
-                  return;
-                }
-                if (!_acceptedTerms) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Aceite os termos para continuar.'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStepCarro() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = _getResponsivePadding(context);
+        final spacing = _getResponsiveSpacing(context, 24);
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              children: [
+                _inputCard(
+                  context: context,
+                  icon: Icons.directions_car_outlined,
+                  label: 'Matrícula',
+                  controller: _licensePlateController,
+                  hintText: 'Ex: AB-12-CD',
+                  isRequired: true,
+                  isError:
+                      _error != null &&
+                      _licensePlateController.text.trim().isEmpty,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(8),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      final digitsOnly =
+                          newValue.text
+                              .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                              .toUpperCase();
+                      final buffer = StringBuffer();
+                      for (int i = 0; i < digitsOnly.length; i++) {
+                        buffer.write(digitsOnly[i]);
+                        if ((i + 1) % 2 == 0 && i < 5) buffer.write('-');
+                      }
+                      final newText = buffer.toString();
+                      return TextEditingValue(
+                        text: newText,
+                        selection: TextSelection.collapsed(
+                          offset: newText.length,
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+                _inputCard(
+                  context: context,
+                  icon: Icons.drive_eta_outlined,
+                  label: 'Modelo do Veículo',
+                  controller: _carModelController,
+                  hintText: 'Ex: Toyota Corolla',
+                  isRequired: true,
+                  isError:
+                      _error != null && _carModelController.text.trim().isEmpty,
+                ),
+                _inputCard(
+                  context: context,
+                  icon: Icons.group_outlined,
+                  label: 'Nome da Equipa',
+                  controller: _teamNameController,
+                  hintText: 'Ex: Os Velozes',
+                  isRequired: true,
+                  isError:
+                      _error != null && _teamNameController.text.trim().isEmpty,
+                ),
+                SizedBox(height: spacing),
+                _buildNavigationButtons(
+                  context: context,
+                  showBack: true,
+                  onBack: () {
+                    setState(() {
+                      _error = null;
+                      _currentStep = 0;
+                    });
+                    _pageController.jumpToPage(0);
+                  },
+                  onNext: () {
+                    if (_licensePlateController.text.trim().isEmpty ||
+                        _carModelController.text.trim().isEmpty ||
+                        _teamNameController.text.trim().isEmpty) {
+                      setState(
+                        () => _error = 'Preencha todos os campos obrigatórios.',
+                      );
+                      return;
+                    }
+                    setState(() {
+                      _error = null;
+                      _currentStep = 2;
+                    });
+                    _pageController.jumpToPage(2);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStepPassageiros() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = _getResponsivePadding(context);
+        final spacing = _getResponsiveSpacing(context, 20);
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Adicione os passageiros',
+                  style: TextStyle(
+                    fontSize: _getResponsiveFontSize(context, 22),
+                    fontWeight: FontWeight.bold,
+                    color: shellRed,
+                  ),
+                ),
+                Text(
+                  'Máximo de 4 passageiros',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: _getResponsiveFontSize(context, 14),
+                  ),
+                ),
+                SizedBox(height: spacing),
+                ...List.generate(passageirosControllers.length, (i) {
+                  return Container(
+                    margin: EdgeInsets.only(
+                      bottom: _getResponsiveSpacing(context, 16),
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(spacing),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(
+                            _getResponsiveSpacing(context, 16),
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                shellYellow.withValues(alpha: 0.3),
+                                shellOrange.withValues(alpha: 0.2),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(spacing),
+                              topRight: Radius.circular(spacing),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.all(
+                                      _getResponsiveSpacing(context, 8),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: shellOrange,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: _getResponsiveSpacing(context, 20),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: _getResponsiveSpacing(context, 12),
+                                  ),
+                                  Text(
+                                    'Passageiro ${i + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: _getResponsiveFontSize(
+                                        context,
+                                        16,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: shellRed,
+                                  size: _getResponsiveSpacing(context, 24),
+                                ),
+                                onPressed:
+                                    () => setState(
+                                      () => passageirosControllers.removeAt(i),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.all(
+                            _getResponsiveSpacing(context, 16),
+                          ),
+                          child: Column(
+                            children: [
+                              TextField(
+                                controller: passageirosControllers[i]['nome'],
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 15),
+                                ),
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(
+                                    Icons.person_outline,
+                                    size: _getResponsiveSpacing(context, 20),
+                                  ),
+                                  labelText: 'Nome *',
+                                  hintText: 'Ex: Maria Silva',
+                                  labelStyle: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      _getResponsiveSpacing(context, 12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                height: _getResponsiveSpacing(context, 12),
+                              ),
+                              TextField(
+                                controller:
+                                    passageirosControllers[i]['telefone'],
+                                keyboardType: TextInputType.phone,
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 15),
+                                ),
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(
+                                    Icons.phone_outlined,
+                                    size: _getResponsiveSpacing(context, 20),
+                                  ),
+                                  labelText: 'Telefone *',
+                                  hintText: 'Ex: 912345678',
+                                  labelStyle: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      _getResponsiveSpacing(context, 12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                height: _getResponsiveSpacing(context, 12),
+                              ),
+                              DropdownButtonFormField<String>(
+                                initialValue:
+                                    passageirosControllers[i]['tshirt']!
+                                            .text
+                                            .isNotEmpty
+                                        ? passageirosControllers[i]['tshirt']!
+                                            .text
+                                        : null,
+                                items:
+                                    _shirtSizes.map((size) {
+                                      return DropdownMenuItem(
+                                        value: size,
+                                        child: Text(
+                                          size,
+                                          style: TextStyle(
+                                            fontSize: _getResponsiveFontSize(
+                                              context,
+                                              15,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                onChanged: (val) {
+                                  setState(
+                                    () =>
+                                        passageirosControllers[i]['tshirt']!
+                                            .text = val ?? '',
+                                  );
+                                },
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(
+                                    Icons.checkroom_outlined,
+                                    size: _getResponsiveSpacing(context, 20),
+                                  ),
+                                  labelText: 'T-shirt *',
+                                  labelStyle: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      _getResponsiveSpacing(context, 12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                  return;
-                }
-                _register();
-              },
-              isLastStep: true,
+                }),
+                if (passageirosControllers.length < 4)
+                  Container(
+                    width: double.infinity,
+                    height: _getResponsiveSpacing(context, 56),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 16),
+                      ),
+                      border: Border.all(color: shellOrange, width: 2),
+                      color: shellYellow.withValues(alpha: 0.1),
+                    ),
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          passageirosControllers.add({
+                            'nome': TextEditingController(),
+                            'telefone': TextEditingController(),
+                            'tshirt': TextEditingController(),
+                          });
+                        });
+                      },
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        color: shellOrange,
+                        size: _getResponsiveSpacing(context, 24),
+                      ),
+                      label: Text(
+                        'Adicionar Passageiro',
+                        style: TextStyle(
+                          color: shellOrange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: _getResponsiveFontSize(context, 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                SizedBox(height: _getResponsiveSpacing(context, 24)),
+                _buildNavigationButtons(
+                  context: context,
+                  showBack: true,
+                  onBack: () {
+                    setState(() {
+                      _error = null;
+                      _currentStep = 1;
+                    });
+                    _pageController.jumpToPage(1);
+                  },
+                  onNext: () {
+                    if (passageirosControllers.isEmpty) {
+                      setState(
+                        () => _error = 'Adicione pelo menos 1 passageiro.',
+                      );
+                      return;
+                    }
+                    for (final passageiro in passageirosControllers) {
+                      if (passageiro['nome']!.text.trim().isEmpty ||
+                          passageiro['telefone']!.text.trim().isEmpty ||
+                          passageiro['tshirt']!.text.trim().isEmpty) {
+                        setState(
+                          () =>
+                              _error =
+                                  'Preencha todos os dados dos passageiros.',
+                        );
+                        return;
+                      }
+                    }
+                    setState(() {
+                      _error = null;
+                      _currentStep = 3;
+                    });
+                    _pageController.jumpToPage(3);
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper to fetch active events with edition names and labels.
+  Future<List<Map<String, String>>> _fetchActiveEventOptions() async {
+    final qs = await FirebaseFirestore.instance
+        .collectionGroup('events')
+        .where('status', isEqualTo: true)
+        .get();
+
+    final List<Map<String, String>> results = [];
+    for (final d in qs.docs) {
+      final eventPath = d.reference.path; // editions/{editionId}/events/{eventId}
+      final data = d.data() as Map<String, dynamic>;
+      final eventName = (data['name'] ?? data['nome'] ?? 'Evento sem nome').toString();
+
+      String editionName = '';
+      final parentEditionRef = d.reference.parent.parent;
+      if (parentEditionRef != null) {
+        final editionSnap = await parentEditionRef.get();
+        if (editionSnap.exists) {
+          final ed = editionSnap.data() as Map<String, dynamic>?;
+          editionName = (ed?['name'] ?? ed?['nome'] ?? '').toString();
+        }
+      }
+
+      final label = (editionName.isNotEmpty)
+          ? '$editionName – $eventName'
+          : eventName;
+
+      results.add({
+        'path': eventPath,
+        'label': label,
+        'eventId': d.id,
+      });
+    }
+    // Optional: sort by label for consistency
+    results.sort((a, b) => a['label']!.compareTo(b['label']!));
+    return results;
+  }
+
+  Widget _buildStepEvento() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = _getResponsivePadding(context);
+        final spacing = _getResponsiveSpacing(context, 20);
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selecione o Evento',
+                  style: TextStyle(
+                    fontSize: _getResponsiveFontSize(context, 22),
+                    fontWeight: FontWeight.bold,
+                    color: shellRed,
+                  ),
+                ),
+                SizedBox(height: spacing),
+                FutureBuilder<List<Map<String, String>>>(
+                  future: _fetchActiveEventOptions(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final options = snapshot.data!;
+                    if (options.isEmpty) {
+                      return Container(
+                        padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(_getResponsiveSpacing(context, 16)),
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Text(
+                          'Nenhum evento ativo no momento.',
+                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+                        ),
+                      );
+                    }
+
+                    final items = options.map((opt) {
+                      return DropdownMenuItem<String>(
+                        value: opt['path'],
+                        child: Text(
+                          opt['label'] ?? '',
+                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 15)),
+                        ),
+                      );
+                    }).toList();
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(_getResponsiveSpacing(context, 16)),
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: _getResponsiveSpacing(context, 16),
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey('event_${_selectedEventPath ?? 'null'}_${items.length}'),
+                        isExpanded: true,
+                        initialValue: _selectedEventPath,
+                        hint: Text(
+                          'Escolha um evento',
+                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+                        ),
+                        items: items,
+                        onChanged: (val) => setState(() {
+                          _selectedEventPath = val;
+                          _selectedEventId = val?.split('/').last;
+                        }),
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(
+                            Icons.event_outlined,
+                            size: _getResponsiveSpacing(context, 22),
+                          ),
+                          border: InputBorder.none,
+                          labelText: 'Evento *',
+                          labelStyle: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                SizedBox(height: _getResponsiveSpacing(context, 24)),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      _getResponsiveSpacing(context, 16),
+                    ),
+                    color: shellYellow.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: shellYellow.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: CheckboxListTile(
+                    value: _acceptedTerms,
+                    onChanged:
+                        (value) =>
+                            setState(() => _acceptedTerms = value ?? false),
+                    activeColor: shellOrange,
+                    title: RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: _getResponsiveFontSize(context, 14),
+                        ),
+                        children: [
+                          const TextSpan(text: 'Li e aceito os '),
+                          TextSpan(
+                            text: 'Termos e Condições',
+                            style: TextStyle(
+                              color: shellOrange,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            recognizer:
+                                TapGestureRecognizer()
+                                  ..onTap = () => Get.toNamed('/terms'),
+                          ),
+                          const TextSpan(text: ' e a '),
+                          TextSpan(
+                            text: 'Política de Privacidade',
+                            style: TextStyle(
+                              color: shellOrange,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            recognizer:
+                                TapGestureRecognizer()
+                                  ..onTap = () => Get.toNamed('/privacy'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
+                SizedBox(height: _getResponsiveSpacing(context, 24)),
+                _buildNavigationButtons(
+                  context: context,
+                  showBack: true,
+                  onBack: () {
+                    setState(() {
+                      _error = null;
+                      _currentStep = 2;
+                    });
+                    _pageController.jumpToPage(2);
+                  },
+                  onNext: () {
+                    if (_selectedEventPath == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Selecione um evento.')),
+                      );
+                      return;
+                    }
+                    if (!_acceptedTerms) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Aceite os termos para continuar.'),
+                        ),
+                      );
+                      return;
+                    }
+                    _register();
+                  },
+                  isLastStep: true,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildNavigationButtons({
+    required BuildContext context,
     bool showBack = true,
     VoidCallback? onBack,
     VoidCallback? onNext,
     bool isLastStep = false,
   }) {
+    final spacing = _getResponsiveSpacing(context, 16);
+    final buttonHeight = _getResponsiveSpacing(context, 56);
+
     return Row(
       children: [
         if (showBack)
           Expanded(
             child: Container(
-              height: 56,
+              height: buttonHeight,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(spacing),
                 border: Border.all(color: shellOrange, width: 2),
               ),
               child: TextButton(
@@ -1150,20 +1431,20 @@ class _RegisterViewState extends State<RegisterView>
                   style: TextStyle(
                     color: shellOrange,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: _getResponsiveFontSize(context, 16),
                   ),
                 ),
               ),
             ),
           ),
-        if (showBack) const SizedBox(width: 16),
+        if (showBack) SizedBox(width: spacing),
         Expanded(
           flex: showBack ? 1 : 2,
           child: Container(
-            height: 56,
+            height: buttonHeight,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [shellRed, shellOrange]),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(spacing),
               boxShadow: [
                 BoxShadow(
                   color: shellOrange.withValues(alpha: 0.4),
@@ -1178,25 +1459,25 @@ class _RegisterViewState extends State<RegisterView>
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(spacing),
                 ),
               ),
               child:
                   _loading
-                      ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
+                      ? SizedBox(
+                        width: _getResponsiveSpacing(context, 24),
+                        height: _getResponsiveSpacing(context, 24),
+                        child: const CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
                       )
                       : Text(
                         isLastStep ? 'Finalizar' : 'Continuar',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: _getResponsiveFontSize(context, 16),
                         ),
                       ),
             ),
@@ -1213,7 +1494,7 @@ class _RegisterViewState extends State<RegisterView>
       body: SafeArea(
         child: Column(
           children: [
-            _buildStepIndicator(),
+            _buildStepIndicator(context),
             Expanded(
               child: PageView(
                 controller: _pageController,
