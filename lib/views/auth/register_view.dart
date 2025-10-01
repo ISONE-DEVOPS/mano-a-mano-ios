@@ -17,7 +17,8 @@ class RegisterView extends StatefulWidget {
   State<RegisterView> createState() => _RegisterViewState();
 }
 
-class _RegisterViewState extends State<RegisterView> {
+class _RegisterViewState extends State<RegisterView>
+    with TickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -37,18 +38,95 @@ class _RegisterViewState extends State<RegisterView> {
   bool _loading = false;
   String? _error;
   bool _acceptedTerms = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
+  late AnimationController _animationController;
 
   String? _selectedEventId;
   Map<String, dynamic>? _activeEventData;
   String? _activeEventName;
 
+  // Cores Shell
+  static const Color shellYellow = Color(0xFFFFCB05);
+  static const Color shellRed = Color(0xFFDD1D21);
+  static const Color shellOrange = Color(0xFFFF6F00);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAcceptedTerms();
+    _loadActiveEvent();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _pageController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _licensePlateController.dispose();
+    _carModelController.dispose();
+    _emergencyContactController.dispose();
+    _teamNameController.dispose();
+    for (var p in passageirosControllers) {
+      p['nome']?.dispose();
+      p['telefone']?.dispose();
+      p['tshirt']?.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadAcceptedTerms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('acceptedTerms') ?? false;
+    if (mounted) {
+      setState(() => _acceptedTerms = accepted);
+    }
+  }
+
+  Future<void> _loadActiveEvent() async {
+    try {
+      final q =
+          await FirebaseFirestore.instance
+              .collection('events')
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
+      if (q.docs.isNotEmpty) {
+        final d = q.docs.first;
+        if (mounted) {
+          setState(() {
+            _selectedEventId = d.id;
+            _activeEventData = d.data() as Map<String, dynamic>?;
+            _activeEventName =
+                (_activeEventData?['name'] ?? _activeEventData?['nome'] ?? '')
+                    .toString();
+          });
+        }
+        developer.log(
+          'Evento ativo carregado: $_activeEventName ($_selectedEventId)',
+        );
+      } else {
+        developer.log('Nenhum evento ativo encontrado.');
+      }
+    } catch (e) {
+      developer.log('Falha ao carregar evento ativo: $e');
+    }
+  }
+
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
 
-    // Verificação de limite de equipas simplificada: limita pelo número total de equipas
     final equipasSnapshot =
         await FirebaseFirestore.instance.collection('equipas').get();
     final totalEquipas = equipasSnapshot.size;
@@ -83,7 +161,6 @@ class _RegisterViewState extends State<RegisterView> {
       return;
     }
 
-    // Validação dos campos dos passageiros
     for (final passageiro in passageirosControllers) {
       if (passageiro['nome']!.text.trim().isEmpty ||
           passageiro['telefone']!.text.trim().isEmpty ||
@@ -117,21 +194,16 @@ class _RegisterViewState extends State<RegisterView> {
         return;
       }
 
-      // Garante autenticação do currentUser no FirebaseAuth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Aguarda propagação do currentUser no FirebaseAuth
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       final confirmedUser = FirebaseAuth.instance.currentUser;
       debugPrint('✅ UID após delay: ${confirmedUser?.uid}');
 
-      debugPrint('UID autenticado no momento do registo: $uid');
-
-      // Verificação UID antes de salvar dados
       if (uid.isEmpty) {
         if (!mounted) return;
         setState(
@@ -151,7 +223,6 @@ class _RegisterViewState extends State<RegisterView> {
               )
               .toList();
 
-      // Após salvar carro, verifica valor do evento
       final eventDoc =
           await FirebaseFirestore.instance
               .collection('events')
@@ -167,13 +238,11 @@ class _RegisterViewState extends State<RegisterView> {
           (data['nome'] ?? data['name'] ?? 'Sem nome').toString();
       final price = double.tryParse('${data['price'] ?? '0'}') ?? 0;
 
-      // Gerar novos IDs para veiculo e equipa
       final veiculoId =
           FirebaseFirestore.instance.collection('veiculos').doc().id;
       final equipaId =
           FirebaseFirestore.instance.collection('equipas').doc().id;
 
-      // Dados do carro a serem gravados (agora com veiculoId)
       final carData = {
         'ownerId': uid,
         'matricula': _licensePlateController.text.trim(),
@@ -183,50 +252,28 @@ class _RegisterViewState extends State<RegisterView> {
         'pontuacao_total': 0,
         'checkpoints': {},
       };
-      debugPrint('Dados do carro que serão gravados: $carData');
 
-      // Salvar carro em veiculos/veiculoId
-      try {
-        await FirebaseFirestore.instance
-            .collection('veiculos')
-            .doc(veiculoId)
-            .set(carData);
-        debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
-      } catch (e) {
-        debugPrint('❌ Falha ao salvar carro: $e');
-        if (!mounted) return;
-        setState(
-          () => _error = 'Erro ao salvar dados do veículo: ${e.toString()}',
-        );
-        return;
-      }
+      await FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .set(carData);
+      debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
 
-      // Criar documento da equipa em equipas/equipaId
-      try {
-        final equipaData = {
-          'nome': _teamNameController.text.trim(),
-          'hino': '',
-          'bandeiraUrl': '',
-          'pontuacaoTotal': 0,
-          'ranking': 0,
-          'membros': [uid, ...passageiros.map((p) => p['telefone'])],
-        };
+      final equipaData = {
+        'nome': _teamNameController.text.trim(),
+        'hino': '',
+        'bandeiraUrl': '',
+        'pontuacaoTotal': 0,
+        'ranking': 0,
+        'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+      };
 
-        if (!mounted) return;
+      await FirebaseFirestore.instance
+          .collection('equipas')
+          .doc(equipaId)
+          .set(equipaData);
+      debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
 
-        await FirebaseFirestore.instance
-            .collection('equipas')
-            .doc(equipaId)
-            .set(equipaData);
-        debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
-      } catch (e) {
-        debugPrint('❌ Falha ao criar equipa: $e');
-        if (!mounted) return;
-        setState(() => _error = 'Erro ao criar equipa: ${e.toString()}');
-        return;
-      }
-
-      // Salva dados pessoais do utilizador na coleção 'users', agora com veiculoId, equipaId, checkpointsVisitados
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'nome': _nameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -241,47 +288,28 @@ class _RegisterViewState extends State<RegisterView> {
         'equipaId': equipaId,
         'checkpointsVisitados': [],
         'createdAt': FieldValue.serverTimestamp(),
-        // 'ultimoLogin' removido do set() inicial
       });
-      if (!mounted) return;
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
 
-      // Registo do evento atual na subcoleção 'eventos' do utilizador
-      debugPrint(
-        '🔁 Criando subcoleção events para $uid e evento $_selectedEventId',
-      );
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('events')
           .doc(_selectedEventId)
           .set({'eventoId': _selectedEventId, 'checkpointsVisitados': []});
-      if (!mounted) return;
       debugPrint('✅ Subcoleção events criada com sucesso');
 
-      // Atualiza o campo ultimoLogin após o cadastro (após garantir que o doc existe)
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(uid).update({
-          'ultimoLogin': FieldValue.serverTimestamp(),
-        });
-        if (!mounted) return;
-        debugPrint('✅ ultimoLogin atualizado com sucesso');
-      } catch (e) {
-        debugPrint('❌ Falha ao atualizar ultimoLogin: $e');
-      }
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'ultimoLogin': FieldValue.serverTimestamp(),
+      });
 
-      // Salvar consentimento nos termos
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('acceptedTerms', true);
 
       if (!mounted) return;
       if (price > 0) {
-        // Navega para pagamento
-        if (!mounted) return;
         Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
       } else {
-        // Sem valor, já termina registro
-        if (!mounted) return;
         Get.offAll(
           () => UserSummaryView(
             nome: _nameController.text.trim(),
@@ -295,7 +323,6 @@ class _RegisterViewState extends State<RegisterView> {
         );
       }
     } on FirebaseAuthException catch (authError) {
-      // Tratar erro de e-mail já cadastrado
       if (!mounted) return;
       if (authError.code == 'email-already-in-use') {
         setState(
@@ -304,18 +331,103 @@ class _RegisterViewState extends State<RegisterView> {
       } else {
         setState(() => _error = authError.message ?? 'Erro de autenticação.');
       }
-    } catch (e, stackTrace) {
-      final mensagemErro =
-          e.toString().isEmpty ? 'Erro desconhecido' : e.toString();
-      debugPrint('❌ Erro capturado no register: $mensagemErro');
-      debugPrint('🪵 Stack trace: $stackTrace');
+    } catch (e) {
+      debugPrint('❌ Erro capturado no register: $e');
       if (!mounted) return;
-      setState(() => _error = 'Erro ao criar conta: $mensagemErro');
+      setState(() => _error = 'Erro ao criar conta: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() => _loading = false);
       }
-      // Removido o animateToPage para evitar loop ao retornar à etapa com erro
+    }
+  }
+
+  Widget _buildStepIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [shellRed, shellOrange, shellYellow],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: shellRed.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/images/logo.jpeg', width: 50, height: 50),
+              const SizedBox(width: 12),
+              const Text(
+                'Criar Conta',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: List.generate(4, (index) {
+              final isActive = index == _currentStep;
+              final isCompleted = index < _currentStep;
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 4,
+                  margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                  decoration: BoxDecoration(
+                    color:
+                        isCompleted || isActive
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _getStepTitle(_currentStep),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getStepTitle(int step) {
+    switch (step) {
+      case 0:
+        return 'Dados Pessoais';
+      case 1:
+        return 'Dados do Veículo';
+      case 2:
+        return 'Passageiros';
+      case 3:
+        return 'Evento e Confirmação';
+      default:
+        return '';
     }
   }
 
@@ -329,468 +441,444 @@ class _RegisterViewState extends State<RegisterView> {
     bool isRequired = false,
     bool isError = false,
     List<TextInputFormatter>? inputFormatters,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isError ? Colors.red : Colors.grey.shade300),
         color: Colors.white,
+        border: Border.all(
+          color: isError ? shellRed : Colors.grey.shade200,
+          width: isError ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                isError
+                    ? shellRed.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      margin: const EdgeInsets.symmetric(vertical: 5),
-      padding: const EdgeInsets.fromLTRB(4, 12, 8, 4),
+      margin: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
-        style: Theme.of(context).textTheme.bodyMedium,
-        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 15),
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
-          icon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+          prefixIcon: Icon(
+            icon,
+            color: isError ? shellRed : shellOrange,
+            size: 22,
+          ),
+          suffixIcon: suffixIcon,
           labelText: isRequired ? '$label *' : label,
           hintText: hintText,
-          hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
-          labelStyle: Theme.of(context).textTheme.labelLarge,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          labelStyle: TextStyle(
+            color: isError ? shellRed : Colors.grey.shade700,
+            fontSize: 14,
+          ),
           border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-          constraints: const BoxConstraints(minHeight: 56),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildStepCondutor() {
-    bool nameError = _error != null && _nameController.text.trim().isEmpty;
-    bool phoneError = _error != null && _phoneController.text.trim().isEmpty;
-    bool emergencyError =
-        _error != null && _emergencyContactController.text.trim().isEmpty;
-    bool emailError = _error != null && _emailController.text.trim().isEmpty;
-    bool passError = _error != null && _passwordController.text.trim().isEmpty;
-    bool confirmPassError =
-        _error != null && _confirmPasswordController.text.trim().isEmpty;
-    bool shirtError = _error != null && _selectedShirtSize == null;
-
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _inputCard(
-            icon: Icons.person,
-            label: 'Nome do condutor',
-            controller: _nameController,
-            hintText: 'Ex: João Silva',
-            isRequired: true,
-            isError: nameError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.phone,
-            label: 'Telefone',
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            hintText: 'Ex: 912345678',
-            isRequired: true,
-            isError: phoneError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.phone_in_talk,
-            label: 'Contato de emergência',
-            controller: _emergencyContactController,
-            keyboardType: TextInputType.phone,
-            hintText: 'Ex: 9911111',
-            isRequired: true,
-            isError: emergencyError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.email,
-            label: 'Email',
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            hintText: 'exemplo@email.com',
-            isRequired: true,
-            isError: emailError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.lock,
-            label: 'Senha',
-            controller: _passwordController,
-            obscureText: true,
-            hintText: 'Mínimo 6 caracteres',
-            isRequired: true,
-            isError: passError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.lock_outline,
-            label: 'Confirmar Senha',
-            controller: _confirmPasswordController,
-            obscureText: true,
-            hintText: 'Repita a senha',
-            isRequired: true,
-            isError: confirmPassError,
-          ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: shirtError ? Colors.red : Colors.grey.shade300,
-              ),
-              color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _inputCard(
+              icon: Icons.person_outline,
+              label: 'Nome Completo',
+              controller: _nameController,
+              hintText: 'Ex: João Silva',
+              isRequired: true,
+              isError: _error != null && _nameController.text.trim().isEmpty,
             ),
-            margin: const EdgeInsets.symmetric(vertical: 5),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedShirtSize,
-              items:
-                  _shirtSizes.map((size) {
-                    return DropdownMenuItem(
-                      value: size,
-                      child: Text(
-                        size,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    );
-                  }).toList(),
-              onChanged: (val) => setState(() => _selectedShirtSize = val),
-              decoration: InputDecoration(
+            _inputCard(
+              icon: Icons.phone_outlined,
+              label: 'Telefone',
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              hintText: 'Ex: 912345678',
+              isRequired: true,
+              isError: _error != null && _phoneController.text.trim().isEmpty,
+            ),
+            _inputCard(
+              icon: Icons.emergency_outlined,
+              label: 'Contato de Emergência',
+              controller: _emergencyContactController,
+              keyboardType: TextInputType.phone,
+              hintText: 'Ex: 991234567',
+              isRequired: true,
+              isError:
+                  _error != null &&
+                  _emergencyContactController.text.trim().isEmpty,
+            ),
+            _inputCard(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              hintText: 'exemplo@email.com',
+              isRequired: true,
+              isError: _error != null && _emailController.text.trim().isEmpty,
+            ),
+            _inputCard(
+              icon: Icons.lock_outline,
+              label: 'Senha',
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              hintText: 'Mínimo 6 caracteres',
+              isRequired: true,
+              isError:
+                  _error != null && _passwordController.text.trim().isEmpty,
+              suffixIcon: IconButton(
                 icon: Icon(
-                  Icons.checkroom,
-                  color: Theme.of(context).colorScheme.primary,
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey.shade600,
+                  size: 20,
                 ),
-                labelText: 'Tamanho da t-shirt *',
-                labelStyle: Theme.of(context).textTheme.labelLarge,
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                constraints: const BoxConstraints(minHeight: 56),
+                onPressed:
+                    () => setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade100,
-                borderRadius: const BorderRadius.all(Radius.circular(12)),
-                border: Border.all(color: Colors.amber.shade700, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Por favor preencha todos os campos obrigatórios antes de avançar.',
-                      style: TextStyle(
-                        color: Colors.amber.shade900,
-                        fontWeight: FontWeight.w500,
-                      ),
+            _inputCard(
+              icon: Icons.lock_outline,
+              label: 'Confirmar Senha',
+              controller: _confirmPasswordController,
+              obscureText: _obscureConfirmPassword,
+              hintText: 'Repita a senha',
+              isRequired: true,
+              isError:
+                  _error != null &&
+                  _confirmPasswordController.text.trim().isEmpty,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color: Colors.grey.shade600,
+                  size: 20,
+                ),
+                onPressed:
+                    () => setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
                     ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.white,
+                border: Border.all(
+                  color:
+                      (_error != null && _selectedShirtSize == null)
+                          ? shellRed
+                          : Colors.grey.shade200,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ),
-          ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 200,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed:
-                      _loading
-                          ? null
-                          : () {
-                            if (_nameController.text.trim().isEmpty ||
-                                _phoneController.text.trim().isEmpty ||
-                                _emergencyContactController.text
-                                    .trim()
-                                    .isEmpty ||
-                                _emailController.text.trim().isEmpty ||
-                                _passwordController.text.trim().isEmpty ||
-                                _confirmPasswordController.text
-                                    .trim()
-                                    .isEmpty ||
-                                _selectedShirtSize == null) {
-                              setState(() {
-                                _error =
-                                    'Por favor preencha todos os campos obrigatórios.';
-                              });
-                              return;
-                            }
-                            setState(() {
-                              _error = null;
-                              _currentStep = 1;
-                            });
-                            FocusScope.of(context).unfocus();
-                            _pageController.jumpToPage(_currentStep);
-                          },
-                  child: const Text(
-                    'Próximo',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: DropdownButtonFormField<String>(
+                initialValue: _selectedShirtSize,
+                items:
+                    _shirtSizes.map((size) {
+                      return DropdownMenuItem(value: size, child: Text(size));
+                    }).toList(),
+                onChanged: (val) => setState(() => _selectedShirtSize = val),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    Icons.checkroom_outlined,
+                    color: shellOrange,
                   ),
+                  labelText: 'Tamanho da T-shirt *',
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildNavigationButtons(
+              showBack: false,
+              onNext: () {
+                if (_nameController.text.trim().isEmpty ||
+                    _phoneController.text.trim().isEmpty ||
+                    _emergencyContactController.text.trim().isEmpty ||
+                    _emailController.text.trim().isEmpty ||
+                    _passwordController.text.trim().isEmpty ||
+                    _confirmPasswordController.text.trim().isEmpty ||
+                    _selectedShirtSize == null) {
+                  setState(
+                    () => _error = 'Preencha todos os campos obrigatórios.',
+                  );
+                  return;
+                }
+                setState(() {
+                  _error = null;
+                  _currentStep = 1;
+                });
+                _pageController.jumpToPage(1);
+              },
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: shellRed.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: shellRed),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: shellRed),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: shellRed,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildStepCarro() {
-    bool licensePlateError =
-        _error != null && _licensePlateController.text.trim().isEmpty;
-    bool modelError = _error != null && _carModelController.text.trim().isEmpty;
-    bool teamNameError =
-        _error != null && _teamNameController.text.trim().isEmpty;
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _inputCard(
-            icon: Icons.directions_car,
-            label: 'Matrícula',
-            controller: _licensePlateController,
-            hintText: 'Ex: AB-12-CD',
-            isRequired: true,
-            isError: licensePlateError,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(8),
-              TextInputFormatter.withFunction((oldValue, newValue) {
-                final digitsOnly =
-                    newValue.text
-                        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-                        .toUpperCase();
-                final buffer = StringBuffer();
-                for (int i = 0; i < digitsOnly.length; i++) {
-                  buffer.write(digitsOnly[i]);
-                  if ((i + 1) % 2 == 0 && i < 5) buffer.write('-');
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            _inputCard(
+              icon: Icons.directions_car_outlined,
+              label: 'Matrícula',
+              controller: _licensePlateController,
+              hintText: 'Ex: AB-12-CD',
+              isRequired: true,
+              isError:
+                  _error != null && _licensePlateController.text.trim().isEmpty,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(8),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  final digitsOnly =
+                      newValue.text
+                          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                          .toUpperCase();
+                  final buffer = StringBuffer();
+                  for (int i = 0; i < digitsOnly.length; i++) {
+                    buffer.write(digitsOnly[i]);
+                    if ((i + 1) % 2 == 0 && i < 5) buffer.write('-');
+                  }
+                  final newText = buffer.toString();
+                  return TextEditingValue(
+                    text: newText,
+                    selection: TextSelection.collapsed(offset: newText.length),
+                  );
+                }),
+              ],
+            ),
+            _inputCard(
+              icon: Icons.drive_eta_outlined,
+              label: 'Modelo do Veículo',
+              controller: _carModelController,
+              hintText: 'Ex: Toyota Corolla',
+              isRequired: true,
+              isError:
+                  _error != null && _carModelController.text.trim().isEmpty,
+            ),
+            _inputCard(
+              icon: Icons.group_outlined,
+              label: 'Nome da Equipa',
+              controller: _teamNameController,
+              hintText: 'Ex: Os Velozes',
+              isRequired: true,
+              isError:
+                  _error != null && _teamNameController.text.trim().isEmpty,
+            ),
+            const SizedBox(height: 24),
+            _buildNavigationButtons(
+              showBack: true,
+              onBack: () {
+                setState(() {
+                  _error = null;
+                  _currentStep = 0;
+                });
+                _pageController.jumpToPage(0);
+              },
+              onNext: () {
+                if (_licensePlateController.text.trim().isEmpty ||
+                    _carModelController.text.trim().isEmpty ||
+                    _teamNameController.text.trim().isEmpty) {
+                  setState(
+                    () => _error = 'Preencha todos os campos obrigatórios.',
+                  );
+                  return;
                 }
-                final newText = buffer.toString();
-                return TextEditingValue(
-                  text: newText,
-                  selection: TextSelection.collapsed(offset: newText.length),
-                );
-              }),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.drive_eta,
-            label: 'Modelo',
-            controller: _carModelController,
-            hintText: 'Ex: Corolla',
-            isRequired: true,
-            isError: modelError,
-          ),
-          const SizedBox(height: 16),
-          _inputCard(
-            icon: Icons.group,
-            label: 'Nome da Equipa',
-            controller: _teamNameController,
-            hintText: 'Ex: Os Rápidos',
-            isRequired: true,
-            isError: teamNameError,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              OutlinedButton(
-                onPressed:
-                    _loading
-                        ? null
-                        : () {
-                          setState(() {
-                            _error = null;
-                            _currentStep -= 1;
-                            _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          });
-                        },
-                child: const Text('Voltar'),
-              ),
-              SizedBox(
-                width: 200,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed:
-                      _loading
-                          ? null
-                          : () {
-                            setState(() {
-                              _error = null;
-                              _currentStep = 2;
-                            });
-                            FocusScope.of(context).unfocus();
-                            _pageController.jumpToPage(2);
-                          },
-                  child: const Text(
-                    'Próximo',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
+                setState(() {
+                  _error = null;
+                  _currentStep = 2;
+                });
+                _pageController.jumpToPage(2);
+              },
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildStepPassageiros() {
-    // Verificação para garantir que haja pelo menos um passageiro antes de avançar
-    // (a lógica do botão "Próximo" já será reforçada abaixo)
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Passageiros (máximo 4)',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Column(
-            children: [
-              for (int i = 0; i < passageirosControllers.length; i++)
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Passageiro ${i + 1}',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Adicione os passageiros',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: shellRed,
+              ),
+            ),
+            Text(
+              'Máximo de 4 passageiros',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(passageirosControllers.length, (i) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            shellYellow.withValues(alpha: 0.3),
+                            shellOrange.withValues(alpha: 0.2),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  (_error != null &&
-                                          passageirosControllers[i]['nome']!
-                                              .text
-                                              .trim()
-                                              .isEmpty)
-                                      ? Colors.red
-                                      : Colors.grey.shade300,
-                            ),
-                            color: Colors.white,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: shellOrange,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Passageiro ${i + 1}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: TextField(
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, color: shellRed),
+                            onPressed:
+                                () => setState(
+                                  () => passageirosControllers.removeAt(i),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          TextField(
                             controller: passageirosControllers[i]['nome'],
-                            style: Theme.of(context).textTheme.bodyMedium,
                             decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.person),
+                              prefixIcon: const Icon(
+                                Icons.person_outline,
+                                size: 20,
+                              ),
                               labelText: 'Nome *',
-                              hintText: 'Ex: Maria Oliveira',
-                              hintStyle:
-                                  Theme.of(
-                                    context,
-                                  ).inputDecorationTheme.hintStyle,
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10,
+                              hintText: 'Ex: Maria Silva',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  (_error != null &&
-                                          passageirosControllers[i]['telefone']!
-                                              .text
-                                              .trim()
-                                              .isEmpty)
-                                      ? Colors.red
-                                      : Colors.grey.shade300,
-                            ),
-                            color: Colors.white,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: TextField(
+                          const SizedBox(height: 12),
+                          TextField(
                             controller: passageirosControllers[i]['telefone'],
-                            style: Theme.of(context).textTheme.bodyMedium,
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.phone),
+                              prefixIcon: const Icon(
+                                Icons.phone_outlined,
+                                size: 20,
+                              ),
                               labelText: 'Telefone *',
                               hintText: 'Ex: 912345678',
-                              hintStyle:
-                                  Theme.of(
-                                    context,
-                                  ).inputDecorationTheme.hintStyle,
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  (_error != null &&
-                                          passageirosControllers[i]['tshirt']!
-                                              .text
-                                              .trim()
-                                              .isEmpty)
-                                      ? Colors.red
-                                      : Colors.grey.shade300,
-                            ),
-                            color: Colors.white,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: DropdownButtonFormField<String>(
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
                             initialValue:
                                 passageirosControllers[i]['tshirt']!
                                         .text
@@ -801,498 +889,346 @@ class _RegisterViewState extends State<RegisterView> {
                                 _shirtSizes.map((size) {
                                   return DropdownMenuItem(
                                     value: size,
-                                    child: Text(
-                                      size,
-                                      style:
-                                          Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium,
-                                    ),
+                                    child: Text(size),
                                   );
                                 }).toList(),
                             onChanged: (val) {
-                              setState(() {
-                                passageirosControllers[i]['tshirt']!.text =
-                                    val ?? '';
-                              });
+                              setState(
+                                () =>
+                                    passageirosControllers[i]['tshirt']!.text =
+                                        val ?? '',
+                              );
                             },
                             decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                Icons.checkroom,
-                                color: Theme.of(context).colorScheme.primary,
+                              prefixIcon: const Icon(
+                                Icons.checkroom_outlined,
+                                size: 20,
                               ),
-                              labelText: 'Tamanho da t-shirt *',
-                              labelStyle:
-                                  Theme.of(context).textTheme.labelLarge,
+                              labelText: 'T-shirt *',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed:
-                                _loading
-                                    ? null
-                                    : () {
-                                      setState(() {
-                                        passageirosControllers.removeAt(i);
-                                      });
-                                    },
-                            child: const Text('Remover passageiro'),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            if (passageirosControllers.length < 4)
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: shellOrange, width: 2),
+                  color: shellYellow.withValues(alpha: 0.1),
+                ),
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      passageirosControllers.add({
+                        'nome': TextEditingController(),
+                        'telefone': TextEditingController(),
+                        'tshirt': TextEditingController(),
+                      });
+                    });
+                  },
+                  icon: Icon(Icons.add_circle_outline, color: shellOrange),
+                  label: Text(
+                    'Adicionar Passageiro',
+                    style: TextStyle(
+                      color: shellOrange,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
                 ),
-              if (passageirosControllers.length < 4)
-                ElevatedButton.icon(
-                  onPressed:
-                      _loading
-                          ? null
-                          : () {
-                            setState(() {
-                              passageirosControllers.add({
-                                'nome': TextEditingController(),
-                                'telefone': TextEditingController(),
-                                'tshirt': TextEditingController(),
-                              });
-                            });
-                          },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Adicionar Passageiro'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          if (_error != null)
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.error,
               ),
+            const SizedBox(height: 24),
+            _buildNavigationButtons(
+              showBack: true,
+              onBack: () {
+                setState(() {
+                  _error = null;
+                  _currentStep = 1;
+                });
+                _pageController.jumpToPage(1);
+              },
+              onNext: () {
+                if (passageirosControllers.isEmpty) {
+                  setState(() => _error = 'Adicione pelo menos 1 passageiro.');
+                  return;
+                }
+                for (final passageiro in passageirosControllers) {
+                  if (passageiro['nome']!.text.trim().isEmpty ||
+                      passageiro['telefone']!.text.trim().isEmpty ||
+                      passageiro['tshirt']!.text.trim().isEmpty) {
+                    setState(
+                      () => _error = 'Preencha todos os dados dos passageiros.',
+                    );
+                    return;
+                  }
+                }
+                setState(() {
+                  _error = null;
+                  _currentStep = 3;
+                });
+                _pageController.jumpToPage(3);
+              },
             ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              OutlinedButton(
-                onPressed:
-                    _loading
-                        ? null
-                        : () {
-                          setState(() {
-                            _error = null;
-                            _currentStep -= 1;
-                            _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          });
-                        },
-                child: const Text('Voltar'),
-              ),
-              SizedBox(
-                width: 200,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed:
-                      _loading
-                          ? null
-                          : () {
-                            if (passageirosControllers.isEmpty) {
-                              setState(() {
-                                _error = 'Adicione pelo menos 1 passageiro.';
-                              });
-                              return;
-                            }
-                            for (final passageiro in passageirosControllers) {
-                              if (passageiro['nome']!.text.trim().isEmpty ||
-                                  passageiro['telefone']!.text.trim().isEmpty ||
-                                  passageiro['tshirt']!.text.trim().isEmpty) {
-                                setState(() {
-                                  _error =
-                                      'Preencha todos os dados dos passageiros.';
-                                });
-                                return;
-                              }
-                            }
-                            setState(() {
-                              _error = null;
-                              _currentStep = 3;
-                            });
-                            FocusScope.of(context).unfocus();
-                            _pageController.jumpToPage(3);
-                          },
-                  child: const Text(
-                    'Próximo',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStepEvento() {
-    bool eventError = _error != null && _selectedEventId == null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Escolha o evento',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance.collection('events').get(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final items =
-                snapshot.data!.docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final nome =
-                      (data['name'] ?? data['nome'] ?? 'Evento sem nome')
-                          .toString();
-                  return DropdownMenuItem<String>(
-                    value: doc.id,
-                    child: Text(nome),
-                  );
-                }).toList();
-            return DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _selectedEventId,
-              hint: Text(
-                'Selecione um evento',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              items: items,
-              onChanged:
-                  _loading
-                      ? null
-                      : (val) => setState(() => _selectedEventId = val),
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: eventError ? Colors.red : Colors.grey.shade300,
-                  ),
-                ),
-                labelText: 'Evento *',
-                labelStyle: Theme.of(context).textTheme.labelLarge,
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        // CheckboxListTile for terms and privacy
-        CheckboxListTile(
-          value: _acceptedTerms,
-          onChanged:
-              _loading
-                  ? null
-                  : (value) => setState(() => _acceptedTerms = value ?? false),
-          activeColor: Theme.of(context).colorScheme.primary,
-          title: RichText(
-            text: TextSpan(
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              children: [
-                const TextSpan(text: 'Li e aceito os '),
-                TextSpan(
-                  text: 'Termos e Condições',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                  recognizer:
-                      TapGestureRecognizer()
-                        ..onTap = () {
-                          Get.toNamed('/terms');
-                        },
-                ),
-                const TextSpan(text: ' e a '),
-                TextSpan(
-                  text: 'Política de Privacidade',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                  recognizer:
-                      TapGestureRecognizer()
-                        ..onTap = () {
-                          Get.toNamed('/privacy');
-                        },
-                ),
-              ],
-            ),
-          ),
-          controlAffinity: ListTileControlAffinity.leading,
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OutlinedButton(
-              onPressed:
-                  _loading
-                      ? null
-                      : () {
-                        setState(() {
-                          _error = null;
-                          _currentStep -= 1;
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        });
-                      },
-              child: const Text('Voltar'),
-            ),
-            SizedBox(
-              width: 200,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  debugPrint('🟢 Clique no botão REGISTRAR');
-                  if (_loading) {
-                    debugPrint('⚠️ Está em loading, botão desativado.');
-                    return;
-                  }
-                  if (_selectedEventId == null) {
-                    debugPrint('⚠️ Nenhum evento selecionado.');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Selecione um evento.')),
-                    );
-                    return;
-                  }
-                  if (!_acceptedTerms) {
-                    debugPrint('⚠️ Termos não foram aceites.');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Aceite os termos para continuar.'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  _register();
-                },
-                child:
-                    _loading
-                        ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : const Text(
-                          'Registrar',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+            Text(
+              'Selecione o Evento',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: shellRed,
               ),
+            ),
+            const SizedBox(height: 20),
+            FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance.collection('events').get(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final items =
+                    snapshot.data!.docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final nome =
+                          (data['name'] ?? data['nome'] ?? 'Evento sem nome')
+                              .toString();
+                      return DropdownMenuItem<String>(
+                        value: doc.id,
+                        child: Text(nome),
+                      );
+                    }).toList();
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedEventId,
+                    hint: const Text('Escolha um evento'),
+                    items: items,
+                    onChanged: (val) => setState(() => _selectedEventId = val),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.event_outlined),
+                      border: InputBorder.none,
+                      labelText: 'Evento *',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: shellYellow.withValues(alpha: 0.1),
+                border: Border.all(color: shellYellow.withValues(alpha: 0.5)),
+              ),
+              child: CheckboxListTile(
+                value: _acceptedTerms,
+                onChanged:
+                    (value) => setState(() => _acceptedTerms = value ?? false),
+                activeColor: shellOrange,
+                title: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    children: [
+                      const TextSpan(text: 'Li e aceito os '),
+                      TextSpan(
+                        text: 'Termos e Condições',
+                        style: TextStyle(
+                          color: shellOrange,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        recognizer:
+                            TapGestureRecognizer()
+                              ..onTap = () => Get.toNamed('/terms'),
+                      ),
+                      const TextSpan(text: ' e a '),
+                      TextSpan(
+                        text: 'Política de Privacidade',
+                        style: TextStyle(
+                          color: shellOrange,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        recognizer:
+                            TapGestureRecognizer()
+                              ..onTap = () => Get.toNamed('/privacy'),
+                      ),
+                    ],
+                  ),
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildNavigationButtons(
+              showBack: true,
+              onBack: () {
+                setState(() {
+                  _error = null;
+                  _currentStep = 2;
+                });
+                _pageController.jumpToPage(2);
+              },
+              onNext: () {
+                if (_selectedEventId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Selecione um evento.')),
+                  );
+                  return;
+                }
+                if (!_acceptedTerms) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Aceite os termos para continuar.'),
+                    ),
+                  );
+                  return;
+                }
+                _register();
+              },
+              isLastStep: true,
             ),
           ],
-        ),
-        // Error display for _register
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAcceptedTerms();
-    _loadActiveEvent();
-  }
-
-  Future<void> _loadAcceptedTerms() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accepted = prefs.getBool('acceptedTerms') ?? false;
-    setState(() => _acceptedTerms = accepted);
-  }
-
-  Future<void> _loadActiveEvent() async {
-    try {
-      final q =
-          await FirebaseFirestore.instance
-              .collection('events')
-              .where('isActive', isEqualTo: true)
-              .limit(1)
-              .get();
-      if (q.docs.isNotEmpty) {
-        final d = q.docs.first;
-        setState(() {
-          _selectedEventId = d.id;
-          _activeEventData = d.data() as Map<String, dynamic>?;
-          _activeEventName =
-              (_activeEventData?['name'] ?? _activeEventData?['nome'] ?? '')
-                  .toString();
-        });
-        developer.log(
-          'Evento ativo carregado: $_activeEventName ($_selectedEventId)',
-        );
-      } else {
-        developer.log('Nenhum evento ativo encontrado.');
-      }
-    } catch (e) {
-      developer.log('Falha ao carregar evento ativo: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 600;
-              return Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: isMobile ? double.infinity : 600,
-                  ),
-                  child: SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.95,
-                    child: _buildRegisterBody(context),
-                  ),
-                ),
-              );
-            },
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildRegisterBody(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildNavigationButtons({
+    bool showBack = true,
+    VoidCallback? onBack,
+    VoidCallback? onNext,
+    bool isLastStep = false,
+  }) {
+    return Row(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset('assets/images/logo.jpeg', width: 40, height: 40),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-              Center(
+        if (showBack)
+          Expanded(
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: shellOrange, width: 2),
+              ),
+              child: TextButton(
+                onPressed: _loading ? null : onBack,
                 child: Text(
-                  'Criar uma conta',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
+                  'Voltar',
+                  style: TextStyle(
+                    color: shellOrange,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    fontSize: 16,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 8),
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.center,
-              //   children: [
-              //     Text(
-              //       'Já tem uma conta?',
-              //       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              //         color: Theme.of(
-              //           context,
-              //         ).colorScheme.primary.withAlpha(179),
-              //       ),
-              //     ),
-              //     TextButton(
-              //       onPressed: () => Get.toNamed('/login'),
-              //       child: Text(
-              //         'Entrar',
-              //         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              //           color: Theme.of(context).colorScheme.primary,
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Etapa ${_currentStep + 1} de 4',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              LinearProgressIndicator(
-                value: (_currentStep + 1) / 4,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.12),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
-                ),
-                minHeight: 6,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(32),
-                topRight: Radius.circular(32),
               ),
             ),
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildStepCondutor(),
-                _buildStepCarro(),
-                _buildStepPassageiros(),
-                _buildStepEvento(),
+          ),
+        if (showBack) const SizedBox(width: 16),
+        Expanded(
+          flex: showBack ? 1 : 2,
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [shellRed, shellOrange]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: shellOrange.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
               ],
+            ),
+            child: ElevatedButton(
+              onPressed: _loading ? null : onNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child:
+                  _loading
+                      ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : Text(
+                        isLastStep ? 'Finalizar' : 'Continuar',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildStepIndicator(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildStepCondutor(),
+                  _buildStepCarro(),
+                  _buildStepPassageiros(),
+                  _buildStepEvento(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
