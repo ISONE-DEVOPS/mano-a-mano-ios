@@ -22,44 +22,99 @@ class _EventsViewState extends State<EventsView> {
   final _priceController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _entidadeController = TextEditingController();
+  final _searchController = TextEditingController();
+  String _query = '';
   DateTime? _selectedDate;
   bool _status = true;
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _localController.dispose();
+    _priceController.dispose();
+    _descricaoController.dispose();
+    _entidadeController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Eventos'),
-        backgroundColor: AppColors.secondaryDark,
+        title: const Text('Eventos: Mano a Mano'),
+        backgroundColor: const Color(0xFFFFC600), // Shell Yellow
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      backgroundColor: AppColors.background,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('editions')
-                  .doc(widget.edicaoId)
-                  .collection('events')
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.data!.docs.isEmpty) {
-              return const Center(child: Text('Nenhum evento encontrado'));
-            }
+      backgroundColor: Colors.white,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('editions')
+                      .doc(widget.edicaoId)
+                      .collection('events')
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('Nenhum evento encontrado'));
+                }
 
-            final docs = snapshot.data!.docs;
+                final docs = snapshot.data!.docs;
+                final q = _query.toLowerCase();
+                final filtered = docs.where((d) {
+                  final m = d.data() as Map<String, dynamic>;
+                  return [
+                    m['nome']?.toString() ?? '',
+                    m['local']?.toString() ?? '',
+                    m['descricao']?.toString() ?? '',
+                    m['entidade']?.toString() ?? '',
+                  ].any((s) => s.toLowerCase().contains(q));
+                }).toList();
 
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Search bar
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _query = v),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Pesquisar por título, local, descrição ou entidade',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Table in a Card
+                    Card(
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      clipBehavior: Clip.antiAlias,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
                 headingRowColor: WidgetStateProperty.all(
-                  AppColors.secondaryDark.withAlpha(50),
+                  const Color(0xFFFFC600), // Shell Yellow
                 ),
                 sortAscending: _sortAsc,
                 sortColumnIndex: _sortColumnIndex,
@@ -148,298 +203,316 @@ class _EventsViewState extends State<EventsView> {
                     ),
                   ),
                 ],
-                rows:
-                    docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final dataEvento = (data['data'] as Timestamp?)?.toDate();
-                      final dataTexto =
-                          dataEvento != null
-                              ? DateFormat(
-                                'dd/MM/yyyy – HH:mm',
-                              ).format(dataEvento)
-                              : '';
-                      final borderSide = BorderSide(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      );
-                      final cellDecoration = BoxDecoration(
-                        border: Border(bottom: borderSide),
-                      );
-                      const cellPadding = EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      );
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                dataTexto,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
+                rows: List<DataRow>.generate(filtered.length, (index) {
+                  final doc = filtered[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final dataEvento = (data['data'] as Timestamp?)?.toDate();
+                  final dataTexto =
+                      dataEvento != null
+                          ? DateFormat(
+                              'dd/MM/yyyy – HH:mm',
+                            ).format(dataEvento)
+                          : '';
+                  final borderSide = BorderSide(
+                    color: Colors.black12,
+                    width: 0.8,
+                  );
+                  final cellDecoration = BoxDecoration(
+                    border: Border(bottom: borderSide),
+                  );
+                  const cellPadding = EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  );
+                  return DataRow(
+                    color: MaterialStateProperty.resolveWith(
+                        (states) => index.isOdd ? const Color(0xFFFFF3E5) : Colors.white),
+                    cells: [
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Text(
+                            dataTexto,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Text(
+                            data['nome'] ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Text(
+                            data['local'] ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              data['price'] != null
+                                  ? '${NumberFormat('#,##0.##', 'pt_CV').format(data['price'])} ECV'
+                                  : '—',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black87),
                             ),
                           ),
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                data['nome'] ?? '',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
-                            ),
+                        ),
+                      ),
+                      // DESCRIÇÃO column
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Text(
+                            data['descricao'] ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
                           ),
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                data['local'] ?? '',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
-                            ),
+                        ),
+                      ),
+                      // ENTIDADE column
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Text(
+                            data['entidade'] ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.black87),
                           ),
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                data['price'] != null
-                                    ? '${NumberFormat('#,##0', 'pt_CV').format(data['price'])} ECV'
-                                    : '',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
-                            ),
-                          ),
-                          // DESCRIÇÃO column
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                data['descricao'] ?? '',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
-                            ),
-                          ),
-                          // ENTIDADE column
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
-                                data['entidade'] ?? '',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
-                              ),
-                            ),
-                          ),
-                          // STATUS column
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: Text(
+                        ),
+                      ),
+                      // STATUS column
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Chip(
+                              label: Text(
                                 data['status'] == true ? 'Ativo' : 'Inativo',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.black87),
+                                style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
+                              backgroundColor: data['status'] == true
+                                  ? const Color(0xFFCBE6D7) // Forest 100
+                                  : const Color(0xFFE0E0E0), // Grey 100
+                              shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
                             ),
                           ),
-                          // CHECKPOINTS column
-                          DataCell(
-                            Container(
-                              decoration: cellDecoration,
-                              padding: cellPadding,
-                              child: StreamBuilder<QuerySnapshot>(
-                                stream:
-                                    FirebaseFirestore.instance
-                                        .collection('editions')
-                                        .doc(widget.edicaoId)
-                                        .collection('events')
-                                        .doc(doc.id)
-                                        .collection('checkpoints')
-                                        .snapshots(),
-                                builder: (context, snapshot) {
-                                  if (!snapshot.hasData) {
-                                    return const Text('...');
+                        ),
+                      ),
+                      // CHECKPOINTS column
+                      DataCell(
+                        Container(
+                          decoration: cellDecoration,
+                          padding: cellPadding,
+                          child: StreamBuilder<QuerySnapshot>(
+                            stream:
+                                FirebaseFirestore.instance
+                                    .collection('editions')
+                                    .doc(widget.edicaoId)
+                                    .collection('events')
+                                    .doc(doc.id)
+                                    .collection('checkpoints')
+                                    .snapshots(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return const Text('...');
+                              }
+                              return Chip(
+                                label: Text(
+                                  '${snapshot.data!.docs.length}',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                backgroundColor: const Color(0xFFF5F5F5), // Shell Grey 50
+                                shape: const StadiumBorder(),
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Row(
+                          children: [
+                            // Adicionar checkpoints
+                            IconButton(
+                              icon: const Icon(
+                                Icons.playlist_add,
+                                color: AppColors.secondaryDark,
+                              ),
+                              tooltip: 'Adicionar checkpoints',
+                              onPressed: () {
+                                Get.toNamed(
+                                  '/add-checkpoints',
+                                  arguments: {
+                                    'edicaoId': widget.edicaoId,
+                                    'eventId': doc.id,
+                                  },
+                                );
+                              },
+                            ),
+                            // Ver checkpoints
+                            IconButton(
+                              icon: const Icon(
+                                Icons.list_alt,
+                                color: AppColors.secondary,
+                              ),
+                              tooltip: 'Ver checkpoints',
+                              onPressed: () async {
+                                await showDialog(
+                                  context: context,
+                                  builder:
+                                      (_) => CheckpointsListDialog(
+                                        edicaoId: widget.edicaoId,
+                                        eventId: doc.id,
+                                      ),
+                                );
+                              },
+                            ),
+                            /*
+                            IconButton(
+                              icon: const Icon(
+                                Icons.map,
+                                color: AppColors.primary,
+                              ),
+                              tooltip: 'Ver percurso',
+                              onPressed: () {
+                                final data =
+                                    doc.data() as Map<String, dynamic>;
+                                final percurso =
+                                    (data['percurso'] as List<dynamic>? ??
+                                            [])
+                                        .cast<Map<String, dynamic>>();
+                                final checkpoints =
+                                    (data['checkpoints']
+                                            as Map<String, dynamic>? ??
+                                        {});
+                                final Map<String, String> checkpointLabels =
+                                    {};
+                                checkpoints.forEach((postoId, postoData) {
+                                  if (postoData is Map<String, dynamic> &&
+                                      postoData['name'] != null) {
+                                    checkpointLabels[postoId] =
+                                        postoData['name'].toString();
                                   }
-                                  return Text(
-                                    '${snapshot.data!.docs.length}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(color: Colors.black87),
-                                  );
-                                },
+                                });
+                                Get.toNamed(
+                                  '/route-map',
+                                  arguments: {
+                                    'eventId': doc.id,
+                                    'percurso': percurso,
+                                    'checkpoints': checkpoints,
+                                    'checkpointLabels': checkpointLabels,
+                                  },
+                                );
+                              },
+                            ),
+                            */
+                            // Editar evento
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: AppColors.secondaryDark,
                               ),
+                              tooltip: 'Editar evento',
+                              onPressed: () {
+                                showEditEventDialog(context, doc);
+                              },
                             ),
-                          ),
-                          DataCell(
-                            Row(
-                              children: [
-                                // Adicionar checkpoints
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.playlist_add,
-                                    color: AppColors.secondaryDark,
-                                  ),
-                                  tooltip: 'Adicionar checkpoints',
-                                  onPressed: () {
-                                    Get.toNamed(
-                                      '/add-checkpoints',
-                                      arguments: {
-                                        'edicaoId': widget.edicaoId,
-                                        'eventId': doc.id,
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Ver checkpoints
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.list_alt,
-                                    color: AppColors.secondary,
-                                  ),
-                                  tooltip: 'Ver checkpoints',
-                                  onPressed: () async {
-                                    await showDialog(
-                                      context: context,
-                                      builder:
-                                          (_) => CheckpointsListDialog(
-                                            edicaoId: widget.edicaoId,
-                                            eventId: doc.id,
+                            // Eliminar evento (com confirmação)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                              ),
+                              tooltip: 'Eliminar evento',
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder:
+                                      (ctx) => AlertDialog(
+                                        title: const Text('Confirmação'),
+                                        content: const Text(
+                                          'Deseja realmente eliminar este evento?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  ctx,
+                                                  false,
+                                                ),
+                                            child: const Text('Cancelar'),
                                           ),
-                                    );
-                                  },
-                                ),
-                                /*
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.map,
-                                    color: AppColors.primary,
-                                  ),
-                                  tooltip: 'Ver percurso',
-                                  onPressed: () {
-                                    final data =
-                                        doc.data() as Map<String, dynamic>;
-                                    final percurso =
-                                        (data['percurso'] as List<dynamic>? ??
-                                                [])
-                                            .cast<Map<String, dynamic>>();
-                                    final checkpoints =
-                                        (data['checkpoints']
-                                                as Map<String, dynamic>? ??
-                                            {});
-                                    final Map<String, String> checkpointLabels =
-                                        {};
-                                    checkpoints.forEach((postoId, postoData) {
-                                      if (postoData is Map<String, dynamic> &&
-                                          postoData['name'] != null) {
-                                        checkpointLabels[postoId] =
-                                            postoData['name'].toString();
-                                      }
-                                    });
-                                    Get.toNamed(
-                                      '/route-map',
-                                      arguments: {
-                                        'eventId': doc.id,
-                                        'percurso': percurso,
-                                        'checkpoints': checkpoints,
-                                        'checkpointLabels': checkpointLabels,
-                                      },
-                                    );
-                                  },
-                                ),
-                                */
-                                // Editar evento
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: AppColors.secondaryDark,
-                                  ),
-                                  tooltip: 'Editar evento',
-                                  onPressed: () {
-                                    showEditEventDialog(context, doc);
-                                  },
-                                ),
-                                // Eliminar evento (com confirmação)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  tooltip: 'Eliminar evento',
-                                  onPressed: () async {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder:
-                                          (ctx) => AlertDialog(
-                                            title: const Text('Confirmação'),
-                                            content: const Text(
-                                              'Deseja realmente eliminar este evento?',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      ctx,
-                                                      false,
-                                                    ),
-                                                child: const Text('Cancelar'),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      ctx,
-                                                      true,
-                                                    ),
-                                                child: const Text('Eliminar'),
-                                              ),
-                                            ],
+                                          ElevatedButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  ctx,
+                                                  true,
+                                                ),
+                                            child: const Text('Eliminar'),
                                           ),
-                                    );
-                                    if (confirmed == true) {
-                                      final checkpoints =
-                                          await FirebaseFirestore.instance
-                                              .collection('editions')
-                                              .doc(widget.edicaoId)
-                                              .collection('events')
-                                              .doc(doc.id)
-                                              .collection('checkpoints')
-                                              .get();
-                                      for (final cp in checkpoints.docs) {
-                                        await cp.reference.delete();
-                                      }
-                                      await doc.reference.delete();
-                                    }
-                                  },
-                                ),
-                              ],
+                                        ],
+                                      ),
+                                );
+                                if (confirmed == true) {
+                                  final checkpoints =
+                                      await FirebaseFirestore.instance
+                                          .collection('editions')
+                                          .doc(widget.edicaoId)
+                                          .collection('events')
+                                          .doc(doc.id)
+                                          .collection('checkpoints')
+                                          .get();
+                                  for (final cp in checkpoints.docs) {
+                                    await cp.reference.delete();
+                                  }
+                                  await doc.reference.delete();
+                                }
+                              },
                             ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ),
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Adicionar Evento',
-        onPressed: _showAddEventDialog,
-        backgroundColor: AppColors.secondaryDark,
-        child: const Icon(Icons.add, color: Colors.black),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            ),
+          ],
+        );
+      },
+    ),
+  ),
+),
+floatingActionButton: FloatingActionButton(
+  tooltip: 'Adicionar Evento',
+  onPressed: _showAddEventDialog,
+  backgroundColor: const Color(0xFFDD1D21), // Shell Red
+  child: const Icon(Icons.add, color: Colors.white),
+),
+floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -448,7 +521,7 @@ class _EventsViewState extends State<EventsView> {
       context: context,
       builder:
           (_) => AlertDialog(
-            backgroundColor: AppColors.surface,
+            backgroundColor: Colors.white,
             title: Text(
               'Novo Evento',
               style: Theme.of(
@@ -608,8 +681,8 @@ class _EventsViewState extends State<EventsView> {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.black,
+                  backgroundColor: const Color(0xFFDD1D21), // Shell Red
+                  foregroundColor: Colors.white,
                 ),
                 onPressed: () async {
                   if (_formKey.currentState?.validate() != true ||

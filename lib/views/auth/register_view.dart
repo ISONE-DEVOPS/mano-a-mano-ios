@@ -33,6 +33,12 @@ class _RegisterViewState extends State<RegisterView>
   final List<String> _shirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
   String? _selectedShirtSize;
 
+  String? _selectedLocation; // Adicione esta linha
+  final List<String> _locations = [
+    'Santiago',
+    'São Vicente',
+  ]; // Adicione esta linha
+
   List<Map<String, TextEditingController>> passageirosControllers = [];
 
   bool _loading = false;
@@ -43,11 +49,17 @@ class _RegisterViewState extends State<RegisterView>
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
+  bool _paymentCompleted = false;
+  String? _transactionId;
   late AnimationController _animationController;
 
   String? _selectedEventId;
   String? _selectedEventPath; // ex.: editions/{editionId}/events/{eventId}
   String? _activeEventName;
+
+  // Evento: lista de opções e loading
+  List<Map<String, String>> _eventOptions = [];
+  bool _loadingEvents = true;
 
   static const Color shellYellow = Color(0xFFFFCB05);
   static const Color shellRed = Color(0xFFDD1D21);
@@ -62,6 +74,18 @@ class _RegisterViewState extends State<RegisterView>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _fetchActiveEventOptions().then((options) {
+      if (mounted) {
+        setState(() {
+          _eventOptions = options;
+          _loadingEvents = false;
+          if (options.length == 1) {
+            _selectedEventPath = options.first['path'];
+            _selectedEventId = options.first['eventId'];
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -110,6 +134,71 @@ class _RegisterViewState extends State<RegisterView>
     return baseSpacing * 1.2;
   }
 
+  Future<Map<String, dynamic>> _getLocationPriceInfo(String location) async {
+    try {
+      String? eventPath = _selectedEventPath;
+      if (eventPath == null) {
+        // Fallback: tenta obter o primeiro evento ativo
+        final qs = await FirebaseFirestore.instance
+            .collectionGroup('events')
+            .where('status', isEqualTo: true)
+            .limit(1)
+            .get();
+        if (qs.docs.isNotEmpty) {
+          eventPath = qs.docs.first.reference.path;
+          if (mounted) {
+            setState(() {
+              _selectedEventPath = eventPath;
+              _selectedEventId = qs.docs.first.id;
+            });
+          }
+        }
+      }
+      if (eventPath == null) {
+        return {'price': 0.0, 'maxVehicles': -1, 'currentVehicles': 0};
+      }
+
+      final eventDoc = await FirebaseFirestore.instance.doc(eventPath).get();
+
+      if (!eventDoc.exists) {
+        return {'price': 0.0, 'maxVehicles': -1, 'currentVehicles': 0};
+      }
+
+      final eventData = eventDoc.data()!;
+      double price = 0;
+      int maxVehicles = -1;
+
+      if (eventData.containsKey('pricesByLocation')) {
+        final pricesByLocation =
+            eventData['pricesByLocation'] as Map<String, dynamic>?;
+
+        if (pricesByLocation != null &&
+            pricesByLocation.containsKey(location)) {
+          final locationData =
+              pricesByLocation[location] as Map<String, dynamic>;
+          price = double.tryParse('${locationData['price'] ?? 0}') ?? 0;
+          maxVehicles =
+              int.tryParse('${locationData['maxVehicles'] ?? -1}') ?? -1;
+        }
+      }
+
+      final veiculosQuery = await FirebaseFirestore.instance
+          .collection('veiculos')
+          .where('eventoId', isEqualTo: eventPath)
+          .where('localizacao', isEqualTo: location)
+          .get();
+
+      return {
+        'price': price,
+        'maxVehicles': maxVehicles,
+        'currentVehicles': veiculosQuery.size,
+      };
+    } catch (e) {
+      debugPrint('Erro ao buscar info de preço: $e');
+      return {'price': 0.0, 'maxVehicles': -1, 'currentVehicles': 0};
+    }
+  }
+
   Future<void> _loadAcceptedTerms() async {
     final prefs = await SharedPreferences.getInstance();
     final accepted = prefs.getBool('acceptedTerms') ?? false;
@@ -129,17 +218,19 @@ class _RegisterViewState extends State<RegisterView>
       if (q.docs.isNotEmpty) {
         final d = q.docs.first;
         final path = d.reference.path; // editions/{editionId}/events/{eventId}
-        final data = d.data() as Map<String, dynamic>?;
+        final data = d.data();
         final parentEditionRef = d.reference.parent.parent;
         String? editionName;
         if (parentEditionRef != null) {
           final editionSnap = await parentEditionRef.get();
           if (editionSnap.exists) {
-            final editionData = editionSnap.data() as Map<String, dynamic>?;
-            editionName = (editionData?['name'] ?? editionData?['nome'])?.toString();
+            final editionData = editionSnap.data();
+            editionName =
+                (editionData?['name'] ?? editionData?['nome'])?.toString();
           }
         }
-        final nome = (data?['name'] ?? data?['nome'] ?? editionName ?? '').toString();
+        final nome =
+            (data['name'] ?? data['nome'] ?? editionName ?? '').toString();
         if (mounted) {
           setState(() {
             _selectedEventPath = path;
@@ -163,16 +254,7 @@ class _RegisterViewState extends State<RegisterView>
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
 
-    final equipasSnapshot =
-        await FirebaseFirestore.instance.collection('equipas').get();
-    final totalEquipas = equipasSnapshot.size;
-
-    if (totalEquipas >= 42) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/closed');
-      return;
-    }
-
+    // Validação de preenchimento
     if (_passwordController.text != _confirmPasswordController.text) {
       if (!mounted) return;
       setState(() => _error = 'As senhas não coincidem');
@@ -187,6 +269,7 @@ class _RegisterViewState extends State<RegisterView>
         _confirmPasswordController.text.trim().isEmpty ||
         _licensePlateController.text.trim().isEmpty ||
         _carModelController.text.trim().isEmpty ||
+        _selectedLocation == null ||
         _teamNameController.text.trim().isEmpty ||
         _selectedShirtSize == null ||
         _selectedEventId == null) {
@@ -207,7 +290,7 @@ class _RegisterViewState extends State<RegisterView>
       }
     }
 
-    debugPrint('✔️ Validações concluídas, iniciando criação de conta');
+    debugPrint('✔️ Validações concluídas, verificando limites e preços');
 
     if (!mounted) return;
     setState(() {
@@ -216,6 +299,84 @@ class _RegisterViewState extends State<RegisterView>
     });
 
     try {
+      // 1. Buscar dados do evento
+      final eventDoc =
+          await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
+      if (!mounted) return;
+      if (!eventDoc.exists) {
+        setState(() => _error = 'Evento selecionado inválido.');
+        return;
+      }
+
+      final Map<String, dynamic> eventData = eventDoc.data()!;
+
+      // 2. Obter nome do evento
+      String? editionName;
+      final parentEditionRef = eventDoc.reference.parent.parent;
+      if (parentEditionRef != null) {
+        final editionSnap = await parentEditionRef.get();
+        if (editionSnap.exists) {
+          final editionData = editionSnap.data();
+          editionName =
+              (editionData?['name'] ?? editionData?['nome'])?.toString();
+        }
+      }
+      final nomeEvento =
+          (eventData['nome'] ?? eventData['name'] ?? editionName ?? 'Sem nome')
+              .toString();
+
+      // 3. Verificar preços e limites por localização
+      double price = 0;
+      int maxVehicles = -1;
+
+      if (eventData.containsKey('pricesByLocation')) {
+        final pricesByLocation =
+            eventData['pricesByLocation'] as Map<String, dynamic>?;
+
+        if (pricesByLocation != null &&
+            pricesByLocation.containsKey(_selectedLocation)) {
+          final locationData =
+              pricesByLocation[_selectedLocation] as Map<String, dynamic>;
+          price = double.tryParse('${locationData['price'] ?? 0}') ?? 0;
+          maxVehicles =
+              int.tryParse('${locationData['maxVehicles'] ?? -1}') ?? -1;
+
+          debugPrint('💰 Preço para $_selectedLocation: $price CVE');
+          debugPrint(
+            '🚗 Limite de veículos: ${maxVehicles == -1 ? "Ilimitado" : maxVehicles}',
+          );
+        }
+      } else {
+        // Fallback para preço único
+        price = double.tryParse('${eventData['price'] ?? 0}') ?? 0;
+      }
+
+      // 4. Verificar limite de veículos para a localização
+      if (maxVehicles > 0) {
+        final veiculosQuery =
+            await FirebaseFirestore.instance
+                .collection('veiculos')
+                .where('localizacao', isEqualTo: _selectedLocation)
+                .get();
+
+        final totalVeiculos = veiculosQuery.size;
+        debugPrint(
+          '📊 Veículos já registrados em $_selectedLocation: $totalVeiculos/$maxVehicles',
+        );
+
+        if (totalVeiculos >= maxVehicles) {
+          if (!mounted) return;
+          setState(
+            () =>
+                _error =
+                    'Limite de veículos atingido para $_selectedLocation. '
+                    'Apenas $maxVehicles veículos permitidos.',
+          );
+          return;
+        }
+      }
+
+      // 5. Criar conta Firebase Auth
       String uid;
       try {
         uid = await _firebaseService.signUp(
@@ -248,6 +409,7 @@ class _RegisterViewState extends State<RegisterView>
         return;
       }
 
+      // 6. Preparar dados
       final passageiros =
           passageirosControllers
               .map(
@@ -259,40 +421,23 @@ class _RegisterViewState extends State<RegisterView>
               )
               .toList();
 
-      final eventDoc =
-          await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
-      if (!mounted) return;
-      if (!eventDoc.exists) {
-        setState(() => _error = 'Evento selecionado inválido.');
-        return;
-      }
-      final Map<String, dynamic> data = eventDoc.data()!;
-      String? editionName;
-      final parentEditionRef = eventDoc.reference.parent.parent;
-      if (parentEditionRef != null) {
-        final editionSnap = await parentEditionRef.get();
-        if (editionSnap.exists) {
-          final editionData = editionSnap.data() as Map<String, dynamic>?;
-          editionName = (editionData?['name'] ?? editionData?['nome'])?.toString();
-        }
-      }
-      final nomeEvento =
-          (data['nome'] ?? data['name'] ?? editionName ?? 'Sem nome').toString();
-      final price = double.tryParse('${data['price'] ?? '0'}') ?? 0;
-
       final veiculoId =
           FirebaseFirestore.instance.collection('veiculos').doc().id;
       final equipaId =
           FirebaseFirestore.instance.collection('equipas').doc().id;
 
+      // 7. Criar documento do veículo
       final carData = {
         'ownerId': uid,
         'matricula': _licensePlateController.text.trim(),
         'modelo': _carModelController.text.trim(),
         'nome_equipa': _teamNameController.text.trim(),
+        'localizacao': _selectedLocation ?? '',
         'passageiros': passageiros,
         'pontuacao_total': 0,
         'checkpoints': {},
+        'eventoId': _selectedEventPath,
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       await FirebaseFirestore.instance
@@ -301,6 +446,7 @@ class _RegisterViewState extends State<RegisterView>
           .set(carData);
       debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
 
+      // 8. Criar documento da equipa
       final equipaData = {
         'nome': _teamNameController.text.trim(),
         'hino': '',
@@ -308,6 +454,7 @@ class _RegisterViewState extends State<RegisterView>
         'pontuacaoTotal': 0,
         'ranking': 0,
         'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+        'localizacao': _selectedLocation ?? '',
       };
 
       await FirebaseFirestore.instance
@@ -316,12 +463,14 @@ class _RegisterViewState extends State<RegisterView>
           .set(equipaData);
       debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
 
+      // 9. Criar documento do user
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'nome': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'telefone': _phoneController.text.trim(),
         'emergencia': _emergencyContactController.text.trim(),
         'tshirt': _selectedShirtSize ?? '',
+        'localizacao': _selectedLocation ?? '',
         'role': 'user',
         'eventoId': _selectedEventPath,
         'eventoNome': nomeEvento,
@@ -330,15 +479,26 @@ class _RegisterViewState extends State<RegisterView>
         'equipaId': equipaId,
         'checkpointsVisitados': [],
         'createdAt': FieldValue.serverTimestamp(),
+        // NOVOS CAMPOS DE PAGAMENTO
+        'paymentStatus': 'paid',
+        'transactionId': _transactionId ?? '',
+        'amountPaid': price,
+        'paymentDate': FieldValue.serverTimestamp(),
       });
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
 
+      // 10. Criar subcoleção events
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('events')
           .doc(_selectedEventId)
-          .set({'eventoId': _selectedEventId, 'checkpointsVisitados': []});
+          .set({
+            'eventoId': _selectedEventId,
+            'checkpointsVisitados': [],
+            'localizacao': _selectedLocation ?? '',
+            'preco': price,
+          });
       debugPrint('✅ Subcoleção events criada com sucesso');
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
@@ -348,6 +508,7 @@ class _RegisterViewState extends State<RegisterView>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('acceptedTerms', true);
 
+      // 11. Redirecionar para pagamento ou resumo
       if (!mounted) return;
       if (price > 0) {
         Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
@@ -432,14 +593,17 @@ class _RegisterViewState extends State<RegisterView>
           ),
           SizedBox(height: spacing),
           Row(
-            children: List.generate(4, (index) {
+            children: List.generate(5, (index) {
+              // MUDOU DE 4 PARA 5
               final isActive = index == _currentStep;
               final isCompleted = index < _currentStep;
               return Expanded(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   height: 4,
-                  margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
+                  margin: EdgeInsets.only(
+                    right: index < 4 ? 8 : 0,
+                  ), // MUDOU DE 3 PARA 4
                   decoration: BoxDecoration(
                     color:
                         isCompleted || isActive
@@ -476,6 +640,8 @@ class _RegisterViewState extends State<RegisterView>
         return 'Passageiros';
       case 3:
         return 'Evento e Confirmação';
+      case 4:
+        return 'Pagamento'; // NOVA ETAPA
       default:
         return '';
     }
@@ -822,6 +988,198 @@ class _RegisterViewState extends State<RegisterView>
                   isError:
                       _error != null && _carModelController.text.trim().isEmpty,
                 ),
+
+                // NOVO: Dropdown de Localização
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      _getResponsiveSpacing(context, 16),
+                    ),
+                    color: Colors.white,
+                    border: Border.all(
+                      color:
+                          (_error != null && _selectedLocation == null)
+                              ? shellRed
+                              : Colors.grey.shade200,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  margin: EdgeInsets.only(
+                    bottom: _getResponsiveSpacing(context, 16),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _getResponsiveSpacing(context, 16),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _selectedLocation,
+                    items:
+                        _locations.map((location) {
+                          return DropdownMenuItem(
+                            value: location,
+                            child: Text(
+                              location,
+                              style: TextStyle(
+                                fontSize: _getResponsiveFontSize(context, 15),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                    onChanged: (val) => setState(() => _selectedLocation = val),
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(
+                        Icons.location_on_outlined,
+                        color: shellOrange,
+                        size: _getResponsiveSpacing(context, 22),
+                      ),
+                      labelText: 'Localização *',
+                      hintText: 'Selecione a ilha',
+                      labelStyle: TextStyle(
+                        fontSize: _getResponsiveFontSize(context, 14),
+                        color:
+                            (_error != null && _selectedLocation == null)
+                                ? shellRed
+                                : Colors.grey.shade700,
+                      ),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+
+                // Após o dropdown de localização, adicione:
+                if (_selectedLocation != null)
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: _getLocationPriceInfo(_selectedLocation!),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox();
+
+                      final info = snapshot.data!;
+                      final price = info['price'] as double;
+                      final maxVehicles = info['maxVehicles'] as int;
+                      final currentVehicles = info['currentVehicles'] as int;
+
+                      return Container(
+                        margin: EdgeInsets.only(
+                          bottom: _getResponsiveSpacing(context, 16),
+                        ),
+                        padding: EdgeInsets.all(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              shellYellow.withValues(alpha: 0.2),
+                              shellOrange.withValues(alpha: 0.1),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            _getResponsiveSpacing(context, 12),
+                          ),
+                          border: Border.all(
+                            color: shellOrange.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: shellOrange,
+                                  size: _getResponsiveSpacing(context, 20),
+                                ),
+                                SizedBox(
+                                  width: _getResponsiveSpacing(context, 8),
+                                ),
+                                Text(
+                                  'Informações da Inscrição',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      16,
+                                    ),
+                                    color: shellOrange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(
+                              height: _getResponsiveSpacing(context, 12),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Valor:',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  '${price.toStringAsFixed(0)} CVE',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      16,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                    color: shellRed,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (maxVehicles > 0) ...[
+                              SizedBox(
+                                height: _getResponsiveSpacing(context, 8),
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Vagas disponíveis:',
+                                    style: TextStyle(
+                                      fontSize: _getResponsiveFontSize(
+                                        context,
+                                        14,
+                                      ),
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${maxVehicles - currentVehicles} de $maxVehicles',
+                                    style: TextStyle(
+                                      fontSize: _getResponsiveFontSize(
+                                        context,
+                                        14,
+                                      ),
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          (maxVehicles - currentVehicles) <= 2
+                                              ? shellRed
+                                              : Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
                 _inputCard(
                   context: context,
                   icon: Icons.group_outlined,
@@ -846,6 +1204,7 @@ class _RegisterViewState extends State<RegisterView>
                   onNext: () {
                     if (_licensePlateController.text.trim().isEmpty ||
                         _carModelController.text.trim().isEmpty ||
+                        _selectedLocation == null || // VALIDAÇÃO ADICIONADA
                         _teamNameController.text.trim().isEmpty) {
                       setState(
                         () => _error = 'Preencha todos os campos obrigatórios.',
@@ -1181,36 +1540,34 @@ class _RegisterViewState extends State<RegisterView>
 
   // Helper to fetch active events with edition names and labels.
   Future<List<Map<String, String>>> _fetchActiveEventOptions() async {
-    final qs = await FirebaseFirestore.instance
-        .collectionGroup('events')
-        .where('status', isEqualTo: true)
-        .get();
+    final qs =
+        await FirebaseFirestore.instance
+            .collectionGroup('events')
+            .where('status', isEqualTo: true)
+            .get();
 
     final List<Map<String, String>> results = [];
     for (final d in qs.docs) {
-      final eventPath = d.reference.path; // editions/{editionId}/events/{eventId}
-      final data = d.data() as Map<String, dynamic>;
-      final eventName = (data['name'] ?? data['nome'] ?? 'Evento sem nome').toString();
+      final eventPath =
+          d.reference.path; // editions/{editionId}/events/{eventId}
+      final data = d.data();
+      final eventName =
+          (data['name'] ?? data['nome'] ?? 'Evento sem nome').toString();
 
       String editionName = '';
       final parentEditionRef = d.reference.parent.parent;
       if (parentEditionRef != null) {
         final editionSnap = await parentEditionRef.get();
         if (editionSnap.exists) {
-          final ed = editionSnap.data() as Map<String, dynamic>?;
+          final ed = editionSnap.data();
           editionName = (ed?['name'] ?? ed?['nome'] ?? '').toString();
         }
       }
 
-      final label = (editionName.isNotEmpty)
-          ? '$editionName – $eventName'
-          : eventName;
+      final label =
+          (editionName.isNotEmpty) ? '$editionName – $eventName' : eventName;
 
-      results.add({
-        'path': eventPath,
-        'label': label,
-        'eventId': d.id,
-      });
+      results.add({'path': eventPath, 'label': label, 'eventId': d.id});
     }
     // Optional: sort by label for consistency
     results.sort((a, b) => a['label']!.compareTo(b['label']!));
@@ -1238,41 +1595,45 @@ class _RegisterViewState extends State<RegisterView>
                   ),
                 ),
                 SizedBox(height: spacing),
-                FutureBuilder<List<Map<String, String>>>(
-                  future: _fetchActiveEventOptions(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final options = snapshot.data!;
-                    if (options.isEmpty) {
-                      return Container(
-                        padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(_getResponsiveSpacing(context, 16)),
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Text(
-                          'Nenhum evento ativo no momento.',
-                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
-                        ),
-                      );
-                    }
-
-                    final items = options.map((opt) {
-                      return DropdownMenuItem<String>(
-                        value: opt['path'],
-                        child: Text(
-                          opt['label'] ?? '',
-                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 15)),
-                        ),
-                      );
-                    }).toList();
-
+                // NOVO: renderizar eventos sem FutureBuilder
+                if (_loadingEvents)
+                  const Center(child: CircularProgressIndicator())
+                else if (_eventOptions.isEmpty)
+                  Container(
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 16),
+                      ),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Text(
+                      'Nenhum evento ativo no momento.',
+                      style: TextStyle(
+                        fontSize: _getResponsiveFontSize(context, 14),
+                      ),
+                    ),
+                  )
+                else ...[
+                  () {
+                    final items =
+                        _eventOptions.map((opt) {
+                          return DropdownMenuItem<String>(
+                            value: opt['path'],
+                            child: Text(
+                              opt['label'] ?? '',
+                              style: TextStyle(
+                                fontSize: _getResponsiveFontSize(context, 15),
+                              ),
+                            ),
+                          );
+                        }).toList();
                     return Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(_getResponsiveSpacing(context, 16)),
+                        borderRadius: BorderRadius.circular(
+                          _getResponsiveSpacing(context, 16),
+                        ),
                         color: Colors.white,
                         border: Border.all(color: Colors.grey.shade200),
                         boxShadow: [
@@ -1287,18 +1648,23 @@ class _RegisterViewState extends State<RegisterView>
                         horizontal: _getResponsiveSpacing(context, 16),
                       ),
                       child: DropdownButtonFormField<String>(
-                        key: ValueKey('event_${_selectedEventPath ?? 'null'}_${items.length}'),
+                        key: ValueKey(
+                          'event_${_selectedEventPath ?? 'null'}_${items.length}',
+                        ),
                         isExpanded: true,
                         initialValue: _selectedEventPath,
                         hint: Text(
                           'Escolha um evento',
-                          style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 14),
+                          ),
                         ),
                         items: items,
-                        onChanged: (val) => setState(() {
-                          _selectedEventPath = val;
-                          _selectedEventId = val?.split('/').last;
-                        }),
+                        onChanged:
+                            (val) => setState(() {
+                              _selectedEventPath = val;
+                              _selectedEventId = val?.split('/').last;
+                            }),
                         decoration: InputDecoration(
                           prefixIcon: Icon(
                             Icons.event_outlined,
@@ -1306,12 +1672,14 @@ class _RegisterViewState extends State<RegisterView>
                           ),
                           border: InputBorder.none,
                           labelText: 'Evento *',
-                          labelStyle: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+                          labelStyle: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 14),
+                          ),
                         ),
                       ),
                     );
-                  },
-                ),
+                  }(),
+                ],
                 SizedBox(height: _getResponsiveSpacing(context, 24)),
                 Container(
                   decoration: BoxDecoration(
@@ -1392,9 +1760,14 @@ class _RegisterViewState extends State<RegisterView>
                       );
                       return;
                     }
-                    _register();
+                    // MUDANÇA: Ir para pagamento ao invés de registrar
+                    setState(() {
+                      _error = null;
+                      _currentStep = 4;
+                    });
+                    _pageController.jumpToPage(4);
                   },
-                  isLastStep: true,
+                  isLastStep: false, // MUDOU DE true PARA false
                 ),
               ],
             ),
@@ -1487,6 +1860,561 @@ class _RegisterViewState extends State<RegisterView>
     );
   }
 
+  Widget _buildStepPagamento() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = _getResponsivePadding(context);
+        final spacing = _getResponsiveSpacing(context, 20);
+
+        return FutureBuilder<Map<String, dynamic>>(
+          future: _selectedLocation != null
+              ? _getLocationPriceInfo(_selectedLocation!)
+              : Future.value({'price': 0.0, 'maxVehicles': -1, 'currentVehicles': 0}),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final paymentInfo = snapshot.data!;
+            final price = paymentInfo['price'] as double;
+            final location = _selectedLocation ?? '';
+
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Cabeçalho
+                    Container(
+                      padding: EdgeInsets.all(
+                        _getResponsiveSpacing(context, 20),
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [shellYellow, shellOrange],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: shellOrange.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.payment,
+                            size: _getResponsiveSpacing(context, 48),
+                            color: Colors.white,
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 12)),
+                          Text(
+                            'Pagamento da Inscrição',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 24),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
+                          Text(
+                            'Complete o pagamento para finalizar',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 14),
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: spacing),
+
+                    // Resumo do pedido
+                    Container(
+                      padding: EdgeInsets.all(
+                        _getResponsiveSpacing(context, 20),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Resumo do Pedido',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 18),
+                              fontWeight: FontWeight.bold,
+                              color: shellRed,
+                            ),
+                          ),
+                          Divider(height: spacing * 1.5),
+                          _buildSummaryRow(
+                            context,
+                            'Nome',
+                            _nameController.text.trim(),
+                          ),
+                          _buildSummaryRow(
+                            context,
+                            'Equipa',
+                            _teamNameController.text.trim(),
+                          ),
+                          _buildSummaryRow(
+                            context,
+                            'Veículo',
+                            '${_carModelController.text.trim()} (${_licensePlateController.text.trim()})',
+                          ),
+                          _buildSummaryRow(context, 'Localização', location),
+                          _buildSummaryRow(
+                            context,
+                            'Passageiros',
+                            '${passageirosControllers.length} pessoa(s)',
+                          ),
+                          Divider(height: spacing * 1.5),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'TOTAL',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 18),
+                                  fontWeight: FontWeight.bold,
+                                  color: shellRed,
+                                ),
+                              ),
+                              Text(
+                                '${price.toStringAsFixed(0)} CVE',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 24),
+                                  fontWeight: FontWeight.bold,
+                                  color: shellRed,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: spacing),
+
+                    // Opções de pagamento
+                    Container(
+                      padding: EdgeInsets.all(
+                        _getResponsiveSpacing(context, 20),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.credit_card,
+                                color: shellOrange,
+                                size: _getResponsiveSpacing(context, 24),
+                              ),
+                              SizedBox(
+                                width: _getResponsiveSpacing(context, 12),
+                              ),
+                              Text(
+                                'Método de Pagamento',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 16),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: _getResponsiveSpacing(context, 16)),
+                          Container(
+                            padding: EdgeInsets.all(
+                              _getResponsiveSpacing(context, 16),
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  shellYellow.withValues(alpha: 0.1),
+                                  shellOrange.withValues(alpha: 0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                _getResponsiveSpacing(context, 12),
+                              ),
+                              border: Border.all(
+                                color: shellOrange.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/pagali_logo.png',
+                                  height: _getResponsiveSpacing(context, 40),
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.payment,
+                                      size: _getResponsiveSpacing(context, 40),
+                                      color: shellOrange,
+                                    );
+                                  },
+                                ),
+                                SizedBox(
+                                  width: _getResponsiveSpacing(context, 16),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pagali',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            16,
+                                          ),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Pagamento seguro via Pagali',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            12,
+                                          ),
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: _getResponsiveSpacing(context, 24),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                    // Status do pagamento
+                    if (_paymentCompleted)
+                      Container(
+                        padding: EdgeInsets.all(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(
+                            _getResponsiveSpacing(context, 12),
+                          ),
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: _getResponsiveSpacing(context, 24),
+                            ),
+                            SizedBox(width: _getResponsiveSpacing(context, 12)),
+                            Expanded(
+                              child: Text(
+                                'Pagamento confirmado!',
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                    // Botões de navegação
+                    _buildNavigationButtons(
+                      context: context,
+                      showBack: true,
+                      onBack: () {
+                        setState(() {
+                          _error = null;
+                          _currentStep = 3;
+                        });
+                        _pageController.jumpToPage(3);
+                      },
+                      onNext: () => _processPagaliPayment(price),
+                      isLastStep: true,
+                    ),
+
+                    if (_error != null) ...[
+                      SizedBox(height: _getResponsiveSpacing(context, 16)),
+                      Container(
+                        padding: EdgeInsets.all(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        decoration: BoxDecoration(
+                          color: shellRed.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(
+                            _getResponsiveSpacing(context, 12),
+                          ),
+                          border: Border.all(color: shellRed),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: shellRed,
+                              size: _getResponsiveSpacing(context, 24),
+                            ),
+                            SizedBox(width: _getResponsiveSpacing(context, 12)),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: shellRed,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: _getResponsiveSpacing(context, 8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: _getResponsiveFontSize(context, 14),
+              color: Colors.grey.shade600,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: _getResponsiveFontSize(context, 14),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> _processPagaliPayment(double amount) async {
+    if (_paymentCompleted) {
+      // Se já pagou, registrar diretamente
+      _register();
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      // TODO: Use the real Pagali API URL when integrating:
+      // const pagaliUrl = 'https://api.pagali.cv/v1/payment';
+
+      final paymentData = {
+        'amount': amount,
+        'currency': 'CVE',
+        'description':
+            'Inscrição Shell ao Km - ${_teamNameController.text.trim()}',
+        'customer': {
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'phone': _phoneController.text.trim(),
+        },
+        'metadata': {
+          'event': _selectedEventId,
+          'location': _selectedLocation,
+          'team': _teamNameController.text.trim(),
+        },
+      };
+      debugPrint('Pagali payload: $paymentData');
+
+      // Simular chamada à API do Pagali
+      // SUBSTITUA ESTE BLOCO PELA INTEGRAÇÃO REAL COM PAGALI
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Simular sucesso
+      final mockTransactionId = 'TXN${DateTime.now().millisecondsSinceEpoch}';
+
+      if (!mounted) return;
+      setState(() {
+        _paymentCompleted = true;
+        _transactionId = mockTransactionId;
+      });
+
+      // Mostrar diálogo de confirmação
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  _getResponsiveSpacing(context, 16),
+                ),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Pagamento Confirmado',
+                      style: TextStyle(
+                        fontSize: _getResponsiveFontSize(context, 18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'O seu pagamento foi processado com sucesso!',
+                    style: TextStyle(
+                      fontSize: _getResponsiveFontSize(context, 14),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt, color: shellOrange, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ID da Transação',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                mockTransactionId,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _register(); // Registrar após confirmação
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: shellOrange,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Continuar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+      );
+    } catch (e) {
+      debugPrint('Erro no pagamento Pagali: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = 'Erro ao processar pagamento. Tente novamente.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1504,6 +2432,7 @@ class _RegisterViewState extends State<RegisterView>
                   _buildStepCarro(),
                   _buildStepPassageiros(),
                   _buildStepEvento(),
+                  _buildStepPagamento(), // NOVA ETAPA
                 ],
               ),
             ),

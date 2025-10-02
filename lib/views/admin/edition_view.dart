@@ -41,21 +41,21 @@ class _EditionViewState extends State<EditionView> {
     }
     if (dataInicio.isAfter(dataFim)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data de início deve ser antes da data de fim')),
+        const SnackBar(
+          content: Text('Data de início deve ser antes da data de fim'),
+        ),
       );
       return;
     }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('editions')
-          .add({
-            'nome': nome,
-            'descricao': descricao,
-            'dataInicio': dataInicio,
-            'dataFim': dataFim,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      await FirebaseFirestore.instance.collection('editions').add({
+        'nome': nome,
+        'descricao': descricao,
+        'dataInicio': dataInicio,
+        'dataFim': dataFim,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -77,7 +77,7 @@ class _EditionViewState extends State<EditionView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white, // fundo branco
       body: Column(
         children: [
           Expanded(
@@ -350,7 +350,9 @@ class _EditionViewState extends State<EditionView> {
                                                   child: Column(
                                                     children: [
                                                       Container(
-                                                        color: AppColors.primary,
+                                                        color: Color(
+                                                          0xFFED8A00,
+                                                        ), // Shell Sunrise
                                                         padding:
                                                             const EdgeInsets.symmetric(
                                                               horizontal: 16,
@@ -363,20 +365,21 @@ class _EditionViewState extends State<EditionView> {
                                                           children: [
                                                             Text(
                                                               'Eventos: ${data['nome'] ?? doc.id}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                    color:
-                                                                        Colors
-                                                                            .white,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                  ),
+                                                              style: const TextStyle(
+                                                                color:
+                                                                    Colors
+                                                                        .white,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
                                                             ),
                                                             IconButton(
                                                               icon: const Icon(
                                                                 Icons.close,
-                                                                color: Colors.white,
+                                                                color:
+                                                                    Colors
+                                                                        .white,
                                                               ),
                                                               onPressed:
                                                                   () =>
@@ -406,28 +409,56 @@ class _EditionViewState extends State<EditionView> {
                                         },
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
                                         tooltip: 'Eliminar Edição',
                                         onPressed: () async {
-                                          final confirm = await showDialog<bool>(
+                                          final confirm = await showDialog<
+                                            bool
+                                          >(
                                             context: context,
-                                            builder: (ctx) => AlertDialog(
-                                              title: const Text('Confirmar exclusão'),
-                                              content: const Text('Deseja mesmo eliminar esta edição? Esta ação não pode ser desfeita.'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(ctx, false),
-                                                  child: const Text('Cancelar'),
+                                            builder:
+                                                (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    'Confirmar exclusão',
+                                                  ),
+                                                  content: const Text(
+                                                    'Deseja mesmo eliminar esta edição? Esta ação não pode ser desfeita.',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            ctx,
+                                                            false,
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancelar',
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            ctx,
+                                                            true,
+                                                          ),
+                                                      child: const Text(
+                                                        'Eliminar',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(ctx, true),
-                                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                                                ),
-                                              ],
-                                            ),
                                           );
                                           if (confirm == true) {
-                                            await FirebaseFirestore.instance.collection('editions').doc(doc.id).delete();
+                                            await FirebaseFirestore.instance
+                                                .collection('editions')
+                                                .doc(doc.id)
+                                                .delete();
                                           }
                                         },
                                       ),
