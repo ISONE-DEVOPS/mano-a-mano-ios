@@ -14,9 +14,19 @@ class EventsView extends StatefulWidget {
 }
 
 class _EventsViewState extends State<EventsView> {
+  // Helper to normalize and extract price as double
+  double _extractPrice(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    if (v is Map) return _extractPrice(v['price']);
+    return 0;
+  }
+
   final _nameController = TextEditingController();
   final _localController = TextEditingController();
-  final _priceController = TextEditingController();
+  final _priceSantiagoController = TextEditingController();
+  final _priceSaoVicenteController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _entidadeController = TextEditingController();
   final _searchController = TextEditingController();
@@ -29,7 +39,8 @@ class _EventsViewState extends State<EventsView> {
   void dispose() {
     _nameController.dispose();
     _localController.dispose();
-    _priceController.dispose();
+    _priceSantiagoController.dispose();
+    _priceSaoVicenteController.dispose();
     _descricaoController.dispose();
     _entidadeController.dispose();
     _searchController.dispose();
@@ -108,6 +119,66 @@ class _EventsViewState extends State<EventsView> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.red.shade400, width: 2),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPricesByLocationSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_city, size: 20, color: AppColors.secondary),
+              const SizedBox(width: 8),
+              Text(
+                'Preços por Localização',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _priceSantiagoController,
+                  label: 'Preço Santiago',
+                  hint: 'Ex: 18000',
+                  icon: Icons.attach_money,
+                  keyboardType: TextInputType.number,
+                  validator:
+                      (v) =>
+                          v == null || v.isEmpty ? 'Campo obrigatório' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _priceSaoVicenteController,
+                  label: 'Preço São Vicente',
+                  hint: 'Ex: 15000',
+                  icon: Icons.attach_money,
+                  keyboardType: TextInputType.number,
+                  validator:
+                      (v) =>
+                          v == null || v.isEmpty ? 'Campo obrigatório' : null,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -348,9 +419,8 @@ class _EventsViewState extends State<EventsView> {
                             : 1,
                     crossAxisSpacing: 20,
                     mainAxisSpacing: 20,
-                    // Fix overflow by giving cards a fixed vertical extent
                     mainAxisExtent:
-                        MediaQuery.of(context).size.width > 900 ? 300 : 360,
+                        MediaQuery.of(context).size.width > 900 ? 380 : 460,
                   ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
@@ -358,6 +428,10 @@ class _EventsViewState extends State<EventsView> {
                     final data = doc.data() as Map<String, dynamic>;
                     final dataEvento = (data['data'] as Timestamp?)?.toDate();
                     final isAtivo = data['status'] == true;
+
+                    // Obter preços por localização
+                    final pricesByLocation =
+                        data['pricesByLocation'] as Map<String, dynamic>?;
 
                     return Container(
                       decoration: BoxDecoration(
@@ -488,135 +562,189 @@ class _EventsViewState extends State<EventsView> {
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (data['descricao'] != null &&
-                                      data['descricao'] != '') ...[
-                                    Text(
-                                      data['descricao'],
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade600,
-                                        height: 1.5,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_on_outlined,
-                                        size: 16,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          data['local'] ??
-                                              'Local não informado',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.business_outlined,
-                                        size: 16,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          data['entidade'] ?? 'Sem entidade',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.attach_money,
-                                        size: 16,
-                                        color: AppColors.secondary,
-                                      ),
-                                      const SizedBox(width: 4),
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (data['descricao'] != null &&
+                                        data['descricao'] != '') ...[
                                       Text(
-                                        data['price'] != null
-                                            ? '${NumberFormat('#,##0.##', 'pt_CV').format(data['price'])} ECV'
-                                            : 'Gratuito',
+                                        data['descricao'],
                                         style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.secondary,
+                                          fontSize: 13,
+                                          color: Colors.grey.shade600,
+                                          height: 1.5,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.location_on_outlined,
+                                          size: 16,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            data['local'] ??
+                                                'Local não informado',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.business_outlined,
+                                          size: 16,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            data['entidade'] ?? 'Sem entidade',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // Exibir preços por localização
+                                    if (pricesByLocation != null) ...[
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.secondary.withValues(
+                                            alpha: 0.05,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.secondary
+                                                .withValues(alpha: 0.2),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            for (final entry
+                                                in (pricesByLocation.entries
+                                                    .toList()
+                                                  ..sort(
+                                                    (a, b) => a.key
+                                                        .toString()
+                                                        .compareTo(
+                                                          b.key.toString(),
+                                                        ),
+                                                  )))
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 6,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.location_city,
+                                                      size: 14,
+                                                      color:
+                                                          AppColors.secondary,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      '${entry.key}: ${NumberFormat('#,##0', 'pt_CV').format(_extractPrice(entry.value))} ECV',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color:
+                                                            AppColors.secondary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                      const Spacer(),
-                                      StreamBuilder<QuerySnapshot>(
-                                        stream:
-                                            FirebaseFirestore.instance
-                                                .collection('editions')
-                                                .doc(widget.edicaoId)
-                                                .collection('events')
-                                                .doc(doc.id)
-                                                .collection('checkpoints')
-                                                .snapshots(),
-                                        builder: (context, cpSnapshot) {
-                                          final count =
-                                              cpSnapshot.data?.docs.length ?? 0;
-                                          return Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.secondary
-                                                  .withValues(alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.location_on,
-                                                  size: 14,
-                                                  color: AppColors.secondary,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '$count',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
+                                    ],
+
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Spacer(),
+                                        StreamBuilder<QuerySnapshot>(
+                                          stream:
+                                              FirebaseFirestore.instance
+                                                  .collection('editions')
+                                                  .doc(widget.edicaoId)
+                                                  .collection('events')
+                                                  .doc(doc.id)
+                                                  .collection('checkpoints')
+                                                  .snapshots(),
+                                          builder: (context, cpSnapshot) {
+                                            final count =
+                                                cpSnapshot.data?.docs.length ??
+                                                0;
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.secondary
+                                                    .withValues(alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.location_on,
+                                                    size: 14,
                                                     color: AppColors.secondary,
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '$count',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          AppColors.secondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -863,19 +991,11 @@ class _EventsViewState extends State<EventsView> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            _buildTextField(
-                              controller: _priceController,
-                              label: 'Preço (ECV)',
-                              hint: 'Ex: 0.00',
-                              icon: Icons.attach_money,
-                              keyboardType: TextInputType.number,
-                              validator:
-                                  (v) =>
-                                      v == null || v.isEmpty
-                                          ? 'Campo obrigatório'
-                                          : null,
-                            ),
+                            const SizedBox(height: 20),
+
+                            // Seção de preços por localização
+                            _buildPricesByLocationSection(),
+
                             const SizedBox(height: 20),
                             Container(
                               padding: const EdgeInsets.all(16),
@@ -1054,11 +1174,20 @@ class _EventsViewState extends State<EventsView> {
                                   .add({
                                     'nome': _nameController.text.trim(),
                                     'local': _localController.text.trim(),
-                                    'price':
-                                        double.tryParse(
-                                          _priceController.text.trim(),
-                                        ) ??
-                                        0,
+                                    'pricesByLocation': {
+                                      'Santiago':
+                                          double.tryParse(
+                                            _priceSantiagoController.text
+                                                .trim(),
+                                          ) ??
+                                          0,
+                                      'São Vicente':
+                                          double.tryParse(
+                                            _priceSaoVicenteController.text
+                                                .trim(),
+                                          ) ??
+                                          0,
+                                    },
                                     'data': Timestamp.fromDate(_selectedDate!),
                                     'status': _status,
                                     'descricao':
@@ -1071,7 +1200,8 @@ class _EventsViewState extends State<EventsView> {
 
                               _nameController.clear();
                               _localController.clear();
-                              _priceController.clear();
+                              _priceSantiagoController.clear();
+                              _priceSaoVicenteController.clear();
                               _descricaoController.clear();
                               _entidadeController.clear();
                               setState(() => _selectedDate = null);
@@ -1127,9 +1257,16 @@ class _EventsViewState extends State<EventsView> {
 
     final nameController = TextEditingController(text: data['nome'] ?? '');
     final localController = TextEditingController(text: data['local'] ?? '');
-    final priceController = TextEditingController(
-      text: '${data['price'] ?? ''}',
+
+    // Carregar preços por localização
+    final pricesByLocation = data['pricesByLocation'] as Map<String, dynamic>?;
+    final priceSantiagoController = TextEditingController(
+      text: '${pricesByLocation?['Santiago'] ?? ''}',
     );
+    final priceSaoVicenteController = TextEditingController(
+      text: '${pricesByLocation?['São Vicente'] ?? ''}',
+    );
+
     final descricaoController = TextEditingController(
       text: data['descricao'] ?? '',
     );
@@ -1208,7 +1345,8 @@ class _EventsViewState extends State<EventsView> {
                                   Navigator.pop(context);
                                   nameController.dispose();
                                   localController.dispose();
-                                  priceController.dispose();
+                                  priceSantiagoController.dispose();
+                                  priceSaoVicenteController.dispose();
                                   descricaoController.dispose();
                                   entidadeController.dispose();
                                 },
@@ -1282,19 +1420,82 @@ class _EventsViewState extends State<EventsView> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 16),
-                                  _buildTextField(
-                                    controller: priceController,
-                                    label: 'Preço (ECV)',
-                                    hint: 'Ex: 0.00',
-                                    icon: Icons.attach_money,
-                                    keyboardType: TextInputType.number,
-                                    validator:
-                                        (v) =>
-                                            v == null || v.isEmpty
-                                                ? 'Campo obrigatório'
-                                                : null,
+                                  const SizedBox(height: 20),
+
+                                  // Seção de preços por localização
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.location_city,
+                                              size: 20,
+                                              color: Colors.orange.shade600,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Preços por Localização',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildTextField(
+                                                controller:
+                                                    priceSantiagoController,
+                                                label: 'Preço Santiago',
+                                                hint: 'Ex: 18000',
+                                                icon: Icons.attach_money,
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                validator:
+                                                    (v) =>
+                                                        v == null || v.isEmpty
+                                                            ? 'Campo obrigatório'
+                                                            : null,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: _buildTextField(
+                                                controller:
+                                                    priceSaoVicenteController,
+                                                label: 'Preço São Vicente',
+                                                hint: 'Ex: 15000',
+                                                icon: Icons.attach_money,
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                validator:
+                                                    (v) =>
+                                                        v == null || v.isEmpty
+                                                            ? 'Campo obrigatório'
+                                                            : null,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
+
                                   const SizedBox(height: 20),
                                   Container(
                                     padding: const EdgeInsets.all(16),
@@ -1469,7 +1670,8 @@ class _EventsViewState extends State<EventsView> {
                                   Navigator.pop(context);
                                   nameController.dispose();
                                   localController.dispose();
-                                  priceController.dispose();
+                                  priceSantiagoController.dispose();
+                                  priceSaoVicenteController.dispose();
                                   descricaoController.dispose();
                                   entidadeController.dispose();
                                 },
@@ -1498,11 +1700,20 @@ class _EventsViewState extends State<EventsView> {
                                     await doc.reference.update({
                                       'nome': nameController.text.trim(),
                                       'local': localController.text.trim(),
-                                      'price':
-                                          double.tryParse(
-                                            priceController.text.trim(),
-                                          ) ??
-                                          0,
+                                      'pricesByLocation': {
+                                        'Santiago':
+                                            double.tryParse(
+                                              priceSantiagoController.text
+                                                  .trim(),
+                                            ) ??
+                                            0,
+                                        'São Vicente':
+                                            double.tryParse(
+                                              priceSaoVicenteController.text
+                                                  .trim(),
+                                            ) ??
+                                            0,
+                                      },
                                       'data': Timestamp.fromDate(selectedDate!),
                                       'status': status,
                                       'descricao':
@@ -1516,7 +1727,8 @@ class _EventsViewState extends State<EventsView> {
 
                                     nameController.dispose();
                                     localController.dispose();
-                                    priceController.dispose();
+                                    priceSantiagoController.dispose();
+                                    priceSaoVicenteController.dispose();
                                     descricaoController.dispose();
                                     entidadeController.dispose();
 
