@@ -2313,7 +2313,7 @@ class _RegisterViewState extends State<RegisterView>
                             SizedBox(width: _getResponsiveSpacing(context, 12)),
                             Expanded(
                               child: Text(
-                                'Pagamento confirmado!',
+                                'Inscrição confirmado, obrigado pela sua inscrição. Agora pode aceder o https://pagali.cv para fazer o pagamento!',
                                 style: TextStyle(
                                   color: Colors.green.shade700,
                                   fontWeight: FontWeight.bold,
@@ -2470,7 +2470,7 @@ class _RegisterViewState extends State<RegisterView>
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pagamento Confirmado',
+                      'Inscrição Confirmado',
                       style: TextStyle(
                         fontSize: _getResponsiveFontSize(context, 18),
                       ),
@@ -2483,7 +2483,7 @@ class _RegisterViewState extends State<RegisterView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'O seu pagamento foi processado com sucesso!',
+                    'A sua inscriçãõ foi processado com sucesso!',
                     style: TextStyle(
                       fontSize: _getResponsiveFontSize(context, 14),
                     ),
