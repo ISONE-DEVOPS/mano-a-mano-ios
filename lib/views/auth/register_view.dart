@@ -147,17 +147,36 @@ class _RegisterViewState extends State<RegisterView>
       double price = 0;
       int maxVehicles = -1;
 
+      // Suporta dois formatos: (A) { "Santiago": 18000 }, (B) { "Santiago": { "price": 18000, "maxVehicles": 50 } }
       if (eventData.containsKey('pricesByLocation')) {
-        final pricesByLocation =
-            eventData['pricesByLocation'] as Map<String, dynamic>?;
+        final raw = eventData['pricesByLocation'];
+        Map<String, dynamic>? pricesByLocation;
+        if (raw is Map) {
+          pricesByLocation = Map<String, dynamic>.from(raw);
+        }
 
         if (pricesByLocation != null &&
             pricesByLocation.containsKey(location)) {
-          final locationData =
-              pricesByLocation[location] as Map<String, dynamic>;
-          price = double.tryParse('${locationData['price'] ?? 0}') ?? 0;
-          maxVehicles =
-              int.tryParse('${locationData['maxVehicles'] ?? -1}') ?? -1;
+          final val = pricesByLocation[location];
+          if (val is num) {
+            price = val.toDouble();
+          } else if (val is String) {
+            price = double.tryParse(val) ?? 0;
+          } else if (val is Map) {
+            final m = Map<String, dynamic>.from(val);
+            final p = m['price'];
+            final mv = m['maxVehicles'];
+            if (p is num) {
+              price = p.toDouble();
+            } else {
+              price = double.tryParse('${p ?? 0}') ?? 0;
+            }
+            if (mv is num) {
+              maxVehicles = mv.toInt();
+            } else {
+              maxVehicles = int.tryParse('${mv ?? -1}') ?? -1;
+            }
+          }
         }
       }
 
@@ -192,7 +211,7 @@ class _RegisterViewState extends State<RegisterView>
 
     setState(() => _loadingEvents = true);
 
-    try {
+    Future<List<Map<String, String>>> viaCollectionGroup() async {
       final qs =
           await FirebaseFirestore.instance
               .collectionGroup('events')
@@ -200,7 +219,6 @@ class _RegisterViewState extends State<RegisterView>
               .get();
 
       final List<Map<String, String>> results = [];
-
       for (final d in qs.docs) {
         final eventPath = d.reference.path;
         final data = d.data();
@@ -219,33 +237,100 @@ class _RegisterViewState extends State<RegisterView>
 
         final label =
             (editionName.isNotEmpty) ? '$editionName – $eventName' : eventName;
-
         results.add({'path': eventPath, 'label': label, 'eventId': d.id});
+      }
+      return results;
+    }
+
+    Future<List<Map<String, String>>> viaPerEdition() async {
+      final List<Map<String, String>> results = [];
+      final editions =
+          await FirebaseFirestore.instance.collection('editions').get();
+      for (final ed in editions.docs) {
+        final edData = ed.data();
+        final editionName = (edData['name'] ?? edData['nome'] ?? '').toString();
+        final eventsSnap =
+            await ed.reference
+                .collection('events')
+                .where('status', isEqualTo: true)
+                .get();
+        for (final ev in eventsSnap.docs) {
+          final evData = ev.data();
+          final eventName =
+              (evData['name'] ?? evData['nome'] ?? 'Evento sem nome')
+                  .toString();
+          final label =
+              (editionName.isNotEmpty)
+                  ? '$editionName – $eventName'
+                  : eventName;
+          results.add({
+            'path': ev.reference.path,
+            'label': label,
+            'eventId': ev.id,
+          });
+        }
+      }
+      return results;
+    }
+
+    try {
+      // 1) Tenta pela collectionGroup (recomendada)
+      List<Map<String, String>> results = await viaCollectionGroup();
+
+      // 2) Se vazio ou qualquer problema inesperado, tenta fallback por edição
+      if (results.isEmpty) {
+        try {
+          debugPrint(
+            'ℹ️ Nenhum evento via collectionGroup. Tentando fallback por edição…',
+          );
+          results = await viaPerEdition();
+        } catch (e) {
+          // se o fallback falhar, relança para ser tratado no catch externo
+          rethrow;
+        }
       }
 
       results.sort((a, b) => a['label']!.compareTo(b['label']!));
 
       if (!mounted) return;
-
       setState(() {
         _eventOptions = results;
         _loadingEvents = false;
-
         if (results.length == 1) {
           _selectedEventPath = results.first['path'];
           _selectedEventId = results.first['eventId'];
         }
       });
-
       debugPrint('✅ ${results.length} evento(s) ativo(s) carregado(s)');
     } catch (e) {
-      debugPrint('❌ Erro ao carregar eventos: $e');
-      if (!mounted) return;
-      setState(() {
-        _eventOptions = [];
-        _loadingEvents = false;
-        _error = 'Erro ao carregar eventos disponíveis';
-      });
+      // 3) Última tentativa: se o erro original foi na collectionGroup (ex.: index/permissions),
+      // tenta explicitamente o fallback antes de exibir erro ao utilizador.
+      try {
+        final results = await viaPerEdition();
+        results.sort((a, b) => a['label']!.compareTo(b['label']!));
+        if (!mounted) return;
+        setState(() {
+          _eventOptions = results;
+          _loadingEvents = false;
+          if (results.length == 1) {
+            _selectedEventPath = results.first['path'];
+            _selectedEventId = results.first['eventId'];
+          }
+        });
+        debugPrint(
+          '✅ Fallback por edição funcionou: ${results.length} evento(s) carregado(s)',
+        );
+      } catch (fallbackError) {
+        debugPrint(
+          '❌ Erro ao carregar eventos (group e fallback): $e | fallback: $fallbackError',
+        );
+        if (!mounted) return;
+        setState(() {
+          _eventOptions = [];
+          _loadingEvents = false;
+          _error = 'Erro ao carregar eventos disponíveis';
+        });
+      }
     }
   }
 

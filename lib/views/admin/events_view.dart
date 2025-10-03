@@ -58,6 +58,12 @@ class _EventsViewState extends State<EventsView> {
     );
   }
 
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v.replaceAll(',', '.')) ?? 0.0;
+    return 0.0;
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -340,7 +346,7 @@ class _EventsViewState extends State<EventsView> {
                 final width = MediaQuery.of(context).size.width;
                 final cross = width > 1400 ? 3 : (width > 900 ? 2 : 1);
                 final childAspect =
-                    width > 1400 ? 1.3 : (width > 900 ? 1.18 : 1.02);
+                    width > 1400 ? 1.28 : (width > 900 ? 1.12 : 0.9);
                 return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -356,8 +362,8 @@ class _EventsViewState extends State<EventsView> {
                     final data = doc.data() as Map<String, dynamic>;
                     final dataEvento = (data['data'] as Timestamp?)?.toDate();
                     final isAtivo = data['status'] == true;
-
                     return Container(
+                      constraints: const BoxConstraints(minHeight: 260),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -556,16 +562,173 @@ class _EventsViewState extends State<EventsView> {
                                         color: AppColors.secondary,
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        data['price'] != null
-                                            ? '${NumberFormat('#,##0.##', 'pt_CV').format(data['price'])} ECV'
-                                            : 'Gratuito',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
+                                      // NEW safer per-island pricing rendering
+                                      // See instructions for details
+                                      // (replaces old conditional block)
+                                      ...(() {
+                                        final pblRaw = data['pricesByLocation'];
+                                        if (pblRaw is Map &&
+                                            pblRaw.isNotEmpty) {
+                                          return [
+                                            Builder(
+                                              builder: (_) {
+                                                final Map<String, dynamic>
+                                                pblMap =
+                                                    Map<String, dynamic>.from(
+                                                      pblRaw,
+                                                    );
+                                                // pick first valid entry that is a Map with a 'price'
+                                                MapEntry<String, dynamic>?
+                                                firstEntry = pblMap.entries
+                                                    .firstWhere(
+                                                      (e) =>
+                                                          e.value is Map &&
+                                                          (e.value as Map)
+                                                              .containsKey(
+                                                                'price',
+                                                              ),
+                                                      orElse:
+                                                          () =>
+                                                              pblMap
+                                                                  .entries
+                                                                  .first,
+                                                    );
+                                                final String firstKey =
+                                                    firstEntry.key.toString();
+                                                final dynamic firstVal =
+                                                    firstEntry.value;
+                                                final Map<String, dynamic>
+                                                first =
+                                                    firstVal is Map
+                                                        ? Map<
+                                                          String,
+                                                          dynamic
+                                                        >.from(firstVal)
+                                                        : <String, dynamic>{};
+                                                final double firstPrice =
+                                                    _toDouble(first['price']);
+                                                final String firstLabel =
+                                                    '$firstKey: ${NumberFormat('#,##0', 'pt_CV').format(firstPrice)} ECV';
+                                                return Text(
+                                                  firstLabel,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.secondary,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            const SizedBox(width: 6),
+                                            PopupMenuButton<String>(
+                                              tooltip: 'Preços por ilha',
+                                              itemBuilder: (ctx) {
+                                                final Map<String, dynamic>
+                                                pblMap =
+                                                    Map<String, dynamic>.from(
+                                                      pblRaw,
+                                                    );
+                                                return pblMap.entries.map((e) {
+                                                  final String ilha =
+                                                      e.key.toString();
+                                                  final dynamic val = e.value;
+                                                  final Map<String, dynamic> m =
+                                                      val is Map
+                                                          ? Map<
+                                                            String,
+                                                            dynamic
+                                                          >.from(val)
+                                                          : <String, dynamic>{};
+                                                  final double price =
+                                                      _toDouble(m['price']);
+                                                  final String maxV =
+                                                      (m['maxVehicles'] ?? '')
+                                                          .toString();
+                                                  return PopupMenuItem<String>(
+                                                    value: ilha,
+                                                    child: Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            ilha,
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 13,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          '${NumberFormat('#,##0', 'pt_CV').format(price)} ECV',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                        ),
+                                                        if (maxV.isNotEmpty &&
+                                                            maxV != '-1')
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.only(
+                                                                  left: 8.0,
+                                                                ),
+                                                            child: Text(
+                                                              '• máx: $maxV',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color:
+                                                                    Colors
+                                                                        .grey
+                                                                        .shade600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        if (maxV == '-1')
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.only(
+                                                                  left: 8.0,
+                                                                ),
+                                                            child: Text(
+                                                              '• ilimitado',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color:
+                                                                    Colors
+                                                                        .grey
+                                                                        .shade600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }).toList();
+                                              },
+                                              icon: const Icon(
+                                                Icons.more_vert,
+                                                size: 18,
+                                              ),
+                                              splashRadius: 18,
+                                            ),
+                                          ];
+                                        } else {
+                                          return [
+                                            Text(
+                                              data['price'] != null
+                                                  ? '${NumberFormat('#,##0.##', 'pt_CV').format(data['price'])} ECV'
+                                                  : 'Gratuito',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.secondary,
+                                              ),
+                                            ),
+                                          ];
+                                        }
+                                      })(),
                                       const Spacer(),
                                       StreamBuilder<QuerySnapshot>(
                                         stream:

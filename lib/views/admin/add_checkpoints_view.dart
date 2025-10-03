@@ -30,17 +30,17 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
   final _tempoMinimoController = TextEditingController();
-  final _pergunta1IdController = TextEditingController();
-  final _jogoIdController = TextEditingController();
+  /* final _pergunta1IdController = TextEditingController();
+final _jogoIdController = TextEditingController(); */
 
   // States
   int _ordemA = 1;
   int _ordemB = 1;
   String _percurso = 'ambos';
-  bool _finalJogos = false;
+  /* bool _finalJogos = false;
+List<String> _jogosSelecionados = []; */
   bool _isLoading = false;
   bool _usarLocalizacaoManual = true;
-  List<String> _jogosSelecionados = [];
 
   @override
   void initState() {
@@ -80,31 +80,13 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
     _latController.dispose();
     _lngController.dispose();
     _tempoMinimoController.dispose();
-    _pergunta1IdController.dispose();
-    _jogoIdController.dispose();
+    /* _pergunta1IdController.dispose();
+    _jogoIdController.dispose(); */
     super.dispose();
   }
 
   void _addCheckpoint() {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_finalJogos && _jogosSelecionados.isEmpty) {
-      _showSnackBar(
-        'Selecione ao menos 1 jogo para o checkpoint final',
-        isError: true,
-      );
-      return;
-    }
-
-    if (_pergunta1IdController.text.isEmpty) {
-      _showSnackBar('Selecione uma pergunta para o checkpoint', isError: true);
-      return;
-    }
-
-    if (!_finalJogos && _jogoIdController.text.isEmpty) {
-      _showSnackBar('Selecione um jogo para o checkpoint', isError: true);
-      return;
-    }
 
     final lat = double.tryParse(_latController.text.trim());
     final lng = double.tryParse(_lngController.text.trim());
@@ -123,10 +105,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
         'lng': lng ?? 0.0,
         'origem': _usarLocalizacaoManual ? 'manual' : 'geolocalizacao',
         'tempoMinimo': int.tryParse(_tempoMinimoController.text.trim()) ?? 5,
-        'pergunta1Id': _pergunta1IdController.text.trim(),
+        /* 'pergunta1Id': _pergunta1IdController.text.trim(),
         'jogoId': _finalJogos ? null : _jogoIdController.text.trim(),
         'finalComJogosFinais': _finalJogos,
-        'jogosIds': _finalJogos ? List<String>.from(_jogosSelecionados) : [],
+        'jogosIds': _finalJogos ? List<String>.from(_jogosSelecionados) : [], */
         'ordemA': _ordemA,
         'ordemB': _ordemB,
         'percurso': _percurso,
@@ -147,10 +129,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
     _latController.clear();
     _lngController.clear();
     _tempoMinimoController.text = '5';
-    _pergunta1IdController.clear();
+    /* _pergunta1IdController.clear();
     _jogoIdController.clear();
     _finalJogos = false;
-    _jogosSelecionados.clear();
+    _jogosSelecionados.clear(); */
     _ordemA = 1;
     _ordemB = 1;
     _percurso = 'ambos';
@@ -164,10 +146,10 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
       _latController.text = checkpoint['lat'].toString();
       _lngController.text = checkpoint['lng'].toString();
       _tempoMinimoController.text = checkpoint['tempoMinimo'].toString();
-      _pergunta1IdController.text = checkpoint['pergunta1Id'];
+      /* _pergunta1IdController.text = checkpoint['pergunta1Id'];
       _jogoIdController.text = checkpoint['jogoId'] ?? '';
       _finalJogos = checkpoint['finalComJogosFinais'] ?? false;
-      _jogosSelecionados = List<String>.from(checkpoint['jogosIds'] ?? []);
+      _jogosSelecionados = List<String>.from(checkpoint['jogosIds'] ?? []); */
       _ordemA = checkpoint['ordemA'] ?? 1;
       _ordemB = checkpoint['ordemB'] ?? 1;
       _percurso = checkpoint['percurso'] ?? 'ambos';
@@ -229,6 +211,17 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
       final batch = FirebaseFirestore.instance.batch();
 
       for (var item in _checkpoints) {
+        /* final String? perguntaId =
+            (item['pergunta1Id'] as String?)?.trim().isEmpty == true
+                ? null
+                : (item['pergunta1Id'] as String?)?.trim();
+        final String? jogoId =
+            (item['jogoId'] as String?)?.trim().isEmpty == true
+                ? null
+                : (item['jogoId'] as String?)?.trim();
+        final bool isFinalCheckpoint = (item['finalComJogosFinais'] ?? false) == true;
+        final List<String> jogosIds =
+            (item['jogosIds'] as List?)?.cast<String>() ?? const []; */
         final docRef = ref.doc();
         batch.set(docRef, {
           'nome': item['name'],
@@ -236,26 +229,20 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
           'ordem': item['codigo'],
           'localizacao': GeoPoint(item['lat'], item['lng']),
           'tempoMinimo': item['tempoMinimo'] ?? 5,
-          'pergunta1Ref': FirebaseFirestore.instance
-              .collection('perguntas')
-              .doc(item['pergunta1Id']),
-          'jogoRef':
-              item['finalComJogosFinais'] == true
-                  ? null
-                  : FirebaseFirestore.instance
-                      .collection('jogos')
-                      .doc(item['jogoId']),
-          'finalComJogosFinais': item['finalComJogosFinais'] ?? false,
-          'jogosRefs':
-              item['finalComJogosFinais'] == true
-                  ? (item['jogosIds'] as List<String>)
-                      .map(
-                        (id) => FirebaseFirestore.instance
-                            .collection('jogos')
-                            .doc(id),
-                      )
-                      .toList()
-                  : [],
+          /* 'pergunta1Ref': perguntaId == null
+              ? null
+              : FirebaseFirestore.instance
+                  .collection('perguntas')
+                  .doc(perguntaId), */
+          /* 'jogoRef': isFinalCheckpoint || jogoId == null
+              ? null
+              : FirebaseFirestore.instance.collection('jogos').doc(jogoId), */
+          /* 'finalComJogosFinais': item['finalComJogosFinais'] ?? false, */
+          /* 'jogosRefs': isFinalCheckpoint && jogosIds.isNotEmpty
+              ? jogosIds
+                  .map((id) => FirebaseFirestore.instance.collection('jogos').doc(id))
+                  .toList()
+              : [], */
           'ordemA': item['ordemA'] ?? 1,
           'ordemB': item['ordemB'] ?? 1,
           'percurso': item['percurso'] ?? 'ambos',
@@ -576,7 +563,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
               ],
             ),
 
-            const SizedBox(height: 16),
+            /* const SizedBox(height: 16),
 
             // Configuração do Percurso
             _buildSectionCard(
@@ -656,8 +643,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
                 ),
               ],
             ),
+            */
 
-            const SizedBox(height: 16),
+            /* const SizedBox(height: 16),
 
             // Desafios
             _buildSectionCard(
@@ -684,7 +672,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
                 _buildJogosSelector(),
               ],
             ),
-
+            */
             const SizedBox(height: 24),
 
             // Add Button
@@ -851,18 +839,18 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
                     Icons.timer,
                     '${checkpoint['tempoMinimo']} min',
                   ),
-                  _buildInfoChip(
+                  /* _buildInfoChip(
                     Icons.route,
                     'Percurso ${checkpoint['percurso'].toString().toUpperCase()}',
                   ),
                   _buildInfoChip(Icons.looks_one, 'A: ${checkpoint['ordemA']}'),
-                  _buildInfoChip(Icons.looks_two, 'B: ${checkpoint['ordemB']}'),
-                  if (checkpoint['finalComJogosFinais'] == true)
-                    _buildInfoChip(Icons.flag, 'Final', color: Colors.orange),
+                  _buildInfoChip(Icons.looks_two, 'B: ${checkpoint['ordemB']}'), */
+                  /* if (checkpoint['finalComJogosFinais'] == true)
+                    _buildInfoChip(Icons.flag, 'Final', color: Colors.orange), */
                 ],
               ),
 
-              if (checkpoint['jogosIds'] != null &&
+              /* if (checkpoint['jogosIds'] != null &&
                   (checkpoint['jogosIds'] as List).isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -889,7 +877,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
                     ],
                   ),
                 ),
-              ],
+              ], */
             ],
           ),
         ),
@@ -955,6 +943,7 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
     );
   }
 
+  /*
   Widget _buildPerguntaDropdown() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('perguntas').snapshots(),
@@ -996,7 +985,9 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
       },
     );
   }
+  */
 
+  /*
   Widget _buildJogosSelector() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('jogos').snapshots(),
@@ -1102,4 +1093,5 @@ class _AddCheckpointsViewState extends State<AddCheckpointsView>
       },
     );
   }
+  */
 }
