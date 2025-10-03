@@ -887,9 +887,7 @@ class _EditionViewState extends State<EditionView> {
                                                         colors: [
                                                           AppColors.secondary,
                                                           AppColors.secondary
-                                                              .withValues(
-                                                                alpha: 0.8,
-                                                              ),
+                                                              .withValues(alpha: 0.8),
                                                         ],
                                                       ),
                                                       borderRadius:

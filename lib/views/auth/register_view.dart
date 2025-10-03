@@ -8,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firebase_service.dart';
 import '../payment/payment_view.dart';
 import 'user_summary_view.dart';
-import 'dart:developer' as developer;
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -33,11 +32,8 @@ class _RegisterViewState extends State<RegisterView>
   final List<String> _shirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
   String? _selectedShirtSize;
 
-  String? _selectedLocation; // Adicione esta linha
-  final List<String> _locations = [
-    'Santiago',
-    'São Vicente',
-  ]; // Adicione esta linha
+  String? _selectedLocation;
+  final List<String> _locations = ['Santiago', 'São Vicente'];
 
   List<Map<String, TextEditingController>> passageirosControllers = [];
 
@@ -54,10 +50,8 @@ class _RegisterViewState extends State<RegisterView>
   late AnimationController _animationController;
 
   String? _selectedEventId;
-  String? _selectedEventPath; // ex.: editions/{editionId}/events/{eventId}
-  String? _activeEventName;
+  String? _selectedEventPath;
 
-  // Evento: lista de opções e loading
   List<Map<String, String>> _eventOptions = [];
   bool _loadingEvents = true;
 
@@ -69,23 +63,11 @@ class _RegisterViewState extends State<RegisterView>
   void initState() {
     super.initState();
     _loadAcceptedTerms();
-    _loadActiveEvent();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _fetchActiveEventOptions().then((options) {
-      if (mounted) {
-        setState(() {
-          _eventOptions = options;
-          _loadingEvents = false;
-          if (options.length == 1) {
-            _selectedEventPath = options.first['path'];
-            _selectedEventId = options.first['eventId'];
-          }
-        });
-      }
-    });
+    _fetchActiveEventOptions();
   }
 
   @override
@@ -109,7 +91,6 @@ class _RegisterViewState extends State<RegisterView>
     super.dispose();
   }
 
-  // Método para obter padding responsivo
   double _getResponsivePadding(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < 360) return 16.0;
@@ -118,7 +99,6 @@ class _RegisterViewState extends State<RegisterView>
     return 48.0;
   }
 
-  // Método para obter tamanho de fonte responsivo
   double _getResponsiveFontSize(BuildContext context, double baseSize) {
     final width = MediaQuery.of(context).size.width;
     if (width < 360) return baseSize * 0.85;
@@ -126,7 +106,6 @@ class _RegisterViewState extends State<RegisterView>
     return baseSize * 1.1;
   }
 
-  // Método para obter espaçamento responsivo
   double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
     final width = MediaQuery.of(context).size.width;
     if (width < 360) return baseSpacing * 0.75;
@@ -138,12 +117,12 @@ class _RegisterViewState extends State<RegisterView>
     try {
       String? eventPath = _selectedEventPath;
       if (eventPath == null) {
-        // Fallback: tenta obter o primeiro evento ativo
-        final qs = await FirebaseFirestore.instance
-            .collectionGroup('events')
-            .where('status', isEqualTo: true)
-            .limit(1)
-            .get();
+        final qs =
+            await FirebaseFirestore.instance
+                .collectionGroup('events')
+                .where('status', isEqualTo: true)
+                .limit(1)
+                .get();
         if (qs.docs.isNotEmpty) {
           eventPath = qs.docs.first.reference.path;
           if (mounted) {
@@ -182,11 +161,12 @@ class _RegisterViewState extends State<RegisterView>
         }
       }
 
-      final veiculosQuery = await FirebaseFirestore.instance
-          .collection('veiculos')
-          .where('eventoId', isEqualTo: eventPath)
-          .where('localizacao', isEqualTo: location)
-          .get();
+      final veiculosQuery =
+          await FirebaseFirestore.instance
+              .collection('veiculos')
+              .where('eventoId', isEqualTo: eventPath)
+              .where('localizacao', isEqualTo: location)
+              .get();
 
       return {
         'price': price,
@@ -207,54 +187,71 @@ class _RegisterViewState extends State<RegisterView>
     }
   }
 
-  Future<void> _loadActiveEvent() async {
+  Future<void> _fetchActiveEventOptions() async {
+    if (!mounted) return;
+
+    setState(() => _loadingEvents = true);
+
     try {
-      final q =
+      final qs =
           await FirebaseFirestore.instance
               .collectionGroup('events')
               .where('status', isEqualTo: true)
-              .limit(1)
               .get();
-      if (q.docs.isNotEmpty) {
-        final d = q.docs.first;
-        final path = d.reference.path; // editions/{editionId}/events/{eventId}
+
+      final List<Map<String, String>> results = [];
+
+      for (final d in qs.docs) {
+        final eventPath = d.reference.path;
         final data = d.data();
+        final eventName =
+            (data['name'] ?? data['nome'] ?? 'Evento sem nome').toString();
+
+        String editionName = '';
         final parentEditionRef = d.reference.parent.parent;
-        String? editionName;
         if (parentEditionRef != null) {
           final editionSnap = await parentEditionRef.get();
           if (editionSnap.exists) {
-            final editionData = editionSnap.data();
-            editionName =
-                (editionData?['name'] ?? editionData?['nome'])?.toString();
+            final ed = editionSnap.data();
+            editionName = (ed?['name'] ?? ed?['nome'] ?? '').toString();
           }
         }
-        final nome =
-            (data['name'] ?? data['nome'] ?? editionName ?? '').toString();
-        if (mounted) {
-          setState(() {
-            _selectedEventPath = path;
-            _selectedEventId = d.id;
-            _activeEventName = nome;
-          });
-        }
-        developer.log(
-          'Evento ativo carregado: $_activeEventName ($_selectedEventId) em $_selectedEventPath',
-        );
-      } else {
-        developer.log(
-          'Nenhum evento ativo encontrado (status==true em collectionGroup).',
-        );
+
+        final label =
+            (editionName.isNotEmpty) ? '$editionName – $eventName' : eventName;
+
+        results.add({'path': eventPath, 'label': label, 'eventId': d.id});
       }
+
+      results.sort((a, b) => a['label']!.compareTo(b['label']!));
+
+      if (!mounted) return;
+
+      setState(() {
+        _eventOptions = results;
+        _loadingEvents = false;
+
+        if (results.length == 1) {
+          _selectedEventPath = results.first['path'];
+          _selectedEventId = results.first['eventId'];
+        }
+      });
+
+      debugPrint('✅ ${results.length} evento(s) ativo(s) carregado(s)');
     } catch (e) {
-      developer.log('Falha ao carregar evento ativo: $e');
+      debugPrint('❌ Erro ao carregar eventos: $e');
+      if (!mounted) return;
+      setState(() {
+        _eventOptions = [];
+        _loadingEvents = false;
+        _error = 'Erro ao carregar eventos disponíveis';
+      });
     }
   }
 
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
 
-    // Validação de preenchimento
     if (_passwordController.text != _confirmPasswordController.text) {
       if (!mounted) return;
       setState(() => _error = 'As senhas não coincidem');
@@ -299,7 +296,6 @@ class _RegisterViewState extends State<RegisterView>
     });
 
     try {
-      // 1. Buscar dados do evento
       final eventDoc =
           await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
       if (!mounted) return;
@@ -310,7 +306,6 @@ class _RegisterViewState extends State<RegisterView>
 
       final Map<String, dynamic> eventData = eventDoc.data()!;
 
-      // 2. Obter nome do evento
       String? editionName;
       final parentEditionRef = eventDoc.reference.parent.parent;
       if (parentEditionRef != null) {
@@ -325,7 +320,6 @@ class _RegisterViewState extends State<RegisterView>
           (eventData['nome'] ?? eventData['name'] ?? editionName ?? 'Sem nome')
               .toString();
 
-      // 3. Verificar preços e limites por localização
       double price = 0;
       int maxVehicles = -1;
 
@@ -347,11 +341,9 @@ class _RegisterViewState extends State<RegisterView>
           );
         }
       } else {
-        // Fallback para preço único
         price = double.tryParse('${eventData['price'] ?? 0}') ?? 0;
       }
 
-      // 4. Verificar limite de veículos para a localização
       if (maxVehicles > 0) {
         final veiculosQuery =
             await FirebaseFirestore.instance
@@ -376,7 +368,6 @@ class _RegisterViewState extends State<RegisterView>
         }
       }
 
-      // 5. Criar conta Firebase Auth
       String uid;
       try {
         uid = await _firebaseService.signUp(
@@ -409,7 +400,6 @@ class _RegisterViewState extends State<RegisterView>
         return;
       }
 
-      // 6. Preparar dados
       final passageiros =
           passageirosControllers
               .map(
@@ -426,7 +416,6 @@ class _RegisterViewState extends State<RegisterView>
       final equipaId =
           FirebaseFirestore.instance.collection('equipas').doc().id;
 
-      // 7. Criar documento do veículo
       final carData = {
         'ownerId': uid,
         'matricula': _licensePlateController.text.trim(),
@@ -446,7 +435,6 @@ class _RegisterViewState extends State<RegisterView>
           .set(carData);
       debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
 
-      // 8. Criar documento da equipa
       final equipaData = {
         'nome': _teamNameController.text.trim(),
         'hino': '',
@@ -463,7 +451,6 @@ class _RegisterViewState extends State<RegisterView>
           .set(equipaData);
       debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
 
-      // 9. Criar documento do user
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'nome': _nameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -479,7 +466,6 @@ class _RegisterViewState extends State<RegisterView>
         'equipaId': equipaId,
         'checkpointsVisitados': [],
         'createdAt': FieldValue.serverTimestamp(),
-        // NOVOS CAMPOS DE PAGAMENTO
         'paymentStatus': 'paid',
         'transactionId': _transactionId ?? '',
         'amountPaid': price,
@@ -487,7 +473,6 @@ class _RegisterViewState extends State<RegisterView>
       });
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
 
-      // 10. Criar subcoleção events
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -508,7 +493,6 @@ class _RegisterViewState extends State<RegisterView>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('acceptedTerms', true);
 
-      // 11. Redirecionar para pagamento ou resumo
       if (!mounted) return;
       if (price > 0) {
         Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
@@ -594,16 +578,13 @@ class _RegisterViewState extends State<RegisterView>
           SizedBox(height: spacing),
           Row(
             children: List.generate(5, (index) {
-              // MUDOU DE 4 PARA 5
               final isActive = index == _currentStep;
               final isCompleted = index < _currentStep;
               return Expanded(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   height: 4,
-                  margin: EdgeInsets.only(
-                    right: index < 4 ? 8 : 0,
-                  ), // MUDOU DE 3 PARA 4
+                  margin: EdgeInsets.only(right: index < 4 ? 8 : 0),
                   decoration: BoxDecoration(
                     color:
                         isCompleted || isActive
@@ -641,7 +622,7 @@ class _RegisterViewState extends State<RegisterView>
       case 3:
         return 'Evento e Confirmação';
       case 4:
-        return 'Pagamento'; // NOVA ETAPA
+        return 'Pagamento';
       default:
         return '';
     }
@@ -988,8 +969,6 @@ class _RegisterViewState extends State<RegisterView>
                   isError:
                       _error != null && _carModelController.text.trim().isEmpty,
                 ),
-
-                // NOVO: Dropdown de Localização
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
@@ -1050,8 +1029,6 @@ class _RegisterViewState extends State<RegisterView>
                     ),
                   ),
                 ),
-
-                // Após o dropdown de localização, adicione:
                 if (_selectedLocation != null)
                   FutureBuilder<Map<String, dynamic>>(
                     future: _getLocationPriceInfo(_selectedLocation!),
@@ -1179,7 +1156,6 @@ class _RegisterViewState extends State<RegisterView>
                       );
                     },
                   ),
-
                 _inputCard(
                   context: context,
                   icon: Icons.group_outlined,
@@ -1204,7 +1180,7 @@ class _RegisterViewState extends State<RegisterView>
                   onNext: () {
                     if (_licensePlateController.text.trim().isEmpty ||
                         _carModelController.text.trim().isEmpty ||
-                        _selectedLocation == null || // VALIDAÇÃO ADICIONADA
+                        _selectedLocation == null ||
                         _teamNameController.text.trim().isEmpty) {
                       setState(
                         () => _error = 'Preencha todos os campos obrigatórios.',
@@ -1538,42 +1514,6 @@ class _RegisterViewState extends State<RegisterView>
     );
   }
 
-  // Helper to fetch active events with edition names and labels.
-  Future<List<Map<String, String>>> _fetchActiveEventOptions() async {
-    final qs =
-        await FirebaseFirestore.instance
-            .collectionGroup('events')
-            .where('status', isEqualTo: true)
-            .get();
-
-    final List<Map<String, String>> results = [];
-    for (final d in qs.docs) {
-      final eventPath =
-          d.reference.path; // editions/{editionId}/events/{eventId}
-      final data = d.data();
-      final eventName =
-          (data['name'] ?? data['nome'] ?? 'Evento sem nome').toString();
-
-      String editionName = '';
-      final parentEditionRef = d.reference.parent.parent;
-      if (parentEditionRef != null) {
-        final editionSnap = await parentEditionRef.get();
-        if (editionSnap.exists) {
-          final ed = editionSnap.data();
-          editionName = (ed?['name'] ?? ed?['nome'] ?? '').toString();
-        }
-      }
-
-      final label =
-          (editionName.isNotEmpty) ? '$editionName – $eventName' : eventName;
-
-      results.add({'path': eventPath, 'label': label, 'eventId': d.id});
-    }
-    // Optional: sort by label for consistency
-    results.sort((a, b) => a['label']!.compareTo(b['label']!));
-    return results;
-  }
-
   Widget _buildStepEvento() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1595,90 +1535,182 @@ class _RegisterViewState extends State<RegisterView>
                   ),
                 ),
                 SizedBox(height: spacing),
-                // NOVO: renderizar eventos sem FutureBuilder
                 if (_loadingEvents)
-                  const Center(child: CircularProgressIndicator())
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(spacing),
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(color: shellOrange),
+                          SizedBox(height: spacing),
+                          Text(
+                            'Carregando eventos disponíveis...',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: _getResponsiveFontSize(context, 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 else if (_eventOptions.isEmpty)
                   Container(
-                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 20)),
+                    decoration: BoxDecoration(
+                      color: shellRed.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 16),
+                      ),
+                      border: Border.all(color: shellRed),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.event_busy,
+                          color: shellRed,
+                          size: _getResponsiveSpacing(context, 48),
+                        ),
+                        SizedBox(height: spacing),
+                        Text(
+                          'Nenhum evento ativo disponível no momento',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 16),
+                            fontWeight: FontWeight.w600,
+                            color: shellRed,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Entre em contato com a organização para mais informações',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 14),
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(
                         _getResponsiveSpacing(context, 16),
                       ),
                       color: Colors.white,
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(
+                        color:
+                            (_error != null && _selectedEventPath == null)
+                                ? shellRed
+                                : Colors.grey.shade200,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'Nenhum evento ativo no momento.',
-                      style: TextStyle(
-                        fontSize: _getResponsiveFontSize(context, 14),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _getResponsiveSpacing(context, 16),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedEventPath,
+                      isExpanded: true,
+                      hint: Text(
+                        'Escolha um evento',
+                        style: TextStyle(
+                          fontSize: _getResponsiveFontSize(context, 14),
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      items:
+                          _eventOptions.map((opt) {
+                            return DropdownMenuItem<String>(
+                              value: opt['path'],
+                              child: Text(
+                                opt['label'] ?? '',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 15),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          final selectedEvent = _eventOptions.firstWhere(
+                            (e) => e['path'] == val,
+                          );
+                          setState(() {
+                            _selectedEventPath = val;
+                            _selectedEventId = selectedEvent['eventId'];
+                            _error = null;
+                          });
+                          debugPrint(
+                            '✅ Evento selecionado: ${selectedEvent['label']}',
+                          );
+                        }
+                      },
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(
+                          Icons.event_outlined,
+                          color: shellOrange,
+                          size: _getResponsiveSpacing(context, 22),
+                        ),
+                        border: InputBorder.none,
+                        labelText: 'Evento *',
+                        labelStyle: TextStyle(
+                          fontSize: _getResponsiveFontSize(context, 14),
+                          color:
+                              (_error != null && _selectedEventPath == null)
+                                  ? shellRed
+                                  : Colors.grey.shade700,
+                        ),
                       ),
                     ),
-                  )
-                else ...[
-                  () {
-                    final items =
-                        _eventOptions.map((opt) {
-                          return DropdownMenuItem<String>(
-                            value: opt['path'],
-                            child: Text(
-                              opt['label'] ?? '',
-                              style: TextStyle(
-                                fontSize: _getResponsiveFontSize(context, 15),
-                              ),
-                            ),
-                          );
-                        }).toList();
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          _getResponsiveSpacing(context, 16),
-                        ),
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
+                  ),
+                if (_selectedEventPath != null) ...[
+                  SizedBox(height: spacing),
+                  Container(
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          shellYellow.withValues(alpha: 0.2),
+                          shellOrange.withValues(alpha: 0.1),
                         ],
                       ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: _getResponsiveSpacing(context, 16),
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 12),
                       ),
-                      child: DropdownButtonFormField<String>(
-                        key: ValueKey(
-                          'event_${_selectedEventPath ?? 'null'}_${items.length}',
-                        ),
-                        isExpanded: true,
-                        initialValue: _selectedEventPath,
-                        hint: Text(
-                          'Escolha um evento',
-                          style: TextStyle(
-                            fontSize: _getResponsiveFontSize(context, 14),
-                          ),
-                        ),
-                        items: items,
-                        onChanged:
-                            (val) => setState(() {
-                              _selectedEventPath = val;
-                              _selectedEventId = val?.split('/').last;
-                            }),
-                        decoration: InputDecoration(
-                          prefixIcon: Icon(
-                            Icons.event_outlined,
-                            size: _getResponsiveSpacing(context, 22),
-                          ),
-                          border: InputBorder.none,
-                          labelText: 'Evento *',
-                          labelStyle: TextStyle(
-                            fontSize: _getResponsiveFontSize(context, 14),
-                          ),
-                        ),
+                      border: Border.all(
+                        color: shellOrange.withValues(alpha: 0.3),
                       ),
-                    );
-                  }(),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: _getResponsiveSpacing(context, 24),
+                        ),
+                        SizedBox(width: _getResponsiveSpacing(context, 12)),
+                        Expanded(
+                          child: Text(
+                            'Evento selecionado com sucesso!',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 14),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
                 SizedBox(height: _getResponsiveSpacing(context, 24)),
                 Container(
@@ -1688,14 +1720,21 @@ class _RegisterViewState extends State<RegisterView>
                     ),
                     color: shellYellow.withValues(alpha: 0.1),
                     border: Border.all(
-                      color: shellYellow.withValues(alpha: 0.5),
+                      color:
+                          (_error != null && !_acceptedTerms)
+                              ? shellRed
+                              : shellYellow.withValues(alpha: 0.5),
+                      width: (_error != null && !_acceptedTerms) ? 2 : 1,
                     ),
                   ),
                   child: CheckboxListTile(
                     value: _acceptedTerms,
-                    onChanged:
-                        (value) =>
-                            setState(() => _acceptedTerms = value ?? false),
+                    onChanged: (value) {
+                      setState(() {
+                        _acceptedTerms = value ?? false;
+                        if (value == true) _error = null;
+                      });
+                    },
                     activeColor: shellOrange,
                     title: RichText(
                       text: TextSpan(
@@ -1747,28 +1786,59 @@ class _RegisterViewState extends State<RegisterView>
                   },
                   onNext: () {
                     if (_selectedEventPath == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Selecione um evento.')),
-                      );
+                      setState(() {
+                        _error = 'Por favor, selecione um evento';
+                      });
                       return;
                     }
                     if (!_acceptedTerms) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Aceite os termos para continuar.'),
-                        ),
-                      );
+                      setState(() {
+                        _error = 'Você deve aceitar os termos para continuar';
+                      });
                       return;
                     }
-                    // MUDANÇA: Ir para pagamento ao invés de registrar
+
                     setState(() {
                       _error = null;
                       _currentStep = 4;
                     });
                     _pageController.jumpToPage(4);
                   },
-                  isLastStep: false, // MUDOU DE true PARA false
+                  isLastStep: false,
                 ),
+                if (_error != null) ...[
+                  SizedBox(height: _getResponsiveSpacing(context, 16)),
+                  Container(
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    decoration: BoxDecoration(
+                      color: shellRed.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 12),
+                      ),
+                      border: Border.all(color: shellRed),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: shellRed,
+                          size: _getResponsiveSpacing(context, 24),
+                        ),
+                        SizedBox(width: _getResponsiveSpacing(context, 12)),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: shellRed,
+                              fontWeight: FontWeight.w500,
+                              fontSize: _getResponsiveFontSize(context, 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1867,9 +1937,14 @@ class _RegisterViewState extends State<RegisterView>
         final spacing = _getResponsiveSpacing(context, 20);
 
         return FutureBuilder<Map<String, dynamic>>(
-          future: _selectedLocation != null
-              ? _getLocationPriceInfo(_selectedLocation!)
-              : Future.value({'price': 0.0, 'maxVehicles': -1, 'currentVehicles': 0}),
+          future:
+              _selectedLocation != null
+                  ? _getLocationPriceInfo(_selectedLocation!)
+                  : Future.value({
+                    'price': 0.0,
+                    'maxVehicles': -1,
+                    'currentVehicles': 0,
+                  }),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -1885,7 +1960,6 @@ class _RegisterViewState extends State<RegisterView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Cabeçalho
                     Container(
                       padding: EdgeInsets.all(
                         _getResponsiveSpacing(context, 20),
@@ -1936,10 +2010,7 @@ class _RegisterViewState extends State<RegisterView>
                         ],
                       ),
                     ),
-
                     SizedBox(height: spacing),
-
-                    // Resumo do pedido
                     Container(
                       padding: EdgeInsets.all(
                         _getResponsiveSpacing(context, 20),
@@ -2016,10 +2087,7 @@ class _RegisterViewState extends State<RegisterView>
                         ],
                       ),
                     ),
-
                     SizedBox(height: spacing),
-
-                    // Opções de pagamento
                     Container(
                       padding: EdgeInsets.all(
                         _getResponsiveSpacing(context, 20),
@@ -2127,10 +2195,7 @@ class _RegisterViewState extends State<RegisterView>
                         ],
                       ),
                     ),
-
                     SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-                    // Status do pagamento
                     if (_paymentCompleted)
                       Container(
                         padding: EdgeInsets.all(
@@ -2164,10 +2229,7 @@ class _RegisterViewState extends State<RegisterView>
                           ],
                         ),
                       ),
-
                     SizedBox(height: _getResponsiveSpacing(context, 24)),
-
-                    // Botões de navegação
                     _buildNavigationButtons(
                       context: context,
                       showBack: true,
@@ -2181,7 +2243,6 @@ class _RegisterViewState extends State<RegisterView>
                       onNext: () => _processPagaliPayment(price),
                       isLastStep: true,
                     ),
-
                     if (_error != null) ...[
                       SizedBox(height: _getResponsiveSpacing(context, 16)),
                       Container(
@@ -2257,10 +2318,8 @@ class _RegisterViewState extends State<RegisterView>
     );
   }
 
-
   Future<void> _processPagaliPayment(double amount) async {
     if (_paymentCompleted) {
-      // Se já pagou, registrar diretamente
       _register();
       return;
     }
@@ -2272,9 +2331,6 @@ class _RegisterViewState extends State<RegisterView>
     });
 
     try {
-      // TODO: Use the real Pagali API URL when integrating:
-      // const pagaliUrl = 'https://api.pagali.cv/v1/payment';
-
       final paymentData = {
         'amount': amount,
         'currency': 'CVE',
@@ -2293,11 +2349,8 @@ class _RegisterViewState extends State<RegisterView>
       };
       debugPrint('Pagali payload: $paymentData');
 
-      // Simular chamada à API do Pagali
-      // SUBSTITUA ESTE BLOCO PELA INTEGRAÇÃO REAL COM PAGALI
       await Future.delayed(const Duration(seconds: 2));
 
-      // Simular sucesso
       final mockTransactionId = 'TXN${DateTime.now().millisecondsSinceEpoch}';
 
       if (!mounted) return;
@@ -2306,7 +2359,6 @@ class _RegisterViewState extends State<RegisterView>
         _transactionId = mockTransactionId;
       });
 
-      // Mostrar diálogo de confirmação
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -2382,7 +2434,7 @@ class _RegisterViewState extends State<RegisterView>
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _register(); // Registrar após confirmação
+                    _register();
                   },
                   style: TextButton.styleFrom(
                     backgroundColor: shellOrange,
@@ -2432,7 +2484,7 @@ class _RegisterViewState extends State<RegisterView>
                   _buildStepCarro(),
                   _buildStepPassageiros(),
                   _buildStepEvento(),
-                  _buildStepPagamento(), // NOVA ETAPA
+                  _buildStepPagamento(),
                 ],
               ),
             ),
