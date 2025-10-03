@@ -8,7 +8,6 @@ import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
 import '../views/auth/criar_conta_view.dart';
-// Removido: closed_registration_view
 
 // Views Splash
 import '../views/splash/intro_splash_view.dart';
@@ -47,6 +46,7 @@ import '../views/checkin/conchas_view.dart';
 // Views Events
 import '../views/events/user_events_view.dart';
 import '../views/events/event_details_view.dart';
+import '../views/events/event_inscription_view.dart'; // NOVA IMPORTAÇÃO
 
 // Views Ranking
 import '../views/ranking/ranking_view.dart';
@@ -103,7 +103,6 @@ class AppPages {
       page: () => const ForgotPasswordView(),
       transition: Transition.rightToLeft,
     ),
-    // Removido: rota '/closed'
 
     // =================== DASHBOARD ===================
     GetPage(
@@ -122,7 +121,7 @@ class AppPages {
       name: '/admin',
       page: () => const AdminView(),
       transition: Transition.fadeIn,
-      middlewares: [AdminMiddleware()], // Adicionar middleware para proteção
+      middlewares: [AdminMiddleware()],
     ),
     GetPage(
       name: '/editions',
@@ -344,6 +343,11 @@ class AppPages {
     GetPage(
       name: '/event-details',
       page: () => const EventDetailsView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: '/event-inscription',
+      page: () => const EventInscriptionView(),
       transition: Transition.rightToLeft,
     ),
 

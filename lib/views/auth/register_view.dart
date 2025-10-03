@@ -2313,7 +2313,12 @@ class _RegisterViewState extends State<RegisterView>
                             SizedBox(width: _getResponsiveSpacing(context, 12)),
                             Expanded(
                               child: Text(
-                                'Inscrição confirmado, obrigado pela sua inscrição. Agora pode aceder o https://pagali.cv para fazer o pagamento!',
+                                '''Agradecemos a sua inscrição! Para confirmar a sua participação no evento, deve efetuar o pagamento diretamente no Pagali (menu "Eventos") ou por transferência bancária para o NIB: 000500000831804210197, Banco Interatlantico.
+
+O comprovativo de pagamento deve ser enviado para o email: manoamanooffroad@gmail.com.
+
+⚠️ A participação no evento só será validada após a confirmação do pagamento.
+''',
                                 style: TextStyle(
                                   color: Colors.green.shade700,
                                   fontWeight: FontWeight.bold,

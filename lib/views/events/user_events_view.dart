@@ -56,6 +56,7 @@ class _UserEventsViewState extends State<UserEventsView> {
             final data = e.data();
             return {
               'id': e.id,
+              'editionId': edId,
               'inscrito': inscritos.contains('editions/$edId/events/${e.id}'),
               ...data,
             };
@@ -74,7 +75,11 @@ class _UserEventsViewState extends State<UserEventsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Eventos'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Eventos'),
+        centerTitle: true,
+        elevation: 0,
+      ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: (index) {
@@ -101,81 +106,371 @@ class _UserEventsViewState extends State<UserEventsView> {
             });
             return const SizedBox.shrink();
           }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (!snapshot.hasData ||
               snapshot.data == null ||
               snapshot.data!.isEmpty) {
-            return const Center(child: Text('Nenhuma edição encontrada.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhuma edição encontrada',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
           }
+
           final edicoes = snapshot.data!;
+
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: edicoes.length,
             itemBuilder: (ctx, i) {
               final ed = edicoes[i];
               final eventos = ed['eventos'] as List<Map<String, dynamic>>;
-              return ExpansionTile(
-                leading: const Icon(Icons.event_note),
-                backgroundColor: Colors.grey.shade100,
-                title: Text(ed['nome'] ?? ed['id']),
-                children:
-                    eventos.map((evento) {
-                      final data = (evento['data'] as Timestamp).toDate();
-                      final isPast = data.isBefore(DateTime.now());
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        elevation: 1.5,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              onTap: () {
-                                Navigator.of(context).pushNamed(
-                                  '/event-details',
-                                  arguments: evento,
-                                );
-                              },
-                              title: Text(evento['nome'] ?? 'Evento'),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    DateFormat('dd/MM/yyyy HH:mm').format(data),
-                                  ),
-                                  if (evento['local'] != null)
-                                    Text('Local: ${evento['local']}'),
-                                  if (evento['entidade'] != null)
-                                    Text(
-                                      'Entidade Beneficiada: ${evento['entidade']}',
-                                    ),
-                                ],
-                              ),
-                              trailing: Icon(
-                                evento['inscrito'] == true
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color:
-                                    evento['inscrito'] == true
-                                        ? Colors.green
-                                        : Colors.grey,
-                              ),
-                              tileColor: isPast ? Colors.grey.shade100 : null,
-                            ),
-                            const Divider(height: 1),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ExpansionTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFdd1d21).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.event_note,
+                      color: Color(0xFFdd1d21),
+                    ),
+                  ),
+                  title: Text(
+                    ed['nome'] ?? ed['id'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${eventos.length} evento(s)',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  children:
+                      eventos.map((evento) {
+                        return _buildEventCard(context, evento);
+                      }).toList(),
+                ),
               );
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildEventCard(BuildContext context, Map<String, dynamic> evento) {
+    final data = (evento['data'] as Timestamp).toDate();
+    final isPast = data.isBefore(DateTime.now());
+    final isActive = evento['status'] == true;
+    final inscricoesAbertas = evento['inscricoesAbertas'] == true;
+    final price = evento['price'] ?? 0;
+    final isInscrito = evento['inscrito'] == true;
+
+    // Determinar cor de fundo baseado no status
+    Color backgroundColor;
+    Color borderColor;
+    if (!isActive) {
+      backgroundColor = Colors.grey.shade100;
+      borderColor = Colors.grey.shade300;
+    } else if (isPast) {
+      backgroundColor = Colors.orange.shade50;
+      borderColor = Colors.orange.shade200;
+    } else if (isInscrito) {
+      backgroundColor = Colors.green.shade50;
+      borderColor = Colors.green.shade200;
+    } else {
+      backgroundColor = Colors.white;
+      borderColor = Colors.grey.shade200;
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap:
+            isActive
+                ? () {
+                  Navigator.of(
+                    context,
+                  ).pushNamed('/event-details', arguments: evento);
+                }
+                : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header com nome e badges
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      evento['nome'] ?? 'Evento',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.black87 : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  if (!isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'INATIVO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  if (isActive && isPast)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'ENCERRADO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  if (isInscrito)
+                    Container(
+                      margin: const EdgeInsets.only(left: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, color: Colors.white, size: 12),
+                          SizedBox(width: 2),
+                          Text(
+                            'INSCRITO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Informações do evento
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: isActive ? Colors.grey[600] : Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('dd/MM/yyyy HH:mm').format(data),
+                    style: TextStyle(
+                      color: isActive ? Colors.grey[700] : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+
+              if (evento['local'] != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: isActive ? Colors.grey[600] : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        evento['local'],
+                        style: TextStyle(
+                          color: isActive ? Colors.grey[700] : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (evento['entidade'] != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.volunteer_activism,
+                      size: 16,
+                      color: isActive ? Colors.grey[600] : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Entidade: ${evento['entidade']}',
+                        style: TextStyle(
+                          color: isActive ? Colors.grey[700] : Colors.grey,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+
+              // Footer com preço e status de inscrição
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Preço
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFdd1d21).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.attach_money,
+                          size: 16,
+                          color: Color(0xFFdd1d21),
+                        ),
+                        Text(
+                          price > 0
+                              ? '${price.toStringAsFixed(0)} CVE'
+                              : 'Gratuito',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFdd1d21),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Status de inscrição
+                  Row(
+                    children: [
+                      if (isActive && !isPast)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                inscricoesAbertas
+                                    ? Colors.green.shade100
+                                    : Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                inscricoesAbertas
+                                    ? Icons.check_circle_outline
+                                    : Icons.lock_clock,
+                                size: 14,
+                                color:
+                                    inscricoesAbertas
+                                        ? Colors.green.shade700
+                                        : Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                inscricoesAbertas
+                                    ? 'Inscrições abertas'
+                                    : 'Inscrições fechadas',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      inscricoesAbertas
+                                          ? Colors.green.shade700
+                                          : Colors.orange.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (isActive) const SizedBox(width: 8),
+                      if (isActive)
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
