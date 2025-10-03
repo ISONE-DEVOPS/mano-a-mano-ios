@@ -433,12 +433,13 @@ class _RegisterViewState extends State<RegisterView>
         final veiculosQuery =
             await FirebaseFirestore.instance
                 .collection('veiculos')
+                .where('eventoId', isEqualTo: _selectedEventPath)
                 .where('localizacao', isEqualTo: _selectedLocation)
                 .get();
 
         final totalVeiculos = veiculosQuery.size;
         debugPrint(
-          '📊 Veículos já registrados em $_selectedLocation: $totalVeiculos/$maxVehicles',
+          '📊 Veículos já registrados em $_selectedLocation (evento $_selectedEventId): $totalVeiculos/$maxVehicles',
         );
 
         if (totalVeiculos >= maxVehicles) {
@@ -446,8 +447,17 @@ class _RegisterViewState extends State<RegisterView>
           setState(
             () =>
                 _error =
-                    'Limite de veículos atingido para $_selectedLocation. '
-                    'Apenas $maxVehicles veículos permitidos.',
+                    'Vagas esgotadas em $_selectedLocation. Limite de $maxVehicles veículos atingido.',
+          );
+          // Alerta visual e bloqueio do fluxo de registro
+          Get.snackbar(
+            'Vagas esgotadas',
+            'Não é possível registrar mais veículos em $_selectedLocation para este evento.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.withValues(alpha: 0.9),
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 4),
           );
           return;
         }
