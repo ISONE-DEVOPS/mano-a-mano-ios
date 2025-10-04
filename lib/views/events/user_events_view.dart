@@ -184,8 +184,91 @@ class _UserEventsViewState extends State<UserEventsView> {
     final data = (evento['data'] as Timestamp).toDate();
     final isPast = data.isBefore(DateTime.now());
     final isActive = evento['status'] == true;
-    final inscricoesAbertas = evento['inscricoesAbertas'] == true;
-    final price = evento['price'] ?? 0;
+    final inscricoesAbertas =
+        isActive ? true : (evento['inscricoesAbertas'] == true);
+    double parseNum(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String) {
+        final parsed = double.tryParse(
+          v.replaceAll('.', '').replaceAll(',', '.'),
+        );
+        if (parsed != null) return parsed;
+      }
+      return 0.0;
+    }
+
+    String norm(String s) {
+      // remove acentos, espaços extras e casefold
+      const withAccents = 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ';
+      const noAccents = 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC';
+      final sb = StringBuffer();
+      for (final ch in s.runes) {
+        final i = withAccents.indexOf(String.fromCharCode(ch));
+        sb.write(i >= 0 ? noAccents[i] : String.fromCharCode(ch));
+      }
+      return sb.toString().toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+
+    final price =
+        (() {
+          // 1) Preço simples direto
+          final direct = parseNum(
+            evento['price'] ??
+                evento['preco'] ??
+                evento['valor'] ??
+                evento['price_cve'],
+          );
+          if (direct > 0) return direct;
+
+          // 2) Mapa de preços por ilha/local em vários nomes possíveis
+          final pricesMap =
+              (evento['prices'] ??
+                  evento['precos'] ??
+                  evento['precosPorIlha'] ??
+                  evento['pricesByLocation'] ??
+                  evento['priceByIsland'] ??
+                  evento['pricesByIsland'] ??
+                  evento['locationPrices']);
+          final islandKeyRaw = (evento['ilha'] ?? evento['local'])?.toString();
+          if (pricesMap is Map) {
+            // 2a) tentativa por chave exata
+            if (islandKeyRaw != null) {
+              final exact = parseNum(
+                pricesMap[islandKeyRaw] ??
+                    pricesMap[islandKeyRaw.toUpperCase()] ??
+                    pricesMap[islandKeyRaw.toLowerCase()],
+              );
+              if (exact > 0) return exact;
+            }
+            // 2b) correspondência por normalização (ignora acentos/case)
+            if (islandKeyRaw != null) {
+              final islandNorm = norm(islandKeyRaw);
+              for (final entry in pricesMap.entries) {
+                final k = entry.key?.toString() ?? '';
+                if (norm(k) == islandNorm) {
+                  final v = parseNum(entry.value);
+                  if (v > 0) return v;
+                }
+              }
+            }
+            // 2c) fallback: primeiro valor numérico positivo do mapa
+            for (final v in pricesMap.values) {
+              final n = parseNum(v);
+              if (n > 0) return n;
+            }
+          }
+
+          // 3) Estruturas aninhadas comuns (ex.: {pricing: {price: 1000}})
+          final pricing = evento['pricing'];
+          if (pricing is Map) {
+            final nested = parseNum(
+              pricing['price'] ?? pricing['preco'] ?? pricing['valor'],
+            );
+            if (nested > 0) return nested;
+          }
+
+          return 0.0;
+        })();
     final isInscrito = evento['inscrito'] == true;
 
     // Determinar cor de fundo baseado no status

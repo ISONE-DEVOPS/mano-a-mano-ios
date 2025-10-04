@@ -5,8 +5,9 @@ import 'package:location/location.dart';
 import 'package:geocoding/geocoding.dart' hide Location;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
 import '../../widgets/shared/nav_bottom.dart';
 import '../../widgets/shared/nav_topbar.dart';
@@ -25,11 +26,33 @@ class _HomeViewState extends State<HomeView> {
   final FirebaseService firebaseService = FirebaseService();
   Map<String, String> _checkpointNames = {};
 
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
+  bool _isOnline = true;
+
   @override
   void initState() {
     super.initState();
     _determinePosition();
     _loadCheckpointNames();
+    // Monitor de conectividade — não bloqueia a UI
+    Connectivity().checkConnectivity().then((results) {
+      if (!mounted) return;
+      setState(() {
+        _isOnline = !(results.contains(ConnectivityResult.none));
+      });
+    });
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      if (!mounted) return;
+      setState(() {
+        _isOnline = !(results.contains(ConnectivityResult.none));
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _connSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCheckpointNames() async {
@@ -59,19 +82,6 @@ class _HomeViewState extends State<HomeView> {
 
   String _getCheckpointName(String checkpointId) {
     return _checkpointNames[checkpointId] ?? checkpointId;
-  }
-
-  Future<bool> _hasInternetConnection() async {
-    try {
-      final List<ConnectivityResult> results =
-          await Connectivity().checkConnectivity();
-      if (results.contains(ConnectivityResult.none)) return false;
-
-      final lookup = await InternetAddress.lookup('google.com');
-      return lookup.isNotEmpty && lookup[0].rawAddress.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
   }
 
   void _determinePosition() async {
@@ -215,146 +225,136 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildHomeContent(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(40),
-        child: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-          elevation: 0,
-        ),
-      ),
+      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child:
             _locationError
                 ? _locationErrorWidget()
-                : FutureBuilder<bool>(
-                  future: _hasInternetConnection(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data == false) {
-                      return const Center(
-                        child: Text('Sem conexão com a internet'),
-                      );
-                    }
-                    return FutureBuilder<Map<String, dynamic>>(
-                      future: _loadUserData(),
-                      builder: (context, dataSnapshot) {
-                        if (dataSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        if (dataSnapshot.hasError) {
-                          return const Center(
-                            child: Text('Erro ao carregar dados'),
-                          );
-                        }
-
-                        final data = dataSnapshot.data ?? {};
-                        final userName = data['userName'] ?? '';
-                        final eventData = data['eventData'];
-                        final uid = data['uid'] as String?;
-
-                        // Se não há evento inscrito
-                        if (eventData == null || uid == null) {
-                          return Column(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Theme.of(context).colorScheme.primary,
-                                      Theme.of(context).colorScheme.primary,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
+                : Column(
+                  children: [
+                    if (!_isOnline)
+                      Container(
+                        width: double.infinity,
+                        color: const Color(0xFFFFF3CD), // amarelo claro
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.wifi_off,
+                              size: 16,
+                              color: Color(0xFF856404),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Sem conexão — tentando carregar quando voltar.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF856404),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: NavTopBar(
-                                        location: _location,
-                                        userName: userName,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              Expanded(
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.event_busy,
-                                        size: 80,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const Text(
-                                        'Não está inscrito em nenhum evento',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Inscreva-se num evento para participar',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        // Carrega pontuações do evento
-                        return FutureBuilder<QuerySnapshot>(
-                          future:
-                              FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(uid)
-                                  .collection('eventos')
-                                  .doc(eventData['eventId'])
-                                  .collection('pontuacoes')
-                                  .get(),
-                          builder: (context, checkpointSnapshot) {
-                            if (checkpointSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-
-                            final checkpointDocs =
-                                checkpointSnapshot.data?.docs ?? [];
-
-                            return _buildEventDashboard(
-                              context,
-                              userName,
-                              eventData,
-                              checkpointDocs,
-                              uid,
+                            ),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: FutureBuilder<Map<String, dynamic>>(
+                        future: _loadUserData(),
+                        builder: (context, dataSnapshot) {
+                          if (dataSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
                             );
-                          },
-                        );
-                      },
-                    );
-                  },
+                          }
+                          if (dataSnapshot.hasError) {
+                            return const Center(
+                              child: Text('Erro ao carregar dados'),
+                            );
+                          }
+
+                          final data = dataSnapshot.data ?? {};
+                          final userName = data['userName'] ?? '';
+                          final eventData = data['eventData'];
+                          final uid = data['uid'] as String?;
+                          final userData =
+                              data['userData'] as Map<String, dynamic>?;
+
+                          if (eventData == null || uid == null) {
+                            return Column(
+                              children: [
+                                _buildHeader(userName),
+                                Expanded(
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.event_busy,
+                                          size: 80,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const Text(
+                                          'Não está inscrito em nenhum evento',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Inscreva-se num evento para participar',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          return FutureBuilder<QuerySnapshot>(
+                            future:
+                                FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(uid)
+                                    .collection('eventos')
+                                    .doc(eventData['eventId'])
+                                    .collection('pontuacoes')
+                                    .get(),
+                            builder: (context, checkpointSnapshot) {
+                              if (checkpointSnapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              final checkpointDocs =
+                                  checkpointSnapshot.data?.docs ?? [];
+                              return _buildEventDashboard(
+                                context,
+                                userName,
+                                userData,
+                                eventData,
+                                checkpointDocs,
+                                uid,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
       ),
       bottomNavigationBar: BottomNavBar(
@@ -377,6 +377,51 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Widget _buildHeader(String userName) {
+    return Container(
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sua localização',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    _location,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Data: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> _loadUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return <String, dynamic>{};
@@ -387,13 +432,14 @@ class _HomeViewState extends State<HomeView> {
     final userData = userDoc.data() ?? {};
     final userName = userData['nome'] ?? '';
 
-    // Verifica se o usuário está inscrito em algum evento
+    // Verifica se o usuário tem qualquer evento (atual ou passado)
     final eventosSnapshot =
         await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
             .collection('eventos')
-            .where('inscrito', isEqualTo: true)
+            // Mostrar qualquer evento no qual o user tenha registo (participou/inscreveu)
+            // Caso exista o campo createdAt ou data, pode-se ordenar — deixamos sem filtro para garantir que aparece.
             .limit(1)
             .get();
 
@@ -474,12 +520,14 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildEventDashboard(
     BuildContext context,
     String userName,
+    Map<String, dynamic>? userData,
     Map<String, dynamic> eventData,
     List<QueryDocumentSnapshot> checkpointDocs,
     String uid,
   ) {
     // Processar checkpoints
     final Map<String, Map<String, dynamic>> processedCheckpoints = {};
+    double tempoTotalMinutos = 0.0;
 
     for (var doc in checkpointDocs) {
       final checkpointId = doc.id;
@@ -489,30 +537,36 @@ class _HomeViewState extends State<HomeView> {
       dynamic timestampEntrada = checkpointData['timestampEntrada'];
       dynamic timestampSaida = checkpointData['timestampSaida'];
 
-      String? entradaString;
-      String? saidaString;
+      DateTime? entradaDate;
+      DateTime? saidaDate;
 
       if (timestampEntrada != null) {
         if (timestampEntrada is Timestamp) {
-          entradaString = timestampEntrada.toDate().toIso8601String();
+          entradaDate = timestampEntrada.toDate();
         } else if (timestampEntrada is String) {
-          entradaString = timestampEntrada;
+          entradaDate = DateTime.tryParse(timestampEntrada);
         }
       }
 
       if (timestampSaida != null) {
         if (timestampSaida is Timestamp) {
-          saidaString = timestampSaida.toDate().toIso8601String();
+          saidaDate = timestampSaida.toDate();
         } else if (timestampSaida is String) {
-          saidaString = timestampSaida;
+          saidaDate = DateTime.tryParse(timestampSaida);
         }
+      }
+
+      // Calcular tempo no checkpoint
+      if (entradaDate != null && saidaDate != null) {
+        final duracao = saidaDate.difference(entradaDate);
+        tempoTotalMinutos += duracao.inMinutes;
       }
 
       processedCheckpoints[checkpointId] = {
         'checkpointId': checkpointId,
         'nome': _getCheckpointName(checkpointId),
-        'timestampEntrada': entradaString,
-        'timestampSaida': saidaString,
+        'timestampEntrada': entradaDate,
+        'timestampSaida': saidaDate,
         'pontuacaoPergunta': checkpointData['pontuacaoPergunta'] ?? 0,
         'pontuacaoJogo': checkpointData['pontuacaoJogo'] ?? 0,
         'pontuacaoTotal': checkpointData['pontuacaoTotal'] ?? 0,
@@ -521,21 +575,24 @@ class _HomeViewState extends State<HomeView> {
     }
 
     // Calcular estatísticas
-    final visitedCheckpoints =
+    final postosCompletos =
         processedCheckpoints.values
             .where(
               (cp) =>
                   cp['timestampEntrada'] != null &&
-                  cp['timestampEntrada'].toString().isNotEmpty &&
-                  cp['timestampSaida'] != null &&
-                  cp['timestampSaida'].toString().isNotEmpty,
+                  cp['timestampSaida'] != null,
             )
             .length;
 
-    // final perguntasCorretas =
-    //     processedCheckpoints.values
-    //         .where((cp) => cp['respostaCorreta'] == true)
-    //         .length;
+    final perguntasRespondidas =
+        processedCheckpoints.values
+            .where((cp) => cp['timestampEntrada'] != null)
+            .length;
+
+    final perguntasCorretas =
+        processedCheckpoints.values
+            .where((cp) => cp['respostaCorreta'] == true)
+            .length;
 
     final pontuacaoTotal = processedCheckpoints.values.fold<int>(
       0,
@@ -548,524 +605,241 @@ class _HomeViewState extends State<HomeView> {
     );
 
     final int totalCheckpoints = 8;
+    final postosRestantes = totalCheckpoints - postosCompletos;
+    final taxaAcerto =
+        perguntasRespondidas > 0
+            ? (perguntasCorretas / perguntasRespondidas * 100)
+            : 0.0;
 
-    return Expanded(
-      child: Column(
-        children: [
-          // Header com dados do usuário
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: NavTopBar(location: _location, userName: userName),
-                ),
-              ],
-            ),
-          ),
-
-          // Conteúdo scrollable
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Card do Evento
-                  Card(
-                    color: Theme.of(context).colorScheme.surface,
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.1),
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.05),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.event,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        eventData['eventName'],
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
-                                        ),
-                                      ),
-                                      Text(
-                                        eventData['editionName'],
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.70),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        eventData['status'] == true
-                                            ? Colors.green
-                                            : Colors.orange,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    eventData['status'] == true
-                                        ? 'ATIVO'
-                                        : 'AGUARDANDO',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const Divider(height: 24),
-
-                            // Informações da Equipa e Veículo
-                            if (eventData['equipaData'] != null) ...[
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.groups,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Equipa: ${eventData['equipaData']['nome'] ?? '-'}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      'Grupo ${eventData['grupo'] ?? '-'}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-
-                            if (eventData['carData'] != null) ...[
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.directions_car,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${eventData['carData']['modelo'] ?? '-'} • ${eventData['carData']['matricula'] ?? '-'}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.confirmation_number,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Dístico: ${eventData['carData']['distico'] ?? '-'}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Card de Progresso
-                  Card(
-                    color: Theme.of(context).colorScheme.surface,
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'PROGRESSO DO EVENTO',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                '$pontuacaoTotal pts',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Postos Visitados
-                          _buildProgressItem(
-                            context,
-                            icon: Icons.location_on,
-                            title: 'Postos Completos',
-                            value: '$visitedCheckpoints / $totalCheckpoints',
-                            progress:
-                                totalCheckpoints > 0
-                                    ? (visitedCheckpoints / totalCheckpoints)
-                                    : 0.0,
-                            color: Colors.blue,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          /*
-                          // Perguntas Acertadas
-                          _buildProgressItem(
-                            context,
-                            icon: Icons.check_circle,
-                            title: 'Perguntas Acertadas',
-                            value:
-                                '$perguntasCorretas / ${processedCheckpoints.values.where((cp) => cp['timestampEntrada'] != null).length}',
-                            progress:
-                                processedCheckpoints.values
-                                        .where(
-                                          (cp) =>
-                                              cp['timestampEntrada'] != null,
-                                        )
-                                        .isNotEmpty
-                                    ? (perguntasCorretas /
-                                        processedCheckpoints.values
-                                            .where(
-                                              (cp) =>
-                                                  cp['timestampEntrada'] !=
-                                                  null,
-                                            )
-                                            .length)
-                                    : 0.0,
-                            color: Colors.green,
-                          ),
-                          */
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // QR Code para Check-in
-                  Card(
-                    color: Theme.of(context).colorScheme.surface,
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'QR CODE PARA CHECK-IN',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: QrImageView(
-                              data: jsonEncode({
-                                'uid': uid,
-                                'nome': userName,
-                                'matricula':
-                                    eventData['carData']?['matricula'] ?? '',
-                                'grupo': eventData['grupo'] ?? '',
-                              }),
-                              version: QrVersions.auto,
-                              size: 180.0,
-                              backgroundColor: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Mostre este código ao staff',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.60),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Lista de Checkpoints Visitados
-                  Card(
-                    color: Theme.of(context).colorScheme.surface,
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'CHECKPOINTS VISITADOS',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          if (processedCheckpoints.isEmpty)
-                            Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.explore_off,
-                                      size: 48,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    const Text(
-                                      'Nenhum checkpoint visitado ainda',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          else
-                            ...processedCheckpoints.values.map(
-                              (cp) => _buildCheckpointItem(context, cp),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String value,
-    required double progress,
-    required Color color,
-  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 14))),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
+        // Header
+        _buildHeader(userName),
+
+        // Conteúdo scrollable
+        Expanded(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Card de informações do participante
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${userData?['nome'] ?? userName} - ${eventData['carData']?['distico'] ?? '-'}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFFF6B00),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          'Modelo:',
+                          eventData['carData']?['modelo'] ?? '-',
+                        ),
+                        _buildInfoRow(
+                          'Dístico:',
+                          eventData['carData']?['distico'] ?? '-',
+                        ),
+                        _buildInfoRow('Grupo:', eventData['grupo'] ?? '-'),
+                        const Divider(height: 24),
+                        _buildInfoRow(
+                          'Pontuação Total:',
+                          '$pontuacaoTotal',
+                          valueColor: const Color(0xFFFF6B00),
+                          valueBold: true,
+                        ),
+                        _buildInfoRow(
+                          'Tempo Total:',
+                          '${tempoTotalMinutos.toStringAsFixed(1)} min',
+                          valueColor: const Color(0xFFFF6B00),
+                          valueBold: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // RESUMO
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'RESUMO',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildProgressBar(
+                          'Postos completos: $postosCompletos de $totalCheckpoints',
+                          postosCompletos / totalCheckpoints,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Postos restantes: $postosRestantes',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Perguntas acertadas: $perguntasCorretas de $perguntasRespondidas respondidas',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Taxa de acerto: ${taxaAcerto.toStringAsFixed(1)}%',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Checkpoints
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Checkpoints:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (processedCheckpoints.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'Nenhum checkpoint visitado ainda.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        else
+                          ...processedCheckpoints.values.map(
+                            (cp) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Text(
+                                '${cp['nome']} - ${cp['timestampSaida'] != null ? 'Completo' : 'Em andamento'}',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // QR Code
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          QrImageView(
+                            data: jsonEncode({
+                              'uid': uid,
+                              'nome': userName,
+                              'matricula':
+                                  eventData['carData']?['matricula'] ?? '',
+                              'grupo': eventData['grupo'] ?? '',
+                            }),
+                            version: QrVersions.auto,
+                            size: 200.0,
+                            backgroundColor: Colors.white,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Mostre este código ao staff',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: color.withValues(alpha: 0.2),
-          color: color,
-          minHeight: 6,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildCheckpointItem(
-    BuildContext context,
-    Map<String, dynamic> checkpoint,
-  ) {
-    final bool completo =
-        checkpoint['timestampEntrada'] != null &&
-        checkpoint['timestampSaida'] != null;
-    final bool emAndamento =
-        checkpoint['timestampEntrada'] != null &&
-        checkpoint['timestampSaida'] == null;
-
-    String statusText = 'Não visitado';
-    Color statusColor = Colors.grey;
-    IconData statusIcon = Icons.radio_button_unchecked;
-
-    if (completo) {
-      statusText = 'Completo';
-      statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
-    } else if (emAndamento) {
-      statusText = 'Em andamento';
-      statusColor = Colors.orange;
-      statusIcon = Icons.access_time;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
-        borderRadius: BorderRadius.circular(12),
-        color: statusColor.withValues(alpha: 0.05),
-      ),
+  Widget _buildInfoRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool valueBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         children: [
-          Icon(statusIcon, color: statusColor, size: 24),
-          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  checkpoint['nome'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  statusText,
-                  style: TextStyle(fontSize: 12, color: statusColor),
-                ),
-              ],
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: valueColor,
+                fontWeight: valueBold ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
-          if (checkpoint['pontuacaoTotal'] != null &&
-              (checkpoint['pontuacaoTotal'] as int) > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${checkpoint['pontuacaoTotal']} pts',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProgressBar(String label, double progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14)),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[300],
+          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6B00)),
+          minHeight: 8,
+        ),
+      ],
     );
   }
 }
