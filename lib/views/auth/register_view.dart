@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firebase_service.dart';
-import '../payment/payment_view.dart';
 import 'user_summary_view.dart';
 
 class RegisterView extends StatefulWidget {
@@ -45,9 +44,9 @@ class _RegisterViewState extends State<RegisterView>
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  bool _paymentCompleted = false;
-  String? _transactionId;
   late AnimationController _animationController;
+
+  String _paymentMethod = 'pagali'; // 'pagali' ou 'transfer'
 
   String? _selectedEventId;
   String? _selectedEventPath;
@@ -111,6 +110,33 @@ class _RegisterViewState extends State<RegisterView>
     if (width < 360) return baseSpacing * 0.75;
     if (width < 600) return baseSpacing;
     return baseSpacing * 1.2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = <Widget>[
+      _buildStepCondutor(),
+      _buildStepCarro(),
+      _buildStepPassageiros(),
+      _buildStepEvento(),
+      _buildStepPagamento(),
+    ];
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: Column(
+        children: [
+          _buildStepIndicator(context),
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: pages,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<Map<String, dynamic>> _getLocationPriceInfo(String location) async {
@@ -409,16 +435,34 @@ class _RegisterViewState extends State<RegisterView>
       int maxVehicles = -1;
 
       if (eventData.containsKey('pricesByLocation')) {
-        final pricesByLocation =
-            eventData['pricesByLocation'] as Map<String, dynamic>?;
+        final raw = eventData['pricesByLocation'];
+        Map<String, dynamic>? pricesByLocation;
+        if (raw is Map) {
+          pricesByLocation = Map<String, dynamic>.from(raw);
+        }
 
         if (pricesByLocation != null &&
             pricesByLocation.containsKey(_selectedLocation)) {
-          final locationData =
-              pricesByLocation[_selectedLocation] as Map<String, dynamic>;
-          price = double.tryParse('${locationData['price'] ?? 0}') ?? 0;
-          maxVehicles =
-              int.tryParse('${locationData['maxVehicles'] ?? -1}') ?? -1;
+          final val = pricesByLocation[_selectedLocation];
+          if (val is num) {
+            price = val.toDouble();
+          } else if (val is String) {
+            price = double.tryParse(val) ?? 0;
+          } else if (val is Map) {
+            final m = Map<String, dynamic>.from(val);
+            final p = m['price'];
+            final mv = m['maxVehicles'];
+            if (p is num) {
+              price = p.toDouble();
+            } else {
+              price = double.tryParse('${p ?? 0}') ?? 0;
+            }
+            if (mv is num) {
+              maxVehicles = mv.toInt();
+            } else {
+              maxVehicles = int.tryParse('${mv ?? -1}') ?? -1;
+            }
+          }
 
           debugPrint('💰 Preço para $_selectedLocation: $price CVE');
           debugPrint(
@@ -561,11 +605,13 @@ class _RegisterViewState extends State<RegisterView>
         'equipaId': equipaId,
         'checkpointsVisitados': [],
         'createdAt': FieldValue.serverTimestamp(),
-        'paymentStatus': 'paid',
-        'transactionId': _transactionId ?? '',
-        'amountPaid': price,
-        'paymentDate': FieldValue.serverTimestamp(),
+        // inscrição aberta, pagamento será tratado depois
+        'paymentStatus': 'pending',
+        'transactionId': '',
+        'amountPaid': 0,
+        'paymentMethod': _paymentMethod,
       });
+
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
 
       await FirebaseFirestore.instance
@@ -589,21 +635,26 @@ class _RegisterViewState extends State<RegisterView>
       await prefs.setBool('acceptedTerms', true);
 
       if (!mounted) return;
-      if (price > 0) {
-        Get.to(() => PaymentView(eventId: _selectedEventId!, amount: price));
-      } else {
-        Get.offAll(
-          () => UserSummaryView(
-            nome: _nameController.text.trim(),
-            email: _emailController.text.trim(),
-            telefone: _phoneController.text.trim(),
-            emergencia: _emergencyContactController.text.trim(),
-            equipa: _teamNameController.text.trim(),
-            tShirt: _selectedShirtSize ?? '',
-            eventoNome: nomeEvento,
-          ),
-        );
-      }
+      Get.offAll(
+        () => UserSummaryView(
+          nome: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          telefone: _phoneController.text.trim(),
+          emergencia: _emergencyContactController.text.trim(),
+          equipa: _teamNameController.text.trim(),
+          tShirt: _selectedShirtSize ?? '',
+          eventoNome: nomeEvento,
+        ),
+      );
+      Get.snackbar(
+        'Inscrição submetida',
+        'Receberá instruções de pagamento pela organização.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.withValues(alpha: 0.9),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        duration: const Duration(seconds: 4),
+      );
     } on FirebaseAuthException catch (authError) {
       if (!mounted) return;
       if (authError.code == 'email-already-in-use') {
@@ -717,7 +768,7 @@ class _RegisterViewState extends State<RegisterView>
       case 3:
         return 'Evento e Confirmação';
       case 4:
-        return 'Pagamento';
+        return 'Finalização';
       default:
         return '';
     }
@@ -2046,7 +2097,7 @@ class _RegisterViewState extends State<RegisterView>
             }
 
             final paymentInfo = snapshot.data!;
-            final price = paymentInfo['price'] as double;
+            final price = (paymentInfo['price'] as num?)?.toDouble() ?? 0.0;
             final location = _selectedLocation ?? '';
 
             return SingleChildScrollView(
@@ -2055,281 +2106,154 @@ class _RegisterViewState extends State<RegisterView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(
-                        _getResponsiveSpacing(context, 20),
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [shellYellow, shellOrange],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          _getResponsiveSpacing(context, 16),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: shellOrange.withValues(alpha: 0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.payment,
-                            size: _getResponsiveSpacing(context, 48),
-                            color: Colors.white,
-                          ),
-                          SizedBox(height: _getResponsiveSpacing(context, 12)),
-                          Text(
-                            'Pagamento da Inscrição',
-                            style: TextStyle(
-                              fontSize: _getResponsiveFontSize(context, 24),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: _getResponsiveSpacing(context, 8)),
-                          Text(
-                            'Complete o pagamento para finalizar',
-                            style: TextStyle(
-                              fontSize: _getResponsiveFontSize(context, 14),
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                    Text(
+                      'Pagamento',
+                      style: TextStyle(
+                        fontSize: _getResponsiveFontSize(context, 22),
+                        fontWeight: FontWeight.bold,
+                        color: shellRed,
                       ),
                     ),
                     SizedBox(height: spacing),
+
+                    // Resumo do valor
                     Container(
                       padding: EdgeInsets.all(
-                        _getResponsiveSpacing(context, 20),
+                        _getResponsiveSpacing(context, 16),
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(
-                          _getResponsiveSpacing(context, 16),
+                        gradient: LinearGradient(
+                          colors: [
+                            shellYellow.withValues(alpha: 0.2),
+                            shellOrange.withValues(alpha: 0.1),
+                          ],
                         ),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(
+                          _getResponsiveSpacing(context, 12),
+                        ),
+                        border: Border.all(
+                          color: shellOrange.withValues(alpha: 0.3),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Resumo do Pedido',
+                            'Valor da inscrição (${location.isEmpty ? '—' : location}):',
+                            style: TextStyle(
+                              fontSize: _getResponsiveFontSize(context, 14),
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          Text(
+                            '${price.toStringAsFixed(0)} CVE',
                             style: TextStyle(
                               fontSize: _getResponsiveFontSize(context, 18),
                               fontWeight: FontWeight.bold,
                               color: shellRed,
                             ),
                           ),
-                          Divider(height: spacing * 1.5),
-                          _buildSummaryRow(
-                            context,
-                            'Nome',
-                            _nameController.text.trim(),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: spacing),
+
+                    // Método de pagamento (Material 3)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: _getResponsiveSpacing(context, 4),
+                      ),
+                      child: SegmentedButton<String>(
+                        segments: const <ButtonSegment<String>>[
+                          ButtonSegment<String>(
+                            value: 'pagali',
+                            label: Text('Pagali'),
+                            icon: Icon(Icons.account_balance_wallet_outlined),
                           ),
-                          _buildSummaryRow(
-                            context,
-                            'Equipa',
-                            _teamNameController.text.trim(),
-                          ),
-                          _buildSummaryRow(
-                            context,
-                            'Veículo',
-                            '${_carModelController.text.trim()} (${_licensePlateController.text.trim()})',
-                          ),
-                          _buildSummaryRow(context, 'Localização', location),
-                          _buildSummaryRow(
-                            context,
-                            'Passageiros',
-                            '${passageirosControllers.length} pessoa(s)',
-                          ),
-                          Divider(height: spacing * 1.5),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'TOTAL',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 18),
-                                  fontWeight: FontWeight.bold,
-                                  color: shellRed,
-                                ),
-                              ),
-                              Text(
-                                '${price.toStringAsFixed(0)} CVE',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 24),
-                                  fontWeight: FontWeight.bold,
-                                  color: shellRed,
-                                ),
-                              ),
-                            ],
+                          ButtonSegment<String>(
+                            value: 'transfer',
+                            label: Text('Transferência bancária'),
+                            icon: Icon(Icons.account_balance_outlined),
                           ),
                         ],
+                        selected: <String>{_paymentMethod},
+                        onSelectionChanged: (newSelection) {
+                          setState(() {
+                            _paymentMethod = newSelection.first;
+                          });
+                        },
+                        showSelectedIcon: false,
                       ),
                     ),
                     SizedBox(height: spacing),
-                    Container(
-                      padding: EdgeInsets.all(
-                        _getResponsiveSpacing(context, 20),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(
-                          _getResponsiveSpacing(context, 16),
-                        ),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.credit_card,
-                                color: shellOrange,
-                                size: _getResponsiveSpacing(context, 24),
-                              ),
-                              SizedBox(
-                                width: _getResponsiveSpacing(context, 12),
-                              ),
-                              Text(
-                                'Método de Pagamento',
-                                style: TextStyle(
-                                  fontSize: _getResponsiveFontSize(context, 16),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: _getResponsiveSpacing(context, 16)),
-                          Container(
-                            padding: EdgeInsets.all(
-                              _getResponsiveSpacing(context, 16),
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  shellYellow.withValues(alpha: 0.1),
-                                  shellOrange.withValues(alpha: 0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                _getResponsiveSpacing(context, 12),
-                              ),
-                              border: Border.all(
-                                color: shellOrange.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Image.asset(
-                                  'assets/images/pagali_logo.png',
-                                  height: _getResponsiveSpacing(context, 40),
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(
-                                      Icons.payment,
-                                      size: _getResponsiveSpacing(context, 40),
-                                      color: shellOrange,
-                                    );
-                                  },
-                                ),
-                                SizedBox(
-                                  width: _getResponsiveSpacing(context, 16),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pagali',
-                                        style: TextStyle(
-                                          fontSize: _getResponsiveFontSize(
-                                            context,
-                                            16,
-                                          ),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Pagamento seguro via Pagali',
-                                        style: TextStyle(
-                                          fontSize: _getResponsiveFontSize(
-                                            context,
-                                            12,
-                                          ),
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                  size: _getResponsiveSpacing(context, 24),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: _getResponsiveSpacing(context, 24)),
-                    if (_paymentCompleted)
+
+                    // Instruções contextuais
+                    if (_paymentMethod == 'pagali')
                       Container(
                         padding: EdgeInsets.all(
                           _getResponsiveSpacing(context, 16),
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
+                          color: Colors.green.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(
                             _getResponsiveSpacing(context, 12),
                           ),
-                          border: Border.all(color: Colors.green),
+                          border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.4),
+                          ),
                         ),
-                        child: Row(
+                        child: Text(
+                          'Após finalizar, receberá instruções para pagar via Pagali na área "Eventos" do app/site Pagali. A participação só será validada após confirmação do pagamento.',
+                          style: TextStyle(
+                            fontSize: _getResponsiveFontSize(context, 14),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: EdgeInsets.all(
+                          _getResponsiveSpacing(context, 16),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(
+                            _getResponsiveSpacing(context, 12),
+                          ),
+                          border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: _getResponsiveSpacing(context, 24),
+                            Text(
+                              'Transferência bancária',
+                              style: TextStyle(
+                                fontSize: _getResponsiveFontSize(context, 16),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            SizedBox(width: _getResponsiveSpacing(context, 12)),
-                            Expanded(
-                              child: Text(
-                                '''Agradecemos a sua inscrição! Para confirmar a sua participação no evento, deve efetuar o pagamento diretamente no Pagali (menu "Eventos") ou por transferência bancária para o NIB: 000500000831804210197, Banco Interatlantico.
-
-O comprovativo de pagamento deve ser enviado para o email: manoamanooffroad@gmail.com.
-
-⚠️ A participação no evento só será validada após a confirmação do pagamento.
-''',
-                                style: TextStyle(
-                                  color: Colors.green.shade700,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: _getResponsiveFontSize(context, 14),
-                                ),
+                            SizedBox(height: _getResponsiveSpacing(context, 8)),
+                            Text(
+                              'Efetue a transferência para o NIB: 0005000000831804210197 (Banco Interatlântico). Envie o comprovativo para: manoamanooffroad@gmail.com.',
+                              style: TextStyle(
+                                fontSize: _getResponsiveFontSize(context, 14),
+                              ),
+                            ),
+                            SizedBox(height: _getResponsiveSpacing(context, 8)),
+                            Text(
+                              'A participação no evento só será validada após a confirmação.',
+                              style: TextStyle(
+                                fontSize: _getResponsiveFontSize(context, 14),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    SizedBox(height: _getResponsiveSpacing(context, 24)),
+
+                    SizedBox(height: spacing),
+
                     _buildNavigationButtons(
                       context: context,
                       showBack: true,
@@ -2340,9 +2264,10 @@ O comprovativo de pagamento deve ser enviado para o email: manoamanooffroad@gmai
                         });
                         _pageController.jumpToPage(3);
                       },
-                      onNext: () => _processPagaliPayment(price),
+                      onNext: _register,
                       isLastStep: true,
                     ),
+
                     if (_error != null) ...[
                       SizedBox(height: _getResponsiveSpacing(context, 16)),
                       Container(
@@ -2385,212 +2310,6 @@ O comprovativo de pagamento deve ser enviado para o email: manoamanooffroad@gmai
           },
         );
       },
-    );
-  }
-
-  Widget _buildSummaryRow(BuildContext context, String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: _getResponsiveSpacing(context, 8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: _getResponsiveFontSize(context, 14),
-              color: Colors.grey.shade600,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: _getResponsiveFontSize(context, 14),
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _processPagaliPayment(double amount) async {
-    if (_paymentCompleted) {
-      _register();
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final paymentData = {
-        'amount': amount,
-        'currency': 'CVE',
-        'description':
-            'Inscrição Shell ao Km - ${_teamNameController.text.trim()}',
-        'customer': {
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'phone': _phoneController.text.trim(),
-        },
-        'metadata': {
-          'event': _selectedEventId,
-          'location': _selectedLocation,
-          'team': _teamNameController.text.trim(),
-        },
-      };
-      debugPrint('Pagali payload: $paymentData');
-
-      await Future.delayed(const Duration(seconds: 2));
-
-      final mockTransactionId = 'TXN${DateTime.now().millisecondsSinceEpoch}';
-
-      if (!mounted) return;
-      setState(() {
-        _paymentCompleted = true;
-        _transactionId = mockTransactionId;
-      });
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  _getResponsiveSpacing(context, 16),
-                ),
-              ),
-              title: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 32),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Inscrição Confirmado',
-                      style: TextStyle(
-                        fontSize: _getResponsiveFontSize(context, 18),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'A sua inscriçãõ foi processado com sucesso!',
-                    style: TextStyle(
-                      fontSize: _getResponsiveFontSize(context, 14),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.receipt, color: shellOrange, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ID da Transação',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              Text(
-                                mockTransactionId,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _register();
-                  },
-                  style: TextButton.styleFrom(
-                    backgroundColor: shellOrange,
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Continuar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-      );
-    } catch (e) {
-      debugPrint('Erro no pagamento Pagali: $e');
-      if (!mounted) return;
-      setState(() {
-        _error = 'Erro ao processar pagamento. Tente novamente.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildStepIndicator(context),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildStepCondutor(),
-                  _buildStepCarro(),
-                  _buildStepPassageiros(),
-                  _buildStepEvento(),
-                  _buildStepPagamento(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
