@@ -37,6 +37,8 @@ class _CheckinViewState extends State<CheckinView> {
   String? _activeEditionId;
   String? _activeEventId;
   bool _isLoadingConfig = true;
+  bool _hasActiveEvent = false;
+  String? _activeEventName;
 
   @override
   void initState() {
@@ -101,6 +103,9 @@ class _CheckinViewState extends State<CheckinView> {
       final eventDoc = eventsSnapshot.docs.first;
       _activeEventId = eventDoc.id;
       final eventData = eventDoc.data();
+      _activeEventName =
+          (eventData['nome'] ?? eventData['name'] ?? _activeEventId) as String?;
+      _hasActiveEvent = true;
 
       // 3. Carregar modo de check-in
       final checkinMode =
@@ -187,6 +192,31 @@ class _CheckinViewState extends State<CheckinView> {
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
                             children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.event,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Evento: ${_activeEventName ?? '-'}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Icon(
@@ -441,6 +471,12 @@ class _CheckinViewState extends State<CheckinView> {
   Future<void> _handleQRScan(dynamic barcode) async {
     if (isScanned || isProcessing) return;
 
+    // Validar se há evento ativo
+    if (!_hasActiveEvent || _activeEventId == null) {
+      _showError('Nenhum evento ativo disponível para check-in');
+      return;
+    }
+
     setState(() => isProcessing = true);
 
     String qrCode = '';
@@ -537,6 +573,14 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _processCheckpoint(String checkpointId, String tipo) async {
+    // Validação adicional de segurança
+    if (!_hasActiveEvent ||
+        _activeEventId == null ||
+        _activeEditionId == null) {
+      _showError('Evento não está ativo. Não é possível fazer check-in.');
+      return;
+    }
+
     try {
       final eventPath = '$_activeEditionId/$_activeEventId';
       final uid = _authService.currentUser!.uid;
