@@ -22,36 +22,27 @@ class _ParticipantesPorEventoViewState
   String searchQuery = '';
   String? filtroEquipa;
   bool showOnlyWithPoints = false;
-  String ordenacao = 'nome'; // nome, pontuacao, equipa
+  String ordenacao = 'nome';
   bool ordenacaoDecrescente = false;
 
   final Map<String, String> equipasCache = {};
   final Map<String, int> pontuacoesCache = {};
-  bool isLoadingStats = false;
+
+  // Cores em sintonia com o logo Shell
+  static const Color primaryYellow = Color(0xFFFBBC04);
+  static const Color primaryOrange = Color(0xFFFF6F00);
+  static const Color primaryRed = Color(0xFFE53935);
+  static const Color lightYellow = Color(0xFFFFF9C4);
+  static const Color lightOrange = Color(0xFFFFE0B2);
+  static const Color lightRed = Color(0xFFFFCDD2);
+  static const Color accentGreen = Color(0xFF4CAF50);
+  static const Color lightGreen = Color(0xFFC8E6C9);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Participantes por Evento'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart),
-            onPressed: _mostrarEstatisticas,
-            tooltip: 'Estatísticas',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {
-                pontuacoesCache.clear();
-              });
-            },
-            tooltip: 'Atualizar',
-          ),
-        ],
-      ),
+      backgroundColor: Colors.grey[50],
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           _buildEventoSelector(),
@@ -63,18 +54,123 @@ class _ParticipantesPorEventoViewState
     );
   }
 
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [primaryOrange, primaryRed],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.people, color: primaryOrange, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Participantes',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                'Gestão de Participantes por Evento',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.bar_chart, color: Colors.white),
+            onPressed: _mostrarEstatisticas,
+            tooltip: 'Estatísticas',
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () => setState(() => pontuacoesCache.clear()),
+            tooltip: 'Atualizar',
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildEventoSelector() {
     return Container(
-      color: Colors.blue.shade50,
-      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [lightYellow, lightOrange.withValues(alpha: 0.3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Selecione o Evento',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryOrange,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.event_note, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Selecione o Evento',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('editions')
@@ -82,41 +178,70 @@ class _ParticipantesPorEventoViewState
                 .snapshots(),
             builder: (context, edicoesSnapshot) {
               if (!edicoesSnapshot.hasData) {
-                return const LinearProgressIndicator();
+                return const LinearProgressIndicator(
+                  backgroundColor: lightYellow,
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                );
               }
 
               final edicoes = edicoesSnapshot.data!.docs;
 
-              return DropdownButtonFormField<String>(
-                initialValue: edicaoSelecionadaId,
-                decoration: InputDecoration(
-                  labelText: 'Edição',
-                  prefixIcon: const Icon(Icons.event_note),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primaryOrange.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                items: edicoes.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return DropdownMenuItem(
-                    value: doc.id,
-                    child: Text(data['nome'] ?? 'Sem nome'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    edicaoSelecionadaId = value;
-                    eventoSelecionadoId = null;
-                    pontuacoesCache.clear();
-                  });
-                },
+                child: DropdownButtonFormField<String>(
+                  initialValue: edicaoSelecionadaId,
+                  decoration: InputDecoration(
+                    labelText: 'Edição do Evento',
+                    labelStyle: TextStyle(color: Colors.grey[700]),
+                    prefixIcon: const Icon(Icons.event_note, color: primaryOrange),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: primaryOrange, width: 2),
+                    ),
+                  ),
+                  items: edicoes.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return DropdownMenuItem(
+                      value: doc.id,
+                      child: Text(
+                        data['nome'] ?? 'Sem nome',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      edicaoSelecionadaId = value;
+                      eventoSelecionadoId = null;
+                      pontuacoesCache.clear();
+                    });
+                  },
+                ),
               );
             },
           ),
           if (edicaoSelecionadaId != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('editions')
@@ -126,66 +251,105 @@ class _ParticipantesPorEventoViewState
                   .snapshots(),
               builder: (context, eventosSnapshot) {
                 if (!eventosSnapshot.hasData) {
-                  return const LinearProgressIndicator();
+                  return const LinearProgressIndicator(
+                    backgroundColor: lightYellow,
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                  );
                 }
 
                 final eventos = eventosSnapshot.data!.docs;
 
                 if (eventos.isEmpty) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Nenhum evento nesta edição'),
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: lightOrange,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: primaryOrange),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Nenhum evento nesta edição',
+                          style: TextStyle(color: Colors.black87),
+                        ),
+                      ],
                     ),
                   );
                 }
 
-                return DropdownButtonFormField<String>(
-                  initialValue: eventoSelecionadoId,
-                  decoration: InputDecoration(
-                    labelText: 'Evento',
-                    prefixIcon: const Icon(Icons.event),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryOrange.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                   ),
-                  items: eventos.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final timestamp = data['data'] as Timestamp?;
-                    final dataFormatada = timestamp != null
-                        ? '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}'
-                        : '';
-                    return DropdownMenuItem(
-                      value: doc.id,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            data['nome'] ?? 'Sem nome',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          if (dataFormatada.isNotEmpty)
+                  child: DropdownButtonFormField<String>(
+                    initialValue: eventoSelecionadoId,
+                    decoration: InputDecoration(
+                      labelText: 'Evento Específico',
+                      labelStyle: TextStyle(color: Colors.grey[700]),
+                      prefixIcon: const Icon(Icons.event, color: primaryRed),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: primaryRed, width: 2),
+                      ),
+                    ),
+                    items: eventos.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final timestamp = data['data'] as Timestamp?;
+                      final dataFormatada = timestamp != null
+                          ? '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}'
+                          : '';
+                      return DropdownMenuItem(
+                        value: doc.id,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              dataFormatada,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                              data['nome'] ?? 'Sem nome',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      eventoSelecionadoId = value;
-                      filtroEquipa = null;
-                      pontuacoesCache.clear();
-                    });
-                  },
+                            if (dataFormatada.isNotEmpty)
+                              Text(
+                                dataFormatada,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        eventoSelecionadoId = value;
+                        filtroEquipa = null;
+                        pontuacoesCache.clear();
+                      });
+                    },
+                  ),
                 );
               },
             ),
@@ -199,26 +363,53 @@ class _ParticipantesPorEventoViewState
     if (eventoSelecionadoId == null) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Pesquisar participante...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () => setState(() => searchQuery = ''),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+          // Barra de pesquisa
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryYellow.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            onChanged: (value) => setState(() => searchQuery = value),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Pesquisar participante...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: const Icon(Icons.search, color: primaryOrange),
+                suffixIcon: searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () => setState(() => searchQuery = ''),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[200]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: primaryOrange, width: 2),
+                ),
+              ),
+              onChanged: (value) => setState(() => searchQuery = value),
+            ),
           ),
           const SizedBox(height: 12),
+          // Filtros
           Row(
             children: [
               Expanded(
@@ -237,85 +428,148 @@ class _ParticipantesPorEventoViewState
                               'Sem nome';
                     }
 
-                    return DropdownButtonFormField<String?>(
-                      initialValue: filtroEquipa,
-                      decoration: InputDecoration(
-                        labelText: 'Equipa',
-                        prefixIcon: const Icon(Icons.group),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryYellow.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Todas'),
+                      child: DropdownButtonFormField<String>(
+                        initialValue: filtroEquipa,
+                        decoration: InputDecoration(
+                          labelText: 'Equipa',
+                          labelStyle: TextStyle(color: Colors.grey[700]),
+                          prefixIcon: const Icon(Icons.group, color: primaryYellow),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
-                        ...equipas.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return DropdownMenuItem<String?>(
-                            value: doc.id,
-                            child: Text(data['nome'] ?? 'Sem nome'),
-                          );
-                        }),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => filtroEquipa = value),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Todas'),
+                          ),
+                          ...equipas.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            return DropdownMenuItem(
+                              value: doc.id,
+                              child: Text(data['nome'] ?? 'Sem nome'),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => filtroEquipa = value),
+                      ),
                     );
                   },
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: ordenacao,
-                  decoration: InputDecoration(
-                    labelText: 'Ordenar',
-                    prefixIcon: const Icon(Icons.sort),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryYellow.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'nome', child: Text('Nome')),
-                    DropdownMenuItem(
-                      value: 'pontuacao',
-                      child: Text('Pontuação'),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: ordenacao,
+                    decoration: InputDecoration(
+                      labelText: 'Ordenar',
+                      labelStyle: TextStyle(color: Colors.grey[700]),
+                      prefixIcon: const Icon(Icons.sort, color: primaryRed),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
-                    DropdownMenuItem(value: 'equipa', child: Text('Equipa')),
+                    items: const [
+                      DropdownMenuItem(value: 'nome', child: Text('Nome')),
+                      DropdownMenuItem(
+                        value: 'pontuacao',
+                        child: Text('Pontuação'),
+                      ),
+                      DropdownMenuItem(value: 'equipa', child: Text('Equipa')),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => ordenacao = value ?? 'nome'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: ordenacaoDecrescente ? primaryOrange : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryYellow.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    ordenacaoDecrescente
+                        ? Icons.arrow_downward
+                        : Icons.arrow_upward,
+                    color: ordenacaoDecrescente ? Colors.white : primaryOrange,
+                  ),
+                  onPressed: () =>
+                      setState(() => ordenacaoDecrescente = !ordenacaoDecrescente),
+                  tooltip: ordenacaoDecrescente ? 'Decrescente' : 'Crescente',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: showOnlyWithPoints ? accentGreen : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primaryYellow.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
-                  onChanged: (value) =>
-                      setState(() => ordenacao = value ?? 'nome'),
                 ),
-              ),
-              IconButton(
-                icon: Icon(
-                  ordenacaoDecrescente
-                      ? Icons.arrow_downward
-                      : Icons.arrow_upward,
+                child: IconButton(
+                  icon: Icon(
+                    showOnlyWithPoints
+                        ? Icons.filter_alt
+                        : Icons.filter_alt_outlined,
+                    color: showOnlyWithPoints ? Colors.white : accentGreen,
+                  ),
+                  onPressed: () =>
+                      setState(() => showOnlyWithPoints = !showOnlyWithPoints),
+                  tooltip: 'Apenas com pontuação',
                 ),
-                onPressed: () =>
-                    setState(() => ordenacaoDecrescente = !ordenacaoDecrescente),
-                tooltip: ordenacaoDecrescente ? 'Decrescente' : 'Crescente',
-              ),
-              IconButton(
-                icon: Icon(
-                  showOnlyWithPoints
-                      ? Icons.filter_alt
-                      : Icons.filter_alt_outlined,
-                  color: showOnlyWithPoints ? Colors.blue : null,
-                ),
-                onPressed: () =>
-                    setState(() => showOnlyWithPoints = !showOnlyWithPoints),
-                tooltip: 'Apenas com pontuação',
               ),
             ],
           ),
@@ -333,35 +587,53 @@ class _ParticipantesPorEventoViewState
         final participantes = snapshot.data!.docs;
         final total = participantes.length;
         final comPontuacao = participantes
-            .where((doc) =>
-                (pontuacoesCache[doc.id] ?? 0) > 0 ||
-                _hasPontuacao(doc.data() as Map<String, dynamic>))
+            .where((doc) => (pontuacoesCache[doc.id] ?? 0) > 0)
             .length;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.grey[100],
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: primaryYellow.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              _buildStatChip(
-                Icons.people,
-                'Total',
-                '$total',
-                Colors.blue,
+              Expanded(
+                child: _buildStatChip(
+                  Icons.people,
+                  'Total',
+                  '$total',
+                  primaryOrange,
+                  lightOrange,
+                ),
               ),
-              const SizedBox(width: 8),
-              _buildStatChip(
-                Icons.emoji_events,
-                'Com Pontos',
-                '$comPontuacao',
-                Colors.green,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatChip(
+                  Icons.emoji_events,
+                  'Com Pontos',
+                  '$comPontuacao',
+                  accentGreen,
+                  lightGreen,
+                ),
               ),
-              const SizedBox(width: 8),
-              _buildStatChip(
-                Icons.pending,
-                'Sem Pontos',
-                '${total - comPontuacao}',
-                Colors.orange,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatChip(
+                  Icons.pending,
+                  'Sem Pontos',
+                  '${total - comPontuacao}',
+                  primaryYellow,
+                  lightYellow,
+                ),
               ),
             ],
           ),
@@ -375,40 +647,39 @@ class _ParticipantesPorEventoViewState
     String label,
     String value,
     Color color,
+    Color bgColor,
   ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 10, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
-  }
-
-  bool _hasPontuacao(Map<String, dynamic> data) {
-    // Verifica se há algum indicador de pontuação no documento
-    return false; // Ajuste conforme sua estrutura
   }
 
   Widget _buildParticipantesList() {
@@ -417,11 +688,34 @@ class _ParticipantesPorEventoViewState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: lightYellow,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.event,
+                size: 64,
+                color: primaryOrange,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Selecione um evento',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
-              'Selecione um evento para ver os participantes',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              'Escolha um evento acima para ver os participantes',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -433,13 +727,18 @@ class _ParticipantesPorEventoViewState
       stream: _buildParticipantesQuery(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Carregando participantes...'),
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Carregando participantes...',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
               ],
             ),
           );
@@ -450,9 +749,33 @@ class _ParticipantesPorEventoViewState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: lightRed,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: primaryRed,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Text('Erro: ${snapshot.error}'),
+                Text(
+                  'Erro ao carregar dados',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${snapshot.error}',
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           );
@@ -463,11 +786,30 @@ class _ParticipantesPorEventoViewState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: lightOrange,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.people_outline,
+                    size: 64,
+                    color: primaryOrange,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text(
-                  'Nenhum participante encontrado',
-                  style: TextStyle(fontSize: 16),
+                  'Nenhum participante',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Ainda não há participantes neste evento',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -481,11 +823,30 @@ class _ParticipantesPorEventoViewState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: lightYellow,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.search_off,
+                    size: 64,
+                    color: primaryYellow,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text(
-                  'Nenhum resultado encontrado',
-                  style: TextStyle(fontSize: 16),
+                  'Nenhum resultado',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tente ajustar os filtros de pesquisa',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -495,26 +856,63 @@ class _ParticipantesPorEventoViewState
         return Column(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.grey[200],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [lightYellow, lightOrange.withValues(alpha: 0.3)],
+                ),
+              ),
               child: Row(
                 children: [
-                  Text(
-                    '${participantes.length} participante${participantes.length != 1 ? 's' : ''}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryOrange,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.people,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${participantes.length} participante${participantes.length != 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _exportarParticipantes(participantes),
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Exportar CSV'),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: accentGreen,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextButton.icon(
+                      onPressed: () => _exportarParticipantes(participantes),
+                      icon: const Icon(Icons.download, size: 18, color: Colors.white),
+                      label: const Text(
+                        'Exportar CSV',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 itemCount: participantes.length,
                 itemBuilder: (context, index) {
                   return _buildParticipanteCard(participantes[index]);
@@ -530,7 +928,6 @@ class _ParticipantesPorEventoViewState
   List<QueryDocumentSnapshot> _filtrarEOrdenarParticipantes(
     List<QueryDocumentSnapshot> participantes,
   ) {
-    // Filtrar por busca
     if (searchQuery.isNotEmpty) {
       participantes = participantes.where((doc) {
         final data = doc.data() as Map<String, dynamic>;
@@ -541,7 +938,6 @@ class _ParticipantesPorEventoViewState
       }).toList();
     }
 
-    // Filtrar por equipa
     if (filtroEquipa != null) {
       participantes = participantes.where((doc) {
         final data = doc.data() as Map<String, dynamic>;
@@ -549,14 +945,12 @@ class _ParticipantesPorEventoViewState
       }).toList();
     }
 
-    // Filtrar apenas com pontuação
     if (showOnlyWithPoints) {
       participantes = participantes.where((doc) {
         return (pontuacoesCache[doc.id] ?? 0) > 0;
       }).toList();
     }
 
-    // Ordenar
     participantes.sort((a, b) {
       final dataA = a.data() as Map<String, dynamic>;
       final dataB = b.data() as Map<String, dynamic>;
@@ -596,151 +990,234 @@ class _ParticipantesPorEventoViewState
     final equipaId = data['equipaId'];
     final nomeEquipa = equipaId != null ? equipasCache[equipaId] : null;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _abrirDetalhes(doc.id),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.blue,
-                    child: Text(
-                      nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: primaryYellow.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _abrirDetalhes(doc.id),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [primaryOrange, primaryRed],
+                        ),
+                        shape: BoxShape.circle,
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          nome,
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          nome.isNotEmpty ? nome[0].toUpperCase() : '?',
                           style: const TextStyle(
-                            fontSize: 16,
+                            color: primaryOrange,
                             fontWeight: FontWeight.bold,
+                            fontSize: 20,
                           ),
                         ),
-                        if (nomeEquipa != null)
-                          Row(
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nome,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          if (nomeEquipa != null) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: lightOrange,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: primaryOrange.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.group,
+                                    size: 14,
+                                    color: primaryOrange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    nomeEquipa,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: primaryOrange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    FutureBuilder<int>(
+                      future: _getPontuacaoTotal(doc.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Container(
+                            width: 90,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    primaryOrange,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final pontos = snapshot.data ?? 0;
+                        if (!pontuacoesCache.containsKey(doc.id)) {
+                          pontuacoesCache[doc.id] = pontos;
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors:
+                                  pontos > 0
+                                      ? [accentGreen, accentGreen.withValues(alpha: 0.7)]
+                                      : [Colors.grey[300]!, Colors.grey[400]!],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    pontos > 0
+                                        ? accentGreen.withValues(alpha: 0.3)
+                                        : Colors.transparent,
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.group,
-                                size: 14,
-                                color: Colors.grey[600],
+                                Icons.emoji_events,
+                                size: 18,
+                                color: pontos > 0 ? Colors.white : Colors.grey[600],
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                               Text(
-                                nomeEquipa,
+                                '$pontos',
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color:
+                                      pontos > 0 ? Colors.white : Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'pts',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      pontos > 0 ? Colors.white : Colors.grey[600],
                                 ),
                               ),
                             ],
                           ),
-                      ],
-                    ),
-                  ),
-                  FutureBuilder<int>(
-                    future: _getPontuacaoTotal(doc.id),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          width: 80,
-                          height: 32,
-                          child: Center(
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
                         );
-                      }
-
-                      final pontos = snapshot.data ?? 0;
-                      if (!pontuacoesCache.containsKey(doc.id)) {
-                        pontuacoesCache[doc.id] = pontos;
-                      }
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              pontos > 0
-                                  ? Colors.green.shade100
-                                  : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.emoji_events,
-                              size: 16,
-                              color: pontos > 0 ? Colors.green : Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$pontos pts',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: pontos > 0 ? Colors.green : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _buildInfoChip(Icons.email, email)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildInfoChip(Icons.phone, telefone)),
-                ],
-              ),
-            ],
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoChip(Icons.email, email, primaryYellow),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildInfoChip(Icons.phone, telefone, accentGreen),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 4),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[800],
+                fontWeight: FontWeight.w500,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -786,9 +1263,7 @@ class _ParticipantesPorEventoViewState
       ),
     ).then((result) {
       if (result == true) {
-        setState(() {
-          pontuacoesCache.clear();
-        });
+        setState(() => pontuacoesCache.clear());
       }
     });
   }
@@ -797,31 +1272,37 @@ class _ParticipantesPorEventoViewState
     List<QueryDocumentSnapshot> participantes,
   ) async {
     try {
-      // Mostrar loading
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Exportando dados...'),
-                ],
-              ),
+        builder: (context) => Center(
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Exportando dados...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       );
 
-      // Preparar dados para CSV
       List<List<dynamic>> rows = [];
-
-      // Cabeçalho
       rows.add([
         'Nome',
         'Email',
@@ -832,7 +1313,6 @@ class _ParticipantesPorEventoViewState
         'Pontuação Total',
       ]);
 
-      // Dados dos participantes
       for (final doc in participantes) {
         final data = doc.data() as Map<String, dynamic>;
         final equipaId = data['equipaId'];
@@ -849,21 +1329,15 @@ class _ParticipantesPorEventoViewState
         ]);
       }
 
-      // Converter para CSV
       String csv = const ListToCsvConverter().convert(rows);
-
-      // Salvar arquivo
       final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final path = '${directory.path}/participantes_$timestamp.csv';
       final file = File(path);
       await file.writeAsString(csv);
 
-      // Fechar loading
       if (mounted) Navigator.of(context).pop();
 
-      // Compartilhar arquivo
-      // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(path)],
         subject: 'Participantes - $eventoSelecionadoId',
@@ -871,20 +1345,38 @@ class _ParticipantesPorEventoViewState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Arquivo CSV exportado com sucesso!'),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: accentGreen,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Arquivo CSV exportado com sucesso!',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: accentGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
     } catch (e) {
-      // Fechar loading se estiver aberto
       if (mounted) Navigator.of(context).pop();
 
       if (mounted) {
@@ -892,12 +1384,28 @@ class _ParticipantesPorEventoViewState
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Erro ao exportar: $e')),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.error, color: primaryRed),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Erro ao exportar: $e',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
               ],
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: primaryRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -922,13 +1430,17 @@ class _ParticipantesPorEventoViewState
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: StreamBuilder<QuerySnapshot>(
             stream: _buildParticipantesQuery(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                  ),
+                );
               }
 
               final participantes =
@@ -936,81 +1448,170 @@ class _ParticipantesPorEventoViewState
 
               return ListView(
                 controller: scrollController,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 children: [
-                  // Handle bar
                   Center(
                     child: Container(
-                      width: 40,
-                      height: 4,
+                      width: 50,
+                      height: 5,
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Estatísticas do Evento',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [primaryOrange, primaryRed],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.bar_chart,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        'Estatísticas do Evento',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Cards de estatísticas
+                  const SizedBox(height: 24),
                   _buildStatCard(
                     'Total de Participantes',
                     '${participantes.length}',
                     Icons.people,
-                    Colors.blue,
+                    primaryOrange,
                   ),
                   const SizedBox(height: 12),
                   _buildStatCard(
                     'Com Pontuação',
                     '${participantes.where((p) => (pontuacoesCache[p.id] ?? 0) > 0).length}',
                     Icons.emoji_events,
-                    Colors.green,
+                    accentGreen,
                   ),
                   const SizedBox(height: 12),
                   _buildStatCard(
                     'Pontuação Média',
                     _calcularMediaPontuacao(participantes),
                     Icons.bar_chart,
-                    Colors.orange,
+                    primaryYellow,
                   ),
                   const SizedBox(height: 12),
                   _buildStatCard(
                     'Pontuação Máxima',
                     _calcularMaximaPontuacao(participantes),
                     Icons.star,
-                    Colors.amber,
+                    primaryRed,
                   ),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Top 5 Participantes',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: lightYellow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.emoji_events,
+                          color: primaryOrange,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Top 5 Participantes',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   _buildTop5(participantes),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Distribuição por Equipa',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: lightOrange,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.pie_chart,
+                          color: primaryOrange,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Distribuição por Equipa',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   _buildDistribuicaoEquipas(participantes),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Gráfico de Pontuações',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 32),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: lightGreen,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.show_chart,
+                          color: accentGreen,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Gráfico de Pontuações',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 300,
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 320,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryYellow.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: _buildGraficoPontuacoes(participantes),
                   ),
+                  const SizedBox(height: 24),
                 ],
               );
             },
@@ -1021,45 +1622,56 @@ class _ParticipantesPorEventoViewState
   }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 32),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+            child: Icon(icon, color: color, size: 32),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: color,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1101,9 +1713,13 @@ class _ParticipantesPorEventoViewState
     final lista = top5.take(5).toList();
 
     if (lista.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: lightYellow,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
           child: Text('Nenhum participante com pontuação'),
         ),
       );
@@ -1118,50 +1734,75 @@ class _ParticipantesPorEventoViewState
 
         Color medalColor;
         IconData medalIcon;
+        Color bgColor;
 
         switch (index) {
           case 0:
-            medalColor = Colors.amber;
+            medalColor = const Color(0xFFFFD700); // Ouro
             medalIcon = Icons.emoji_events;
+            bgColor = const Color(0xFFFFFAE6);
             break;
           case 1:
-            medalColor = Colors.grey;
+            medalColor = const Color(0xFFC0C0C0); // Prata
             medalIcon = Icons.emoji_events;
+            bgColor = const Color(0xFFF5F5F5);
             break;
           case 2:
-            medalColor = Colors.brown;
+            medalColor = const Color(0xFFCD7F32); // Bronze
             medalIcon = Icons.emoji_events;
+            bgColor = const Color(0xFFFFE4D6);
             break;
           default:
-            medalColor = Colors.blue;
+            medalColor = primaryOrange;
             medalIcon = Icons.star;
+            bgColor = lightOrange;
         }
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: medalColor.withValues(alpha: 0.3), width: 2),
+          ),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: medalColor,
-              child: Icon(medalIcon, color: Colors.white),
+            contentPadding: const EdgeInsets.all(12),
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [medalColor, medalColor.withValues(alpha: 0.7)],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(medalIcon, color: Colors.white, size: 28),
             ),
             title: Text(
               data['nome'] ?? 'Sem nome',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             subtitle: Text(
               equipasCache[data['equipaId']] ?? 'Sem equipa',
+              style: TextStyle(color: Colors.grey[700]),
             ),
             trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.green.shade100,
+                gradient: LinearGradient(
+                  colors: [accentGreen, accentGreen.withValues(alpha: 0.7)],
+                ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '$pontos pts',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.white,
+                  fontSize: 16,
                 ),
               ),
             ),
@@ -1183,49 +1824,97 @@ class _ParticipantesPorEventoViewState
     }
 
     if (distribuicao.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: lightOrange,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
           child: Text('Nenhuma equipa atribuída'),
         ),
       );
     }
 
+    final colors = [
+      primaryOrange,
+      primaryRed,
+      primaryYellow,
+      accentGreen,
+      Colors.purple,
+      Colors.blue,
+    ];
+
     return Column(
       children: distribuicao.entries.map((entry) {
+        final index = distribuicao.keys.toList().indexOf(entry.key);
+        final color = colors[index % colors.length];
         final nomeEquipa = equipasCache[entry.key] ?? 'Sem nome';
         final quantidade = entry.value;
         final percentual =
             ((quantidade / participantes.length) * 100).toStringAsFixed(1);
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      nomeEquipa,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        nomeEquipa,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '$quantidade ($percentual%)',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Text(
-                      '$quantidade ($percentual%)',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
                   value: quantidade / participantes.length,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                  backgroundColor: color.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  minHeight: 10,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       }).toList(),
@@ -1233,7 +1922,6 @@ class _ParticipantesPorEventoViewState
   }
 
   Widget _buildGraficoPontuacoes(List<QueryDocumentSnapshot> participantes) {
-    // Agrupar pontuações em faixas
     final Map<String, int> faixas = {
       '0': 0,
       '1-50': 0,
@@ -1258,6 +1946,14 @@ class _ParticipantesPorEventoViewState
       }
     }
 
+    final colors = [
+      Colors.grey,
+      primaryYellow,
+      primaryOrange,
+      primaryRed,
+      accentGreen,
+    ];
+
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
@@ -1265,11 +1961,25 @@ class _ParticipantesPorEventoViewState
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
+            tooltipBgColor: Colors.black87,
+            tooltipRoundedRadius: 8,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final faixa = faixas.keys.elementAt(group.x.toInt());
               return BarTooltipItem(
-                '$faixa pontos\n${rod.toY.toInt()} participantes',
-                const TextStyle(color: Colors.white),
+                '$faixa pontos\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                children: [
+                  TextSpan(
+                    text: '${rod.toY.toInt()} participantes',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -1285,7 +1995,10 @@ class _ParticipantesPorEventoViewState
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     faixa,
-                    style: const TextStyle(fontSize: 10),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 );
               },
@@ -1298,7 +2011,10 @@ class _ParticipantesPorEventoViewState
               getTitlesWidget: (value, meta) {
                 return Text(
                   value.toInt().toString(),
-                  style: const TextStyle(fontSize: 10),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 );
               },
             ),
@@ -1310,18 +2026,34 @@ class _ParticipantesPorEventoViewState
             sideTitles: SideTitles(showTitles: false),
           ),
         ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 1,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey[300],
+              strokeWidth: 1,
+            );
+          },
+        ),
         borderData: FlBorderData(show: false),
         barGroups: faixas.entries.map((entry) {
           final index = faixas.keys.toList().indexOf(entry.key);
+          final color = colors[index];
           return BarChartGroupData(
             x: index,
             barRods: [
               BarChartRodData(
                 toY: entry.value.toDouble(),
-                color: Colors.blue,
-                width: 20,
+                gradient: LinearGradient(
+                  colors: [color, color.withValues(alpha: 0.7)],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+                width: 28,
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(4),
+                  top: Radius.circular(6),
                 ),
               ),
             ],

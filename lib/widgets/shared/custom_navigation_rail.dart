@@ -18,16 +18,18 @@ class CustomNavigationRail extends StatefulWidget {
 }
 
 class _CustomNavigationRailState extends State<CustomNavigationRail> {
-  // Lista de itens do menu principal (8 itens conforme solicitado)
+  // Lista de itens do menu principal (atualizada conforme solicitado)
   final List<NavigationItem> _menuItems = [
     NavigationItem(Icons.dashboard, 'Dashboard', 0),
     NavigationItem(Icons.layers, 'Edições', 1),
     NavigationItem(Icons.qr_code, 'QR Codes', 2),
     NavigationItem(Icons.quiz, 'Perguntas', 3),
     NavigationItem(Icons.extension, 'Jogos', 4),
-    NavigationItem(Icons.people, 'Participantes', 5),
-    NavigationItem(Icons.insert_chart, 'Reports', 6),
-    NavigationItem(Icons.manage_accounts, 'Utilizadores', 7),
+    NavigationItem(Icons.manage_accounts, 'Utilizadores', 5),
+    NavigationItem(Icons.groups, 'Participantes', 6),
+    NavigationItem(Icons.event_available, 'Participantes por Evento', 7),
+    NavigationItem(Icons.leaderboard, 'Ranking', 8),
+    NavigationItem(Icons.logout, 'Logout', 9),
   ];
 
   @override
