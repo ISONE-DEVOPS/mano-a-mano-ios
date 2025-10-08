@@ -45,7 +45,7 @@ class SplashView extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'Mano a Mano - Shell KM',
+              'Mano a Mano Offroad',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

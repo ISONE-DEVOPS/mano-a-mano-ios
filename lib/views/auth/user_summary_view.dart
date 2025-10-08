@@ -47,7 +47,7 @@ class UserSummaryView extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
-                        '🎉 Obrigado por se registar no Shell ao KM!\n\nEm breve receberá mais informações com o link para download da App Mobile.',
+                        '🎉 Obrigado por se registar no Mano a Mano!\n\nEm breve receberá mais informações com o link para download da App Mobile.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,

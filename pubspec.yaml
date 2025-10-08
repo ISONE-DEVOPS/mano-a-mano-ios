@@ -1,5 +1,5 @@
 name: mano_mano_dashboard
-description: "A new Flutter project."
+description: "Mano a Mano."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -30,6 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  web: ^1.1.1
   pdf: ^3.10.7
   firebase_core: ^3.13.1
   firebase_auth: ^5.3.0

@@ -110,7 +110,7 @@ class _LoginViewState extends State<LoginView> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'Entre com sua conta ou registre-se para participar dos eventos Shell ao KM.',
+              'Entre com sua conta ou registre-se para participar dos eventos Mano a Mano.',
               style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface,
               ),

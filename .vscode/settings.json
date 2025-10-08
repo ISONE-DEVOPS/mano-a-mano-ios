@@ -1,3 +1,4 @@
 {
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "cmake.sourceDirectory": "/Users/arlindapeixoto/development/mano_mano_ios/linux/runner"
 }

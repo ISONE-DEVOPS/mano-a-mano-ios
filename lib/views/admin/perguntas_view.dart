@@ -304,53 +304,63 @@ class _PerguntasViewState extends State<PerguntasView> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // TODO: When migrating fully to the new RadioGroup API, replace this section.
-                    // For now, we use the stable Radio with groupValue to keep compatibility.
+                    // Implementação sem Radio.groupValue (deprecated):
+                    // Mantemos os campos de texto das opções e usamos um SegmentedButton
+                    // para escolher qual é a resposta correta.
                     Column(
-                      children: List.generate(_opcoes.length, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            children: [
-                              // ignore: deprecated_member_use
-                              Radio<int>(
-                                value: index,
-                                // ignore: deprecated_member_use
-                                groupValue: _respostaCorreta,
-                                // ignore: deprecated_member_use
-                                onChanged: (int? v) {
-                                  if (v == null) return;
-                                  setState(() => _respostaCorreta = v);
-                                },
-                              ),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _opcoes[index],
-                                  style: const TextStyle(color: Colors.black),
-                                  decoration: InputDecoration(
-                                    labelText: 'Opção ${index + 1}',
-                                    labelStyle: const TextStyle(
-                                      color: Colors.black,
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: const BorderSide(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 14,
-                                    ),
-                                  ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Campos de texto das opções
+                        ...List.generate(_opcoes.length, (index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: TextFormField(
+                              controller: _opcoes[index],
+                              style: const TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                labelText: 'Opção ${index + 1}',
+                                labelStyle: const TextStyle(color: Colors.black),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.grey),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
                                 ),
                               ),
-                            ],
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Selecione a resposta correta',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      }),
+                        ),
+                        const SizedBox(height: 8),
+                        // Novo seletor de opção correta usando Material 3 SegmentedButton
+                        SegmentedButton<int>(
+                          segments: [
+                            for (int i = 0; i < _opcoes.length; i++)
+                              ButtonSegment<int>(
+                                value: i,
+                                label: Text('Opção ${i + 1}'),
+                              ),
+                          ],
+                          multiSelectionEnabled: false,
+                          selected: {_respostaCorreta},
+                          onSelectionChanged: (selection) {
+                            if (selection.isEmpty) return;
+                            setState(() => _respostaCorreta = selection.first);
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     // 6. Categoria

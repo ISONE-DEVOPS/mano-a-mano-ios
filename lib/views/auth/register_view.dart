@@ -507,6 +507,15 @@ class _RegisterViewState extends State<RegisterView>
         }
       }
 
+      // Cálculo de preço final: inscrição inclui piloto + co-piloto.
+      final int extrasCount = (passageirosControllers.length - 1).clamp(0, 3);
+      final double extrasTotal = extrasCount * 7500.0;
+      final double finalPrice = price + extrasTotal;
+      debugPrint(
+        '💵 Acompanhantes extra: $extrasCount x 7.500 = ${extrasTotal.toStringAsFixed(0)} CVE',
+      );
+      debugPrint('💵 Preço final: ${finalPrice.toStringAsFixed(0)} CVE');
+
       String uid;
       try {
         uid = await _firebaseService.signUp(
@@ -610,6 +619,10 @@ class _RegisterViewState extends State<RegisterView>
         'transactionId': '',
         'amountPaid': 0,
         'paymentMethod': _paymentMethod,
+        'precoBase': price,
+        'acompanhantesExtras': extrasCount,
+        'valorPorAcompanhante': 7500,
+        'precoTotal': finalPrice,
       });
 
       debugPrint('✅ Documento do utilizador criado em /users/$uid');
@@ -624,6 +637,10 @@ class _RegisterViewState extends State<RegisterView>
             'checkpointsVisitados': [],
             'localizacao': _selectedLocation ?? '',
             'preco': price,
+            'precoBase': price,
+            'acompanhantesExtras': extrasCount,
+            'valorPorAcompanhante': 7500,
+            'precoTotal': finalPrice,
           });
       debugPrint('✅ Subcoleção events criada com sucesso');
 
@@ -1369,7 +1386,7 @@ class _RegisterViewState extends State<RegisterView>
                   ),
                 ),
                 Text(
-                  'Máximo de 4 passageiros',
+                  'Máximo de 3 acompanhantes (além do co-piloto)',
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: _getResponsiveFontSize(context, 14),
@@ -1579,7 +1596,7 @@ class _RegisterViewState extends State<RegisterView>
                     ),
                   );
                 }),
-                if (passageirosControllers.length < 4)
+                if (passageirosControllers.length < 3)
                   Container(
                     width: double.infinity,
                     height: _getResponsiveSpacing(context, 56),
@@ -1606,7 +1623,7 @@ class _RegisterViewState extends State<RegisterView>
                         size: _getResponsiveSpacing(context, 24),
                       ),
                       label: Text(
-                        'Adicionar Passageiro',
+                        'Adicionar Passageiro', // Regra: inscrição inclui piloto + co-piloto; cada acompanhante extra (até 3) custa 7.500 CVE
                         style: TextStyle(
                           color: shellOrange,
                           fontWeight: FontWeight.bold,
@@ -1627,9 +1644,11 @@ class _RegisterViewState extends State<RegisterView>
                     _pageController.jumpToPage(1);
                   },
                   onNext: () {
-                    if (passageirosControllers.isEmpty) {
+                    if (passageirosControllers.length > 3) {
                       setState(
-                        () => _error = 'Adicione pelo menos 1 passageiro.',
+                        () =>
+                            _error =
+                                'Máximo permitido: 3 acompanhantes (equipa com 4 participantes no total).',
                       );
                       return;
                     }
@@ -2098,7 +2117,6 @@ class _RegisterViewState extends State<RegisterView>
 
             final paymentInfo = snapshot.data!;
             final price = (paymentInfo['price'] as num?)?.toDouble() ?? 0.0;
-            final location = _selectedLocation ?? '';
 
             return SingleChildScrollView(
               child: Padding(
@@ -2135,23 +2153,99 @@ class _RegisterViewState extends State<RegisterView>
                           color: shellOrange.withValues(alpha: 0.3),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Valor da inscrição (${location.isEmpty ? '—' : location}):',
-                            style: TextStyle(
-                              fontSize: _getResponsiveFontSize(context, 14),
-                              color: Colors.grey.shade700,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Valor base (piloto + co-piloto):',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              Text(
+                                '${price.toStringAsFixed(0)} CVE',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 16),
+                                  fontWeight: FontWeight.bold,
+                                  color: shellRed,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            '${price.toStringAsFixed(0)} CVE',
-                            style: TextStyle(
-                              fontSize: _getResponsiveFontSize(context, 18),
-                              fontWeight: FontWeight.bold,
-                              color: shellRed,
-                            ),
+                          SizedBox(height: _getResponsiveSpacing(context, 8)),
+                          Builder(
+                            builder: (ctx) {
+                              final extras = (passageirosControllers.length - 1)
+                                  .clamp(0, 3);
+                              final extrasTotal = extras * 7500;
+                              final totalEstimado = price + extrasTotal;
+                              return Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Acompanhantes extra:',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            14,
+                                          ),
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$extras x 7.500 CVE = ${extrasTotal.toStringAsFixed(0)} CVE',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            14,
+                                          ),
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    height: _getResponsiveSpacing(context, 8),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Total estimado:',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            15,
+                                          ),
+                                          color: Colors.grey.shade800,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${totalEstimado.toStringAsFixed(0)} CVE',
+                                        style: TextStyle(
+                                          fontSize: _getResponsiveFontSize(
+                                            context,
+                                            16,
+                                          ),
+                                          fontWeight: FontWeight.bold,
+                                          color: shellRed,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -2204,7 +2298,7 @@ class _RegisterViewState extends State<RegisterView>
                           ),
                         ),
                         child: Text(
-                          'Após finalizar, receberá instruções para pagar via Pagali na área "Eventos" do app/site Pagali. A participação só será validada após confirmação do pagamento.',
+                          'Após finalizar, entra na App Pagali ou no site https://pagali.cv na área "Eventos" . Envie o comprovativo para: manoamanooffroad@gmail.com. A participação só será validada após confirmação do pagamento.',
                           style: TextStyle(
                             fontSize: _getResponsiveFontSize(context, 14),
                           ),

@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
+import 'package:flutter/widgets.dart';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -11,9 +12,17 @@ import 'types/barcode_format.dart';
 import 'types/camera.dart';
 import 'types/camera_exception.dart';
 import 'types/features.dart';
-import 'web/flutter_qr_stub.dart'
-// ignore: uri_does_not_exist
-    if (dart.library.html) 'web/flutter_qr_web.dart';
+
+// --- WEB STUB: createWebQrView -----------------------------------------------
+// Fallback para builds Web quando a implementação real não está disponível/importada.
+// Substitua por uma implementação com HtmlElementView quando quiser ler QR no Web.
+Widget createWebQrView({
+  void Function(dynamic controller)? onPlatformViewCreated,
+  void Function(dynamic controller, bool permission)? onPermissionSet,
+}) {
+  return const SizedBox.shrink();
+}
+// -----------------------------------------------------------------------------
 
 typedef QRViewCreatedCallback = void Function(QRViewController);
 typedef PermissionSetCallback = void Function(QRViewController, bool);

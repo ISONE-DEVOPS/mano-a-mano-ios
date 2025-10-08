@@ -41,6 +41,7 @@ final _jogoIdController = TextEditingController(); */
 List<String> _jogosSelecionados = []; */
   bool _isLoading = false;
   bool _usarLocalizacaoManual = true;
+  bool _oneShot = false; // checkpoint com apenas 1 check-in (sem saída)
 
   @override
   void initState() {
@@ -112,6 +113,7 @@ List<String> _jogosSelecionados = []; */
         'ordemA': _ordemA,
         'ordemB': _ordemB,
         'percurso': _percurso,
+        'oneShot': _oneShot,
       };
 
       _checkpoints.add(newCheckpoint);
@@ -136,6 +138,7 @@ List<String> _jogosSelecionados = []; */
     _ordemA = 1;
     _ordemB = 1;
     _percurso = 'ambos';
+    _oneShot = false;
   }
 
   void _editCheckpoint(int index) {
@@ -153,6 +156,10 @@ List<String> _jogosSelecionados = []; */
       _ordemA = checkpoint['ordemA'] ?? 1;
       _ordemB = checkpoint['ordemB'] ?? 1;
       _percurso = checkpoint['percurso'] ?? 'ambos';
+      _oneShot = checkpoint['oneShot'] ?? false;
+      if (_oneShot) {
+        _tempoMinimoController.text = '0';
+      }
 
       // Remove from list
       _checkpoints.removeAt(index);
@@ -243,6 +250,7 @@ List<String> _jogosSelecionados = []; */
                   .map((id) => FirebaseFirestore.instance.collection('jogos').doc(id))
                   .toList()
               : [], */
+          'oneShot': item['oneShot'] ?? false,
           'ordemA': item['ordemA'] ?? 1,
           'ordemB': item['ordemB'] ?? 1,
           'percurso': item['percurso'] ?? 'ambos',
@@ -460,13 +468,28 @@ List<String> _jogosSelecionados = []; */
                   },
                 ),
                 const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Apenas 1 check-in (sem saída)'),
+                  subtitle: const Text('Marca para checkpoints que não têm Entrada/Saída'),
+                  value: _oneShot,
+                  onChanged: (value) {
+                    setState(() {
+                      _oneShot = value;
+                      // Se for one-shot, o tempo mínimo não se aplica
+                      _tempoMinimoController.text = value ? '0' : (_tempoMinimoController.text.isEmpty ? '5' : _tempoMinimoController.text);
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _tempoMinimoController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  enabled: !_oneShot,
                   decoration: InputDecoration(
                     labelText: 'Tempo Mínimo (minutos)*',
-                    hintText: 'Tempo mínimo no checkpoint',
+                    hintText: _oneShot ? 'Não aplicável a 1 check-in' : 'Tempo mínimo no checkpoint',
                     prefixIcon: const Icon(Icons.timer),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -835,6 +858,8 @@ List<String> _jogosSelecionados = []; */
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  if (checkpoint['oneShot'] == true)
+                    _buildInfoChip(Icons.looks_one, '1 check-in'),
                   _buildInfoChip(
                     Icons.timer,
                     '${checkpoint['tempoMinimo']} min',

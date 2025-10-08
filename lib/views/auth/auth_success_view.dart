@@ -29,7 +29,7 @@ class SuccessRegisterView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Obrigado por se registar no sistema do evento "Shell ao KM".\n\nAs suas credenciais foram guardadas com sucesso e em breve receberá por email ou WhatsApp o link para download da App Mobile.',
+                'Obrigado por se registar no sistema do evento "Mano a Mano".\n\nAs suas credenciais foram guardadas com sucesso e em breve receberá por email ou WhatsApp o link para download da App Mobile.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),

@@ -212,7 +212,7 @@ class ManoManoDashboard extends StatelessWidget {
 
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Dashboard Mano Mano',
+          title: 'Dashboard Mano a Mano',
           initialRoute: initialRoute,
           getPages: AppPages.routes,
 
