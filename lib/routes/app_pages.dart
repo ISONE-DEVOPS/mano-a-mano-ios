@@ -37,6 +37,7 @@ import '../views/admin/perguntas_view.dart';
 import '../views/admin/report_geral_view.dart';
 import '../views/admin/donation_pagali_view.dart';
 import '../views/admin/user_management_view.dart';
+import '../views/admin/participantes_por_evento_view.dart';
 
 // Views Check-in
 import '../views/checkin/checkin_view.dart';
@@ -70,6 +71,7 @@ import '../utils/route_helpers.dart';
 
 class AppPages {
   static const initial = '/splash';
+  static const participantesPorEvento = '/admin/participantes-evento';
 
   static final routes = [
     // =================== SPLASH E AUTENTICAÇÃO ===================
@@ -170,6 +172,10 @@ class AppPages {
       page: () => const ParticipantesView(),
       transition: Transition.rightToLeft,
       middlewares: [AdminMiddleware()],
+    ),
+    GetPage(
+      name: '/participantesPorEvento',
+      page: () => const ParticipantesPorEventoView(),
     ),
     GetPage(
       name: '/pontuacoes',

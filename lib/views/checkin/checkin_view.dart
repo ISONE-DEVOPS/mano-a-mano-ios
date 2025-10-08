@@ -39,6 +39,9 @@ class _CheckinViewState extends State<CheckinView> {
   bool _isLoadingConfig = true;
   bool _hasActiveEvent = false;
   String? _activeEventName;
+  
+  // NOVO: Configuração do comportamento após check-in single
+  String _singleModeNextAction = 'question'; // 'question', 'hint', 'home', 'none'
 
   @override
   void initState() {
@@ -67,12 +70,11 @@ class _CheckinViewState extends State<CheckinView> {
       setState(() => _isLoadingConfig = true);
 
       // 1. Buscar edição ativa
-      final editionsSnapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .where('isActive', isEqualTo: true)
-              .limit(1)
-              .get();
+      final editionsSnapshot = await FirebaseFirestore.instance
+          .collection('editions')
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
 
       if (editionsSnapshot.docs.isEmpty) {
         log('>>> Nenhuma edição ativa encontrada');
@@ -85,14 +87,13 @@ class _CheckinViewState extends State<CheckinView> {
       log('>>> Edição ativa: $_activeEditionId');
 
       // 2. Buscar evento ativo dentro da edição
-      final eventsSnapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .doc(_activeEditionId)
-              .collection('events')
-              .where('isActive', isEqualTo: true)
-              .limit(1)
-              .get();
+      final eventsSnapshot = await FirebaseFirestore.instance
+          .collection('editions')
+          .doc(_activeEditionId)
+          .collection('events')
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
 
       if (eventsSnapshot.docs.isEmpty) {
         log('>>> Nenhum evento ativo encontrado na edição');
@@ -108,10 +109,14 @@ class _CheckinViewState extends State<CheckinView> {
       _hasActiveEvent = true;
 
       // 3. Carregar modo de check-in
-      final checkinMode =
-          (eventData['checkinMode'] as String? ?? 'entry_exit')
-              .toLowerCase()
-              .trim();
+      final checkinMode = (eventData['checkinMode'] as String? ?? 'entry_exit')
+          .toLowerCase()
+          .trim();
+
+      // NOVO: Carregar ação após check-in single
+      _singleModeNextAction = (eventData['singleModeNextAction'] as String? ?? 'question')
+          .toLowerCase()
+          .trim();
 
       setState(() {
         _isSingleMode = checkinMode == 'single';
@@ -120,6 +125,7 @@ class _CheckinViewState extends State<CheckinView> {
 
       log('>>> Evento ativo: $_activeEventId');
       log('>>> Modo de check-in: $checkinMode (single: $_isSingleMode)');
+      log('>>> Ação após single check-in: $_singleModeNextAction');
     } catch (e) {
       log('>>> Erro ao carregar configuração do evento: $e');
       _setDefaultConfig();
@@ -131,6 +137,7 @@ class _CheckinViewState extends State<CheckinView> {
       _activeEditionId = 'shell_2025';
       _activeEventId = 'shell_km_02';
       _isSingleMode = false;
+      _singleModeNextAction = 'question';
       _isLoadingConfig = false;
     });
     log('>>> Usando configuração padrão');
@@ -160,307 +167,296 @@ class _CheckinViewState extends State<CheckinView> {
           ),
         ],
       ),
-      body:
-          _isLoadingConfig
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      color: Theme.of(context).colorScheme.primary,
+      body: _isLoadingConfig
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Carregando configuração...',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Carregando configuração...',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // Info da equipa
-                    Obx(
-                      () => Card(
-                        color: Theme.of(context).colorScheme.surface,
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.event,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Evento: ${_activeEventName ?? '-'}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.group,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  // Info da equipa
+                  Obx(
+                    () => Card(
+                      color: Theme.of(context).colorScheme.surface,
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.event,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Evento: ${_activeEventName ?? '-'}',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(context).colorScheme.primary,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
-                              ),
-                              if (_isSingleMode)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.group,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_isSingleMode)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                   child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        Icons.info_outline,
+                                        Icons.check_circle_outline,
                                         size: 16,
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.70),
+                                            .primary,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Modo: Check-in único',
                                         style: TextStyle(
                                           fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                           color: Theme.of(context)
                                               .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.70),
+                                              .primary,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                    // ToggleButtons para Entrada/Saída (apenas quando NÃO for single)
-                    if (!_isSingleMode)
-                      Column(
-                        children: [
-                          ToggleButtons(
-                            isSelected: _toggleSelections,
-                            borderRadius: BorderRadius.circular(8),
-                            selectedColor:
-                                Theme.of(context).colorScheme.onPrimary,
-                            fillColor: Theme.of(context).colorScheme.primary,
-                            color: Theme.of(context).colorScheme.primary,
-                            borderColor: Theme.of(context).colorScheme.primary,
-                            selectedBorderColor:
-                                Theme.of(context).colorScheme.primary,
-                            onPressed: (int index) {
-                              setState(() {
-                                for (
-                                  int i = 0;
-                                  i < _toggleSelections.length;
-                                  i++
-                                ) {
-                                  _toggleSelections[i] = i == index;
-                                }
-                              });
-                            },
-                            children: const [
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24.0,
-                                  vertical: 8.0,
-                                ),
-                                child: Text(
-                                  'Entrada',
-                                  style: TextStyle(fontSize: 16),
-                                ),
+                  // ToggleButtons para Entrada/Saída (apenas quando NÃO for single)
+                  if (!_isSingleMode)
+                    Column(
+                      children: [
+                        ToggleButtons(
+                          isSelected: _toggleSelections,
+                          borderRadius: BorderRadius.circular(8),
+                          selectedColor: Theme.of(context).colorScheme.onPrimary,
+                          fillColor: Theme.of(context).colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
+                          borderColor: Theme.of(context).colorScheme.primary,
+                          selectedBorderColor:
+                              Theme.of(context).colorScheme.primary,
+                          onPressed: (int index) {
+                            setState(() {
+                              for (int i = 0; i < _toggleSelections.length; i++) {
+                                _toggleSelections[i] = i == index;
+                              }
+                            });
+                          },
+                          children: const [
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24.0,
+                                vertical: 8.0,
                               ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24.0,
-                                  vertical: 8.0,
-                                ),
-                                child: Text(
-                                  'Saída',
-                                  style: TextStyle(fontSize: 16),
-                                ),
+                              child: Text(
+                                'Entrada',
+                                style: TextStyle(fontSize: 16),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-
-                    Text(
-                      _isSingleMode
-                          ? 'Escaneie o QR Code do checkpoint'
-                          : 'Escaneie o QR Code do posto',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-
-                    Expanded(
-                      flex: 4,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child:
-                            kIsWeb
-                                ? Container(
-                                  alignment: Alignment.center,
-                                  color: Theme.of(context).colorScheme.surface,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      'Leitura de QR não está disponível na versão Web. Use a app móvel para fazer o check-in.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.80),
-                                        fontSize: 14,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                : Stack(
-                                  children: [
-                                    QRView(
-                                      key: qrKey,
-                                      onQRViewCreated: _onQRViewCreated,
-                                    ),
-                                    if (isProcessing)
-                                      Container(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.54),
-                                        child: Center(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              CircularProgressIndicator(
-                                                color:
-                                                    Theme.of(
-                                                      context,
-                                                    ).colorScheme.onSurface,
-                                              ),
-                                              const SizedBox(height: 16),
-                                              Text(
-                                                'Processando QR Code...',
-                                                style: TextStyle(
-                                                  color:
-                                                      Theme.of(
-                                                        context,
-                                                      ).colorScheme.onSurface,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                      ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24.0,
+                                vertical: 8.0,
+                              ),
+                              child: Text(
+                                'Saída',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                     ),
 
-                    const SizedBox(height: 12),
+                  Text(
+                    _isSingleMode
+                        ? 'Escaneie o QR Code do checkpoint'
+                        : 'Escaneie o QR Code do posto',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
 
-                    Expanded(
-                      flex: 1,
-                      child:
-                          resultMessage != null
-                              ? Card(
-                                color: Theme.of(context).colorScheme.surface,
-                                elevation: 2,
-                                margin: EdgeInsets.zero,
-                                child: Center(
-                                  child: Text(
-                                    resultMessage!,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.70),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              )
-                              : Center(
+                  Expanded(
+                    flex: 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: kIsWeb
+                          ? Container(
+                              alignment: Alignment.center,
+                              color: Theme.of(context).colorScheme.surface,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
                                 child: Text(
-                                  _isSingleMode
-                                      ? 'Aponte a câmera para o QR do checkpoint'
-                                      : 'Aponte a câmera para o QR do posto',
+                                  'Leitura de QR não está disponível na versão Web. Use a app móvel para fazer o check-in.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurface
-                                        .withValues(alpha: 0.70),
+                                        .withValues(alpha: 0.80),
+                                    fontSize: 14,
+                                    height: 1.4,
                                   ),
                                 ),
                               ),
+                            )
+                          : Stack(
+                              children: [
+                                QRView(
+                                  key: qrKey,
+                                  onQRViewCreated: _onQRViewCreated,
+                                ),
+                                if (isProcessing)
+                                  Container(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.54),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          CircularProgressIndicator(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Processando QR Code...',
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    flex: 1,
+                    child: resultMessage != null
+                        ? Card(
+                            color: Theme.of(context).colorScheme.surface,
+                            elevation: 2,
+                            margin: EdgeInsets.zero,
+                            child: Center(
+                              child: Text(
+                                resultMessage!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.70),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              _isSingleMode
+                                  ? 'Aponte a câmera para o QR do checkpoint'
+                                  : 'Aponte a câmera para o QR do posto',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.70),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
               ),
+            ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 2,
         onTap: (index) {
           if (index != 2) {
             if (!mounted) return;
             Navigator.of(context).pushReplacementNamed(
-              [
-                '/home',
-                '/my-events',
-                '/checkin',
-                '/ranking',
-                '/profile',
-              ][index],
+              ['/home', '/my-events', '/checkin', '/ranking', '/profile'][index],
             );
           }
         },
@@ -471,7 +467,6 @@ class _CheckinViewState extends State<CheckinView> {
   Future<void> _handleQRScan(dynamic barcode) async {
     if (isScanned || isProcessing) return;
 
-    // Validar se há evento ativo
     if (!_hasActiveEvent || _activeEventId == null) {
       _showError('Nenhum evento ativo disponível para check-in');
       return;
@@ -505,14 +500,9 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       final tipoSelecionado = _isSingleMode ? 'single' : _selectedTipo;
-      log(
-        '>>> Checkpoint: ${checkpointData['checkpointId']}, Tipo: $tipoSelecionado',
-      );
+      log('>>> Checkpoint: ${checkpointData['checkpointId']}, Tipo: $tipoSelecionado');
 
-      await _processCheckpoint(
-        checkpointData['checkpointId']!,
-        tipoSelecionado,
-      );
+      await _processCheckpoint(checkpointData['checkpointId']!, tipoSelecionado);
     } catch (e) {
       log('>>> Erro no handleQRScan: $e');
       _showError('Erro ao processar QR Code: $e');
@@ -544,17 +534,16 @@ class _CheckinViewState extends State<CheckinView> {
         }
       }
 
-      // 3. Buscar no Firestore na estrutura correta
+      // 3. Buscar no Firestore
       if (_activeEditionId != null && _activeEventId != null) {
-        final checkpointDoc =
-            await FirebaseFirestore.instance
-                .collection('editions')
-                .doc(_activeEditionId)
-                .collection('events')
-                .doc(_activeEventId)
-                .collection('checkpoints')
-                .doc(qrCode)
-                .get();
+        final checkpointDoc = await FirebaseFirestore.instance
+            .collection('editions')
+            .doc(_activeEditionId)
+            .collection('events')
+            .doc(_activeEventId)
+            .collection('checkpoints')
+            .doc(qrCode)
+            .get();
 
         if (checkpointDoc.exists) {
           final data = checkpointDoc.data()!;
@@ -563,7 +552,7 @@ class _CheckinViewState extends State<CheckinView> {
         }
       }
 
-      // 4. Usar o QR code diretamente como ID
+      // 4. Usar o QR code diretamente
       log('>>> Usando QR como checkpoint ID');
       return {'checkpointId': qrCode};
     } catch (e) {
@@ -573,134 +562,202 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _processCheckpoint(String checkpointId, String tipo) async {
-    // Validação adicional de segurança
-    if (!_hasActiveEvent ||
-        _activeEventId == null ||
-        _activeEditionId == null) {
+    if (!_hasActiveEvent || _activeEventId == null || _activeEditionId == null) {
       _showError('Evento não está ativo. Não é possível fazer check-in.');
       return;
     }
 
     try {
-      final eventPath = '$_activeEditionId/$_activeEventId';
       final uid = _authService.currentUser!.uid;
       final veiculoId = _authService.userData['veiculoId'];
 
-      log('>>> Processando: $checkpointId ($tipo) - Evento: $eventPath');
+      log('>>> Processando: $checkpointId ($tipo) - Evento: $_activeEventId');
 
       if (_isSingleMode) {
-        // ===== MODO SINGLE: Check-in único =====
-        final docRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('eventos')
-            .doc(_activeEventId)
-            .collection('pontuacoes')
-            .doc(checkpointId);
-
-        final existing = await docRef.get();
-        if (existing.exists && existing.data()?['validated'] == true) {
-          _showError('Este checkpoint já foi validado.');
-          return;
-        }
-
-        await docRef.set({
-          'checkpointId': checkpointId,
-          'timestamp': DateTime.now().toUtc().toIso8601String(),
-          'validated': true,
-          'mode': 'single',
-          'editionId': _activeEditionId,
-          'eventId': _activeEventId,
-        });
-
-        // Registrar no veículo
-        await _registerVehicleCheckpoint(veiculoId, checkpointId, 'single');
-
-        isScanned = true;
-        setState(() {
-          resultMessage = 'Checkpoint validado: $checkpointId';
-        });
-
-        SystemSound.play(SystemSoundType.click);
-        _showSuccessMessage('Checkpoint validado com sucesso!');
-
-        await Future.delayed(const Duration(seconds: 2));
+        await _processSingleModeCheckpoint(uid, veiculoId, checkpointId);
         return;
       }
 
-      // ===== MODO ENTRY/EXIT: Check-in duplo =====
-      final pontuacaoDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('eventos')
-              .doc(_activeEventId)
-              .collection('pontuacoes')
-              .doc(checkpointId)
-              .get();
-
-      bool temEntrada = false;
-      bool temSaida = false;
-      bool perguntaRespondida = false;
-
-      if (pontuacaoDoc.exists) {
-        final data = pontuacaoDoc.data()!;
-        temEntrada = data['timestampEntrada'] != null;
-        temSaida = data['timestampSaida'] != null;
-        perguntaRespondida = data['perguntaRespondida'] ?? false;
-      }
-
-      log(
-        '>>> Estado: Entrada=$temEntrada, Saída=$temSaida, Pergunta=$perguntaRespondida',
-      );
-
-      // Validações
-      if (tipo == 'entrada') {
-        if (temEntrada && !temSaida) {
-          _showError(
-            'Já fizeste check-in neste posto. Agora deves fazer check-out.',
-          );
-          return;
-        }
-        if (temEntrada && temSaida) {
-          _showError('Este posto já foi concluído.');
-          return;
-        }
-      } else if (tipo == 'saida') {
-        if (!temEntrada) {
-          _showError('Precisas fazer check-in neste posto antes de sair.');
-          return;
-        }
-        if (temSaida) {
-          _showError('Já fizeste check-out neste posto.');
-          return;
-        }
-        if (!perguntaRespondida) {
-          _showError('Deves responder à pergunta antes de fazer check-out.');
-          return;
-        }
-      }
-
-      await _registerCheckpoint(uid, veiculoId, checkpointId, tipo);
-
-      isScanned = true;
-      setState(() {
-        resultMessage = 'Check-$tipo registrado para $checkpointId';
-      });
-
-      SystemSound.play(SystemSoundType.click);
-      _showSuccessMessage('Check-$tipo registrado com sucesso!');
-
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (tipo == 'entrada') {
-        _navigateToQuestion(checkpointId);
-      } else {
-        _navigateToNextHint(checkpointId);
-      }
+      // Modo entry/exit normal
+      await _processEntryExitCheckpoint(uid, veiculoId, checkpointId, tipo);
     } catch (e) {
       log('>>> Erro em _processCheckpoint: $e');
       _showError('Erro ao registrar checkpoint: $e');
+    }
+  }
+
+  /// NOVO: Processamento específico para modo single
+  Future<void> _processSingleModeCheckpoint(
+    String uid,
+    String veiculoId,
+    String checkpointId,
+  ) async {
+    log('>>> Processando check-in ÚNICO para: $checkpointId');
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('eventos')
+        .doc(_activeEventId)
+        .collection('pontuacoes')
+        .doc(checkpointId);
+
+    final existing = await docRef.get();
+    
+    if (existing.exists) {
+      final data = existing.data()!;
+      final validated = data['validated'] ?? false;
+      
+      if (validated) {
+        _showError('Este checkpoint já foi validado.');
+        return;
+      }
+    }
+
+    // Registrar check-in único
+    final now = DateTime.now().toUtc().toIso8601String();
+    
+    await docRef.set({
+      'checkpointId': checkpointId,
+      'timestamp': now,
+      'validated': true,
+      'mode': 'single',
+      'editionId': _activeEditionId,
+      'eventId': _activeEventId,
+      'respostaCorreta': false,
+      'pontuacaoPergunta': 0,
+      'pontuacaoJogo': 0,
+      'pontuacaoTotal': 0,
+      'perguntaRespondida': false,
+      'jogosPontuados': {},
+    }, SetOptions(merge: true));
+
+    // Registrar no veículo
+    await _registerVehicleCheckpoint(veiculoId, checkpointId, 'single');
+
+    // Atualizar checkpoints visitados
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'checkpointsVisitados': FieldValue.arrayUnion([checkpointId]),
+    });
+
+    isScanned = true;
+    setState(() {
+      resultMessage = 'Checkpoint validado: $checkpointId';
+    });
+
+    SystemSound.play(SystemSoundType.click);
+    _showSuccessMessage('Checkpoint validado com sucesso!');
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Executar ação configurada
+    await _executeSingleModeNextAction(checkpointId);
+  }
+
+  /// NOVO: Executa a ação configurada após check-in single
+  Future<void> _executeSingleModeNextAction(String checkpointId) async {
+    log('>>> Executando ação após single check-in: $_singleModeNextAction');
+
+    switch (_singleModeNextAction) {
+      case 'question':
+        _navigateToQuestion(checkpointId);
+        break;
+      case 'hint':
+        await _navigateToNextHint(checkpointId);
+        break;
+      case 'home':
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+        break;
+      case 'none':
+        // Apenas volta para scanner
+        if (mounted) {
+          await _controller?.resumeCamera();
+          setState(() {
+            isScanned = false;
+            isProcessing = false;
+            resultMessage = null;
+          });
+        }
+        break;
+      default:
+        // Default: mostrar pergunta
+        _navigateToQuestion(checkpointId);
+    }
+  }
+
+  Future<void> _processEntryExitCheckpoint(
+    String uid,
+    String veiculoId,
+    String checkpointId,
+    String tipo,
+  ) async {
+    log('>>> Processando check-in ENTRY/EXIT: $checkpointId ($tipo)');
+
+    final pontuacaoDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('eventos')
+        .doc(_activeEventId)
+        .collection('pontuacoes')
+        .doc(checkpointId)
+        .get();
+
+    bool temEntrada = false;
+    bool temSaida = false;
+    bool perguntaRespondida = false;
+
+    if (pontuacaoDoc.exists) {
+      final data = pontuacaoDoc.data()!;
+      temEntrada = data['timestampEntrada'] != null;
+      temSaida = data['timestampSaida'] != null;
+      perguntaRespondida = data['perguntaRespondida'] ?? false;
+    }
+
+    log('>>> Estado: Entrada=$temEntrada, Saída=$temSaida, Pergunta=$perguntaRespondida');
+
+    // Validações
+    if (tipo == 'entrada') {
+      if (temEntrada && !temSaida) {
+        _showError('Já fizeste check-in neste posto. Agora deves fazer check-out.');
+        return;
+      }
+      if (temEntrada && temSaida) {
+        _showError('Este posto já foi concluído.');
+        return;
+      }
+    } else if (tipo == 'saida') {
+      if (!temEntrada) {
+        _showError('Precisas fazer check-in neste posto antes de sair.');
+        return;
+      }
+      if (temSaida) {
+        _showError('Já fizeste check-out neste posto.');
+        return;
+      }
+      if (!perguntaRespondida) {
+        _showError('Deves responder à pergunta antes de fazer check-out.');
+        return;
+      }
+    }
+
+    await _registerCheckpoint(uid, veiculoId, checkpointId, tipo);
+
+    isScanned = true;
+    setState(() {
+      resultMessage = 'Check-$tipo registrado para $checkpointId';
+    });
+
+    SystemSound.play(SystemSoundType.click);
+    _showSuccessMessage('Check-$tipo registrado com sucesso!');
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (tipo == 'entrada') {
+      _navigateToQuestion(checkpointId);
+    } else {
+      await _navigateToNextHint(checkpointId);
     }
   }
 
@@ -712,15 +769,12 @@ class _CheckinViewState extends State<CheckinView> {
     final now = DateTime.now().toUtc().toIso8601String();
 
     try {
-      await FirebaseFirestore.instance
-          .collection('veiculos')
-          .doc(veiculoId)
-          .set({
-            'checkpoints': {
-              checkpointId: {tipo: now, 'ultima_leitura': now},
-            },
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('veiculos').doc(veiculoId).set({
+        'checkpoints': {
+          checkpointId: {tipo: now, 'ultima_leitura': now},
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       log('>>> Erro ao registrar no veículo: $e');
     }
@@ -736,10 +790,8 @@ class _CheckinViewState extends State<CheckinView> {
     log('>>> Registrando: $checkpointId ($tipo)');
 
     try {
-      // Registrar no veículo
       await _registerVehicleCheckpoint(veiculoId, checkpointId, tipo);
 
-      // Criar/atualizar evento do usuário
       final eventoDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -756,10 +808,7 @@ class _CheckinViewState extends State<CheckinView> {
         'classificacao': 0,
       }, SetOptions(merge: true));
 
-      // Registrar pontuação
-      final pontuacaoRef = eventoDocRef
-          .collection('pontuacoes')
-          .doc(checkpointId);
+      final pontuacaoRef = eventoDocRef.collection('pontuacoes').doc(checkpointId);
 
       if (tipo == 'entrada') {
         await pontuacaoRef.set({
@@ -793,14 +842,13 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarPontuacaoTotal(String uid) async {
     try {
-      final pontuacoesSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('eventos')
-              .doc(_activeEventId)
-              .collection('pontuacoes')
-              .get();
+      final pontuacoesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc(_activeEventId)
+          .collection('pontuacoes')
+          .get();
 
       int total = 0;
 
@@ -826,14 +874,13 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarTempoTotal(String uid) async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('eventos')
-              .doc(_activeEventId)
-              .collection('pontuacoes')
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('eventos')
+          .doc(_activeEventId)
+          .collection('pontuacoes')
+          .get();
 
       int totalSegundos = 0;
 
@@ -868,12 +915,11 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarClassificacaoGeral() async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collectionGroup(_activeEventId!)
-              .orderBy('pontuacaoTotal', descending: true)
-              .orderBy('tempoTotal')
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup(_activeEventId!)
+          .orderBy('pontuacaoTotal', descending: true)
+          .orderBy('tempoTotal')
+          .get();
 
       int posicao = 1;
 
@@ -889,6 +935,8 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   void _navigateToQuestion(String checkpointId) {
+    if (!mounted) return;
+    
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ResponderPerguntaView(checkpointId: checkpointId),
@@ -896,21 +944,20 @@ class _CheckinViewState extends State<CheckinView> {
     );
   }
 
-  void _navigateToNextHint(String checkpointId) {
-    _loadAndShowNextHint(checkpointId);
+  Future<void> _navigateToNextHint(String checkpointId) async {
+    await _loadAndShowNextHint(checkpointId);
   }
 
   Future<void> _loadAndShowNextHint(String checkpointId) async {
     try {
       String grupo = _authService.userData['grupo'] ?? 'A';
 
-      final conchaSnapshot =
-          await FirebaseFirestore.instance
-              .collection('conchas')
-              .where('checkpointId', isEqualTo: checkpointId)
-              .where('grupo', isEqualTo: grupo)
-              .limit(1)
-              .get();
+      final conchaSnapshot = await FirebaseFirestore.instance
+          .collection('conchas')
+          .where('checkpointId', isEqualTo: checkpointId)
+          .where('grupo', isEqualTo: grupo)
+          .limit(1)
+          .get();
 
       String pistaTexto = 'Parabéns! Continue para o próximo posto.';
 
@@ -929,10 +976,9 @@ class _CheckinViewState extends State<CheckinView> {
       if (mounted) {
         showDialog(
           context: context,
-          builder:
-              (context) => HintPopup(
-                clueText: 'Parabéns! Continue para o próximo posto.',
-              ),
+          builder: (context) => HintPopup(
+            clueText: 'Parabéns! Continue para o próximo posto.',
+          ),
         );
       }
     }

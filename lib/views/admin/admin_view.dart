@@ -10,6 +10,7 @@ import 'generate_qr_view.dart';
 import 'perguntas_view.dart' as perguntas_view;
 import 'jogos_create_view.dart';
 import 'ranking_detailed_view.dart';
+import 'participantes_por_evento_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
 
 void showAddEventDialog(BuildContext context) {
@@ -373,6 +374,7 @@ class _AdminViewState extends State<AdminView> {
     const CreateUserView(),
     // const ReportsView(), // Removed
     const ParticipantesView(),
+    const ParticipantesPorEventoView(),
     const RankingDetailedView(),
     const SizedBox.shrink(),
   ];
@@ -420,6 +422,13 @@ class _AdminViewState extends State<AdminView> {
       icon: Icons.groups_outlined,
       selectedIcon: Icons.groups,
       label: 'Participantes',
+      color: const Color(0xFF94E2D5),
+      isSubMenu: true,
+    ),
+    NavigationItem(
+      icon: Icons.event_available_outlined,
+      selectedIcon: Icons.event_available,
+      label: 'Participantes por Evento',
       color: const Color(0xFF94E2D5),
       isSubMenu: true,
     ),
@@ -672,7 +681,7 @@ class _AdminViewState extends State<AdminView> {
                 final item = _menuItems[index];
                 final isSelected = _selectedIndex == index;
 
-                if (item.isSubMenu && index > 4 && index < 8) {
+                if (item.isSubMenu && index > 4 && index < 9) {
                   // Group management items
                   if (index == 5) {
                     return Column(
@@ -825,9 +834,9 @@ class _AdminViewState extends State<AdminView> {
       case 5:
         return 'Gerir utilizadores do sistema';
       case 6:
-        return 'Relatórios e análises';
-      case 7:
         return 'Gerir participantes';
+      case 7:
+        return 'Participantes por evento';
       case 8:
         return 'Classificações detalhadas';
       default:
