@@ -508,7 +508,7 @@ class _RegisterViewState extends State<RegisterView>
       }
 
       // Cálculo de preço final: inscrição inclui piloto + co-piloto.
-      final int extrasCount = (passageirosControllers.length - 1).clamp(0, 3);
+      final int extrasCount = (passageirosControllers.length - 1).clamp(0, 2);
       final double extrasTotal = extrasCount * 7500.0;
       final double finalPrice = price + extrasTotal;
       debugPrint(
@@ -1314,6 +1314,35 @@ class _RegisterViewState extends State<RegisterView>
                                 ],
                               ),
                             ],
+                            // Insert capacity info here
+                            SizedBox(height: _getResponsiveSpacing(context, 8)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Capacidade (por viatura):',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                                Text(
+                                  '4 pessoas (Piloto + Co-piloto + 2 acompanhantes)',
+                                  style: TextStyle(
+                                    fontSize: _getResponsiveFontSize(
+                                      context,
+                                      14,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       );
@@ -1371,6 +1400,26 @@ class _RegisterViewState extends State<RegisterView>
         final padding = _getResponsivePadding(context);
         final spacing = _getResponsiveSpacing(context, 20);
 
+        // Show Snackbar if trying to add more than 2 acompanhantes (total 4 pessoas)
+        if (passageirosControllers.length >= 3) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Limite atingido: máximo de 2 acompanhantes (total de 4 pessoas por carro).',
+                  style: TextStyle(
+                    fontSize: _getResponsiveFontSize(context, 14),
+                  ),
+                ),
+                backgroundColor: shellRed,
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(_getResponsiveSpacing(context, 12)),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          });
+        }
+
         return SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.all(padding),
@@ -1386,7 +1435,7 @@ class _RegisterViewState extends State<RegisterView>
                   ),
                 ),
                 Text(
-                  'Máximo de 3 acompanhantes (além do co-piloto)',
+                  'Máximo de 2 acompanhantes (além do co-piloto)',
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: _getResponsiveFontSize(context, 14),
@@ -1623,7 +1672,7 @@ class _RegisterViewState extends State<RegisterView>
                         size: _getResponsiveSpacing(context, 24),
                       ),
                       label: Text(
-                        'Adicionar Passageiro', // Regra: inscrição inclui piloto + co-piloto; cada acompanhante extra (até 3) custa 7.500 CVE
+                        'Adicionar Passageiro', // Regra: inscrição inclui piloto + co-piloto; cada acompanhante extra (até 2) custa 7.500 CVE
                         style: TextStyle(
                           color: shellOrange,
                           fontWeight: FontWeight.bold,
@@ -1648,7 +1697,7 @@ class _RegisterViewState extends State<RegisterView>
                       setState(
                         () =>
                             _error =
-                                'Máximo permitido: 3 acompanhantes (equipa com 4 participantes no total).',
+                                'Máximo permitido: 2 acompanhantes (equipa com 4 participantes no total).',
                       );
                       return;
                     }
