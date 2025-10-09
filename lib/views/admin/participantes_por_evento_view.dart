@@ -265,10 +265,12 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                 ),
                 child: DropdownButtonFormField<String>(
                   initialValue: edicaoSelecionadaId,
+                  style: const TextStyle(color: Colors.black),
+                  dropdownColor: Colors.white,
                   decoration: InputDecoration(
                     labelText: 'Edição',
                     labelStyle: const TextStyle(
-                      color: primaryOrange,
+                      color: Colors.black,
                       fontWeight: FontWeight.w600,
                     ),
                     prefixIcon: const Icon(
@@ -374,10 +376,12 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                   ),
                   child: DropdownButtonFormField<String>(
                     initialValue: eventoSelecionadoId,
+                    style: const TextStyle(color: Colors.black),
+                    dropdownColor: Colors.white,
                     decoration: InputDecoration(
                       labelText: 'Evento',
                       labelStyle: const TextStyle(
-                        color: primaryRed,
+                        color: Colors.black,
                         fontWeight: FontWeight.w600,
                       ),
                       prefixIcon: const Icon(Icons.event, color: primaryRed),
@@ -773,22 +777,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     if (edicaoSelecionadaId == null || eventoSelecionadoId == null) {
       return const Stream<List<String>>.empty();
     }
-    final ref = FirebaseFirestore.instance
-        .collection('editions')
-        .doc(edicaoSelecionadaId)
-        .collection('events')
-        .doc(eventoSelecionadoId)
-        .collection('participants');
-    return ref.snapshots().map((snap) {
-      return snap.docs
-          .map((d) {
-            final Map<String, dynamic> data = d.data();
-            // Tenta userId no documento; caso contrário, usa o id do doc
-            return (data['userId'] as String?) ?? d.id;
-          })
-          .whereType<String>()
-          .toList();
-    });
+    final String eventPath =
+        'editions/$edicaoSelecionadaId/events/$eventoSelecionadoId';
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('eventoId', isEqualTo: eventPath)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.id).toList());
   }
 
   // Busca os documentos de utilizadores por lotes (limite de 10 para whereIn)
@@ -1417,6 +1412,29 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _abrirDetalhes(doc.id),
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text(
+                      'Ver detalhe',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: primaryOrange,
+                      side: const BorderSide(color: primaryOrange, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
