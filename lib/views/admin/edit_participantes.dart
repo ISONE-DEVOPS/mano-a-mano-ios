@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class EditParticipantesView extends StatefulWidget {
   final String userId;
@@ -20,6 +22,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
   final telefoneController = TextEditingController();
   final emergenciaController = TextEditingController();
   final tshirtController = TextEditingController();
+  final priceController = TextEditingController();
 
   // Data
   Map<String, String> equipas = {};
@@ -29,14 +32,26 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
 
   bool isLoading = true;
   bool isSaving = false;
+  bool isPago = false;
+  bool isAtivo = true;
+  String? role = 'user';
+  DateTime? createAt;
+  DateTime? ultimoLogin;
 
   // T-shirt sizes
   final List<String> tamanhosTshirt = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  final List<String> roles = ['admin', 'user', 'staff'];
+
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'pt_CV',
+    symbol: 'CVE',
+    decimalDigits: 2,
+  );
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _carregarDados();
   }
 
@@ -48,6 +63,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     telefoneController.dispose();
     emergenciaController.dispose();
     tshirtController.dispose();
+    priceController.dispose();
     super.dispose();
   }
 
@@ -91,6 +107,19 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             tshirtController.text = data['tshirt'] ?? '';
             equipaSelecionada = data['equipaId'];
             veiculoSelecionado = data['veiculoId'];
+
+            // Novos campos
+            priceController.text = (data['price'] ?? 0).toString();
+            isPago = data['isPago'] ?? false;
+            isAtivo = data['ativo'] ?? true;
+            role = data['role'] ?? 'user';
+
+            if (data['createAt'] != null) {
+              createAt = (data['createAt'] as Timestamp).toDate();
+            }
+            if (data['ultimoLogin'] != null) {
+              ultimoLogin = (data['ultimoLogin'] as Timestamp).toDate();
+            }
           }
           isLoading = false;
         });
@@ -109,6 +138,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     setState(() => isSaving = true);
 
     try {
+      final price = double.tryParse(priceController.text) ?? 0;
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
@@ -120,6 +151,10 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             'tshirt': tshirtController.text.trim(),
             'equipaId': equipaSelecionada,
             'veiculoId': veiculoSelecionado,
+            'price': price,
+            'isPago': isPago,
+            'ativo': isAtivo,
+            'role': role,
           });
 
       if (mounted) {
@@ -196,6 +231,17 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     return null;
   }
 
+  String? _validatePrice(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Valor é obrigatório';
+    }
+    final price = double.tryParse(value);
+    if (price == null || price < 0) {
+      return 'Valor inválido';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -221,7 +267,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.person), text: 'Dados Pessoais'),
+            Tab(icon: Icon(Icons.person), text: 'Pessoal'),
+            Tab(icon: Icon(Icons.payment), text: 'Pagamento'),
             Tab(icon: Icon(Icons.emoji_events), text: 'Pontuações'),
           ],
         ),
@@ -232,7 +279,10 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
               icon: const Icon(Icons.save, color: Colors.white),
               label: const Text(
                 'Salvar',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           if (isSaving)
@@ -251,7 +301,11 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildDadosPessoaisTab(), _buildPontuacoesTab()],
+        children: [
+          _buildDadosPessoaisTab(),
+          _buildPagamentoTab(),
+          _buildPontuacoesTab(),
+        ],
       ),
     );
   }
@@ -262,6 +316,11 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Status Card
+          _buildStatusCard(),
+          const SizedBox(height: 16),
+
+          // Informações Pessoais
           _buildSectionCard(
             title: 'Informações Pessoais',
             icon: Icons.person,
@@ -279,6 +338,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: _validateEmail,
+                enabled: false, // Email não deve ser editável
               ),
               const SizedBox(height: 16),
               _buildTextFormField(
@@ -301,6 +361,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             ],
           ),
           const SizedBox(height: 16),
+
+          // Configurações do Evento
           _buildSectionCard(
             title: 'Configurações do Evento',
             icon: Icons.settings,
@@ -316,6 +378,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 items:
                     tamanhosTshirt
@@ -331,6 +395,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                     (value) => _validateRequired(value, 'Tamanho da T-shirt'),
               ),
               const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 initialValue:
                     equipas.containsKey(equipaSelecionada)
@@ -342,6 +407,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 items:
                     equipas.entries
@@ -357,6 +424,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                     (value) => value == null ? 'Selecione uma equipa' : null,
               ),
               const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 initialValue:
                     veiculos.containsKey(veiculoSelecionado)
@@ -368,6 +436,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
                 items:
                     veiculos.entries
@@ -382,10 +452,321 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                 validator:
                     (value) => value == null ? 'Selecione um veículo' : null,
               ),
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                initialValue: role,
+                decoration: InputDecoration(
+                  labelText: 'Função (Role)',
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                items:
+                    roles
+                        .map(
+                          (r) => DropdownMenuItem(
+                            value: r,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  r == 'admin'
+                                      ? Icons.admin_panel_settings
+                                      : r == 'staff'
+                                      ? Icons.support_agent
+                                      : Icons.person,
+                                  size: 20,
+                                  color:
+                                      r == 'admin'
+                                          ? Colors.red
+                                          : r == 'staff'
+                                          ? Colors.orange
+                                          : Colors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(r.toUpperCase()),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (val) => setState(() => role = val),
+              ),
+              const SizedBox(height: 16),
+
+              // Switch de status ativo
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isAtivo ? Icons.check_circle : Icons.cancel,
+                      color: isAtivo ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Status do Participante',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            isAtivo ? 'Ativo no evento' : 'Inativo',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: isAtivo,
+                      onChanged: (val) => setState(() => isAtivo = val),
+                      activeThumbColor: Colors.green,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Informações de Auditoria
+          if (createAt != null || ultimoLogin != null)
+            _buildSectionCard(
+              title: 'Informações de Auditoria',
+              icon: Icons.info_outline,
+              children: [
+                if (createAt != null) ...[
+                  _buildInfoRow(
+                    'Data de Criação',
+                    DateFormat('dd/MM/yyyy HH:mm').format(createAt!),
+                    Icons.calendar_today,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (ultimoLogin != null)
+                  _buildInfoRow(
+                    'Último Login',
+                    DateFormat('dd/MM/yyyy HH:mm').format(ultimoLogin!),
+                    Icons.login,
+                  ),
+              ],
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPagamentoTab() {
+    final price = double.tryParse(priceController.text) ?? 0;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Card de resumo de pagamento
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors:
+                    isPago
+                        ? [Colors.green, Colors.green[700]!]
+                        : [Colors.orange, Colors.orange[700]!],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Icon(
+                  isPago ? Icons.check_circle : Icons.pending,
+                  size: 64,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isPago ? 'PAGAMENTO CONFIRMADO' : 'PAGAMENTO PENDENTE',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  currencyFormatter.format(price),
+                  style: const TextStyle(
+                    fontSize: 36,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Seção de detalhes de pagamento
+        _buildSectionCard(
+          title: 'Detalhes do Pagamento',
+          icon: Icons.payment,
+          children: [
+            _buildTextFormField(
+              controller: priceController,
+              label: 'Valor do Pagamento (CVE)',
+              icon: Icons.attach_money,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: _validatePrice,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Checkbox de confirmação de pagamento
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isPago ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isPago ? Colors.green : Colors.orange,
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.verified_user,
+                        color: isPago ? Colors.green : Colors.orange,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Confirmação de Pagamento',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    value: isPago,
+                    onChanged: (val) => setState(() => isPago = val ?? false),
+                    title: const Text(
+                      'Confirmar que o pagamento foi recebido',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      isPago
+                          ? '✓ Pagamento confirmado e registrado'
+                          : 'Marque esta opção após confirmar o recebimento',
+                      style: TextStyle(
+                        color: isPago ? Colors.green[700] : Colors.orange[700],
+                        fontSize: 12,
+                      ),
+                    ),
+                    activeColor: Colors.green,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Alerta informativo
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Certifique-se de confirmar o pagamento apenas após a verificação do valor recebido.',
+                      style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Histórico de transações (simulado)
+        _buildSectionCard(
+          title: 'Histórico de Transações',
+          icon: Icons.history,
+          children: [
+            if (isPago) ...[
+              _buildTransactionItem(
+                'Pagamento Recebido',
+                price,
+                DateTime.now(),
+                true,
+              ),
+            ] else
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Nenhuma transação registrada',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -436,10 +817,13 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                   style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
                 SizedBox(height: 8),
-                Text(
-                  'As pontuações aparecerão aqui após a participação no evento',
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'As pontuações aparecerão aqui após a participação no evento',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ],
             ),
@@ -469,6 +853,178 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     );
   }
 
+  Widget _buildStatusCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Colors.blue[50]!, Colors.blue[100]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isAtivo ? Icons.check_circle : Icons.cancel,
+                color: isAtivo ? Colors.green : Colors.red,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nomeController.text.isNotEmpty
+                        ? nomeController.text
+                        : 'Participante',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _buildStatusBadge(
+                        isAtivo ? 'ATIVO' : 'INATIVO',
+                        isAtivo ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildStatusBadge(
+                        isPago ? 'PAGO' : 'PENDENTE',
+                        isPago ? Colors.blue : Colors.orange,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(
+    String description,
+    double amount,
+    DateTime date,
+    bool isSuccess,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isSuccess ? Colors.green[50] : Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSuccess ? Colors.green[200]! : Colors.red[200]!,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isSuccess ? Colors.green : Colors.red,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isSuccess ? Icons.check : Icons.close,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  DateFormat('dd/MM/yyyy HH:mm').format(date),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            currencyFormatter.format(amount),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isSuccess ? Colors.green[700] : Colors.red[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.blue),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTotalScoreCard(int total) {
     return Card(
       elevation: 4,
@@ -477,7 +1033,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: const LinearGradient(
-            colors: [Colors.blue, Colors.blueAccent],
+            colors: [Colors.purple, Colors.purpleAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -518,7 +1074,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     final respostaCorreta = data['respostaCorreta'] ?? false;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -530,10 +1087,10 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withAlpha(25),
+                    color: Colors.purple.withAlpha(25),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.location_on, color: Colors.blue),
+                  child: const Icon(Icons.location_on, color: Colors.purple),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -648,8 +1205,15 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
           children: [
             Row(
               children: [
-                Icon(icon, color: Colors.blue),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: Colors.blue),
+                ),
+                const SizedBox(width: 12),
                 Text(
                   title,
                   style: const TextStyle(
@@ -659,7 +1223,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             ...children,
           ],
         ),
@@ -673,11 +1237,15 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     required IconData icon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    bool enabled = true,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      enabled: enabled,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -686,6 +1254,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.blue, width: 2),
         ),
+        filled: true,
+        fillColor: enabled ? Colors.grey[50] : Colors.grey[200],
       ),
     );
   }

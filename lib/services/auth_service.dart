@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
@@ -295,12 +295,77 @@ class AuthService extends GetxService {
   bool get isUserDataLoaded => _userData.isNotEmpty;
 
   // Enviar email de recuperação de senha
+  // Enviar email de recuperação de senha (MELHORADO)
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
+      // Log antes de tentar enviar
+      debugPrint('🔵 Tentando enviar email de recuperação para: $email');
+
       await _auth.sendPasswordResetEmail(email: email);
+
+      // Log de sucesso
+      debugPrint('✅ Email de recuperação enviado com sucesso para: $email');
+
+      // Feedback para o usuário
+      Get.snackbar(
+        'Email Enviado',
+        'Verifique sua caixa de entrada e spam',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.primaryContainer,
+        colorText: Get.theme.colorScheme.onPrimaryContainer,
+        duration: const Duration(seconds: 5),
+        icon: const Icon(Icons.mark_email_read, color: Colors.green),
+      );
+
       return true;
+    } on FirebaseAuthException catch (e) {
+      // Capturar erros específicos do Firebase
+      debugPrint('❌ FirebaseAuthException: ${e.code}');
+      debugPrint('❌ Mensagem: ${e.message}');
+
+      String errorMessage;
+
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Email não encontrado no sistema';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email inválido';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Muitas tentativas. Aguarde alguns minutos';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'Erro de conexão. Verifique sua internet';
+          break;
+        default:
+          errorMessage = 'Erro ao enviar email: ${e.message}';
+      }
+
+      Get.snackbar(
+        'Erro',
+        errorMessage,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red[100],
+        colorText: Colors.red[900],
+        duration: const Duration(seconds: 5),
+        icon: const Icon(Icons.error_outline, color: Colors.red),
+      );
+
+      return false;
     } catch (e) {
-      debugPrint('Erro ao enviar recuperação de senha: $e');
+      // Capturar outros erros
+      debugPrint('❌ Erro genérico ao enviar recuperação de senha: $e');
+
+      Get.snackbar(
+        'Erro Inesperado',
+        'Não foi possível enviar o email. Tente novamente',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange[100],
+        colorText: Colors.orange[900],
+        duration: const Duration(seconds: 5),
+      );
+
       return false;
     }
   }
