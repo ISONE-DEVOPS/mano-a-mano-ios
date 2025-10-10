@@ -58,6 +58,36 @@ class _RegisterViewState extends State<RegisterView>
   static const Color shellRed = Color(0xFFDD1D21);
   static const Color shellOrange = Color(0xFFFF6F00);
 
+  String _mapFriendlyError(Object error) {
+    // Default fallback
+    const fallback = 'Ocorreu um erro ao realizar a inscrição. Tente novamente.';
+    if (error is FirebaseException) {
+      // cloud_firestore plugin
+      if (error.plugin == 'cloud_firestore') {
+        switch (error.code) {
+          case 'not-found':
+            return 'Não encontramos o documento necessário (ex.: evento selecionado). Verifique o evento e tente novamente.';
+          case 'permission-denied':
+            return 'Sem permissão para completar a inscrição. Contacte a organização.';
+          case 'unavailable':
+            return 'Serviço temporariamente indisponível. Verifique a internet e tente novamente.';
+          case 'deadline-exceeded':
+            return 'A operação demorou demasiado. Tente novamente em instantes.';
+          default:
+            return error.message ?? 'Erro de base de dados (${error.code}).';
+        }
+      }
+      // Other Firebase plugins
+      switch (error.code) {
+        case 'network-request-failed':
+          return 'Sem ligação à internet. Verifique a conexão e tente novamente.';
+        default:
+          return error.message ?? fallback;
+      }
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -398,6 +428,12 @@ class _RegisterViewState extends State<RegisterView>
       }
     }
 
+    // Defensive: evento selecionado existe?
+    if (_selectedEventPath == null || _selectedEventPath!.trim().isEmpty) {
+      setState(() => _error = 'Selecione um evento válido antes de finalizar.');
+      return;
+    }
+
     debugPrint('✔️ Validações concluídas, verificando limites e preços');
 
     if (!mounted) return;
@@ -407,11 +443,36 @@ class _RegisterViewState extends State<RegisterView>
     });
 
     try {
-      final eventDoc =
-          await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
+      // Defensive: wrap leitura do evento
+      DocumentSnapshot<Map<String, dynamic>> eventDoc;
+      try {
+        eventDoc = await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
+      } on FirebaseException catch (e) {
+        if (!mounted) return;
+        setState(() => _error = _mapFriendlyError(e));
+        Get.snackbar(
+          'Falha ao carregar evento',
+          _mapFriendlyError(e),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: shellRed.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
       if (!mounted) return;
       if (!eventDoc.exists) {
-        setState(() => _error = 'Evento selecionado inválido.');
+        setState(() => _error = 'Evento selecionado não existe mais. Atualize a lista e escolha outro.');
+        Get.snackbar(
+          'Evento indisponível',
+          'O evento selecionado foi removido ou está inativo. Selecione outro evento.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: shellRed.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 4),
+        );
         return;
       }
 
@@ -420,11 +481,15 @@ class _RegisterViewState extends State<RegisterView>
       String? editionName;
       final parentEditionRef = eventDoc.reference.parent.parent;
       if (parentEditionRef != null) {
-        final editionSnap = await parentEditionRef.get();
-        if (editionSnap.exists) {
-          final editionData = editionSnap.data();
-          editionName =
-              (editionData?['name'] ?? editionData?['nome'])?.toString();
+        try {
+          final editionSnap = await parentEditionRef.get();
+          if (editionSnap.exists) {
+            final editionData = editionSnap.data();
+            editionName =
+                (editionData?['name'] ?? editionData?['nome'])?.toString();
+          }
+        } on FirebaseException catch (e) {
+          debugPrint('Aviso: falha ao ler edição pai: ${e.code}');
         }
       }
       final nomeEvento =
@@ -559,6 +624,9 @@ class _RegisterViewState extends State<RegisterView>
               )
               .toList();
 
+      // Logging event path/id before creating docs
+      debugPrint('🧭 _selectedEventPath=$_selectedEventPath | _selectedEventId=$_selectedEventId');
+
       final veiculoId =
           FirebaseFirestore.instance.collection('veiculos').doc().id;
       final equipaId =
@@ -672,19 +740,34 @@ class _RegisterViewState extends State<RegisterView>
         margin: const EdgeInsets.all(12),
         duration: const Duration(seconds: 4),
       );
-    } on FirebaseAuthException catch (authError) {
+    } on FirebaseException catch (e) {
+      // Trata especificamente erros Firebase (inclui cloud_firestore/not-found)
+      debugPrint('❌ FirebaseException no register: ${e.plugin} ${e.code} ${e.message}');
       if (!mounted) return;
-      if (authError.code == 'email-already-in-use') {
-        setState(
-          () => _error = 'Este e-mail já está registado. Por favor faça login.',
-        );
-      } else {
-        setState(() => _error = authError.message ?? 'Erro de autenticação.');
-      }
+      final msg = _mapFriendlyError(e);
+      setState(() => _error = msg);
+      Get.snackbar(
+        'Erro ao realizar inscrição',
+        msg,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: shellRed.withValues(alpha: 0.9),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        duration: const Duration(seconds: 4),
+      );
     } catch (e) {
-      debugPrint('❌ Erro capturado no register: $e');
+      debugPrint('❌ Erro inesperado no register: $e');
       if (!mounted) return;
-      setState(() => _error = 'Erro ao criar conta: ${e.toString()}');
+      setState(() => _error = 'Ocorreu um erro inesperado. Tente novamente.');
+      Get.snackbar(
+        'Erro inesperado',
+        'Não foi possível concluir a inscrição. Tente novamente.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: shellRed.withValues(alpha: 0.9),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        duration: const Duration(seconds: 4),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -1863,9 +1946,7 @@ class _RegisterViewState extends State<RegisterView>
                             _selectedEventId = selectedEvent['eventId'];
                             _error = null;
                           });
-                          debugPrint(
-                            '✅ Evento selecionado: ${selectedEvent['label']}',
-                          );
+                          debugPrint('✅ Evento selecionado: ${selectedEvent['label']} | path=${selectedEvent['path']} | id=${selectedEvent['eventId']}');
                         }
                       },
                       decoration: InputDecoration(
@@ -1999,10 +2080,8 @@ class _RegisterViewState extends State<RegisterView>
                     _pageController.jumpToPage(2);
                   },
                   onNext: () {
-                    if (_selectedEventPath == null) {
-                      setState(() {
-                        _error = 'Por favor, selecione um evento';
-                      });
+                    if (_selectedEventPath == null || _selectedEventPath!.isEmpty) {
+                      setState(() => _error = 'Por favor, selecione um evento válido.');
                       return;
                     }
                     if (!_acceptedTerms) {
