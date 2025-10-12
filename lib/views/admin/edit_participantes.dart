@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:developer' as developer;
 
 class EditParticipantesView extends StatefulWidget {
   final String userId;
@@ -93,37 +94,36 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             '${doc['modelo'] ?? 'Modelo'} - ${doc['matricula'] ?? 'Sem matrícula'}';
       }
 
-      if (mounted) {
-        setState(() {
-          equipas = equipasTemp;
-          veiculos = veiculosTemp;
+      if (!mounted) return;
+      setState(() {
+        equipas = equipasTemp;
+        veiculos = veiculosTemp;
 
-          final data = doc.data();
-          if (data != null) {
-            nomeController.text = data['nome'] ?? '';
-            emailController.text = data['email'] ?? '';
-            telefoneController.text = data['telefone'] ?? '';
-            emergenciaController.text = data['emergencia'] ?? '';
-            tshirtController.text = data['tshirt'] ?? '';
-            equipaSelecionada = data['equipaId'];
-            veiculoSelecionado = data['veiculoId'];
+        final data = doc.data();
+        if (data != null) {
+          nomeController.text = data['nome'] ?? '';
+          emailController.text = data['email'] ?? '';
+          telefoneController.text = data['telefone'] ?? '';
+          emergenciaController.text = data['emergencia'] ?? '';
+          tshirtController.text = data['tshirt'] ?? '';
+          equipaSelecionada = data['equipaId'];
+          veiculoSelecionado = data['veiculoId'];
 
-            // Novos campos
-            priceController.text = (data['price'] ?? 0).toString();
-            isPago = data['isPago'] ?? false;
-            isAtivo = data['ativo'] ?? true;
-            role = data['role'] ?? 'user';
+          // Novos campos
+          priceController.text = (data['price'] ?? 0).toString();
+          isPago = data['isPago'] ?? false;
+          isAtivo = data['ativo'] ?? true;
+          role = data['role'] ?? 'user';
 
-            if (data['createAt'] != null) {
-              createAt = (data['createAt'] as Timestamp).toDate();
-            }
-            if (data['ultimoLogin'] != null) {
-              ultimoLogin = (data['ultimoLogin'] as Timestamp).toDate();
-            }
+          if (data['createAt'] != null) {
+            createAt = (data['createAt'] as Timestamp).toDate();
           }
-          isLoading = false;
-        });
-      }
+          if (data['ultimoLogin'] != null) {
+            ultimoLogin = (data['ultimoLogin'] as Timestamp).toDate();
+          }
+        }
+        isLoading = false;
+      });
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
@@ -138,30 +138,52 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     setState(() => isSaving = true);
 
     try {
-      final price = double.tryParse(priceController.text) ?? 0;
+      // Garantir que o valor está correto (aceita vírgula e espaço)
+      final raw = priceController.text.trim().replaceAll(' ', '').replaceAll(',', '.');
+      final price = double.tryParse(raw.isEmpty ? '0' : raw) ?? 0.0;
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .update({
-            'nome': nomeController.text.trim(),
-            'email': emailController.text.trim(),
-            'telefone': telefoneController.text.trim(),
-            'emergencia': emergenciaController.text.trim(),
-            'tshirt': tshirtController.text.trim(),
-            'equipaId': equipaSelecionada,
-            'veiculoId': veiculoSelecionado,
-            'price': price,
-            'isPago': isPago,
-            'ativo': isAtivo,
-            'role': role,
-          });
+      // Debug - remover depois de testar
+      developer.log('Salvando price: $price, isPago: $isPago', name: 'EditParticipantes');
 
-      if (mounted) {
-        _showSuccessSnackBar('Participante atualizado com sucesso!');
-        Navigator.of(context).pop(true);
+      final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+      // Grava no documento do utilizador
+      await userRef.update({
+        'nome': nomeController.text.trim(),
+        'email': emailController.text.trim(),
+        'telefone': telefoneController.text.trim(),
+        'emergencia': emergenciaController.text.trim(),
+        'tshirt': tshirtController.text.trim(),
+        'equipaId': equipaSelecionada,
+        'veiculoId': veiculoSelecionado,
+        'price': price,
+        'isPago': isPago,
+        'ativo': isAtivo,
+        'role': role,
+      });
+
+      // (Opcional) grava também no primeiro evento do utilizador, se existir
+      try {
+        final eventosSnapshot = await userRef.collection('eventos').limit(1).get();
+        if (eventosSnapshot.docs.isNotEmpty) {
+          final eventoId = eventosSnapshot.docs.first.id;
+          final eventoRef = userRef.collection('eventos').doc(eventoId);
+          await eventoRef.set({
+            'pagamento': {
+              'valorPago': price,
+              'metodo': isPago ? 'Pagali' : 'Pendente',
+              'atualizadoEm': FieldValue.serverTimestamp(),
+            }
+          }, SetOptions(merge: true));
+        }
+      } catch (e) {
+        developer.log('Falha ao atualizar pagamento no evento: $e', name: 'EditParticipantes', error: e);
       }
+
+      if (!mounted) return;
+      _showSuccessSnackBar('Participante atualizado com sucesso!');
+      Navigator.of(context).pop(true);
     } catch (e) {
+      developer.log('Erro ao salvar', name: 'EditParticipantes', error: e);
       if (mounted) {
         _showErrorSnackBar('Erro ao salvar: $e');
       }
@@ -235,7 +257,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     if (value == null || value.trim().isEmpty) {
       return 'Valor é obrigatório';
     }
-    final price = double.tryParse(value);
+    final normalized = value.trim().replaceAll(' ', '').replaceAll(',', '.');
+    final price = double.tryParse(normalized);
     if (price == null || price < 0) {
       return 'Valor inválido';
     }
@@ -575,198 +598,215 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
   Widget _buildPagamentoTab() {
     final price = double.tryParse(priceController.text) ?? 0;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Card de resumo de pagamento
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
+    return Form(
+      // ADICIONAR FORM AQUI
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Card de resumo de pagamento
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors:
-                    isPago
-                        ? [Colors.green, Colors.green[700]!]
-                        : [Colors.orange, Colors.orange[700]!],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
             ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Icon(
-                  isPago ? Icons.check_circle : Icons.pending,
-                  size: 64,
-                  color: Colors.white,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isPago ? 'PAGAMENTO CONFIRMADO' : 'PAGAMENTO PENDENTE',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  currencyFormatter.format(price),
-                  style: const TextStyle(
-                    fontSize: 36,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Seção de detalhes de pagamento
-        _buildSectionCard(
-          title: 'Detalhes do Pagamento',
-          icon: Icons.payment,
-          children: [
-            _buildTextFormField(
-              controller: priceController,
-              label: 'Valor do Pagamento (CVE)',
-              icon: Icons.attach_money,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: _validatePrice,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Checkbox de confirmação de pagamento
-            Container(
-              padding: const EdgeInsets.all(20),
+            child: Container(
               decoration: BoxDecoration(
-                color: isPago ? Colors.green[50] : Colors.orange[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isPago ? Colors.green : Colors.orange,
-                  width: 2,
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors:
+                      isPago
+                          ? [Colors.green, Colors.green[700]!]
+                          : [Colors.orange, Colors.orange[700]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.verified_user,
-                        color: isPago ? Colors.green : Colors.orange,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Confirmação de Pagamento',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    isPago ? Icons.check_circle : Icons.pending,
+                    size: 64,
+                    color: Colors.white,
                   ),
                   const SizedBox(height: 12),
-                  CheckboxListTile(
-                    value: isPago,
-                    onChanged: (val) => setState(() => isPago = val ?? false),
-                    title: const Text(
-                      'Confirmar que o pagamento foi recebido',
-                      style: TextStyle(fontWeight: FontWeight.w500),
+                  Text(
+                    isPago ? 'PAGAMENTO CONFIRMADO' : 'PAGAMENTO PENDENTE',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    subtitle: Text(
-                      isPago
-                          ? '✓ Pagamento confirmado e registrado'
-                          : 'Marque esta opção após confirmar o recebimento',
-                      style: TextStyle(
-                        color: isPago ? Colors.green[700] : Colors.orange[700],
-                        fontSize: 12,
-                      ),
-                    ),
-                    activeColor: Colors.green,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
+                    textAlign: TextAlign.center,
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Alerta informativo
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue[700]),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Certifique-se de confirmar o pagamento apenas após a verificação do valor recebido.',
-                      style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                  const SizedBox(height: 8),
+                  Text(
+                    currencyFormatter.format(price),
+                    style: const TextStyle(
+                      fontSize: 36,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 24),
 
-        // Histórico de transações (simulado)
-        _buildSectionCard(
-          title: 'Histórico de Transações',
-          icon: Icons.history,
-          children: [
-            if (isPago) ...[
-              _buildTransactionItem(
-                'Pagamento Recebido',
-                price,
-                DateTime.now(),
-                true,
-              ),
-            ] else
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Nenhuma transação registrada',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
+          // Seção de detalhes de pagamento
+          _buildSectionCard(
+            title: 'Detalhes do Pagamento',
+            icon: Icons.payment,
+            children: [
+              TextFormField(
+                // MUDAR DE _buildTextFormField para TextFormField
+                controller: priceController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: _validatePrice,
+                inputFormatters: [
+                  // permite números, ponto e vírgula
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,\.]')),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Valor do Pagamento (CVE)',
+                  prefixIcon: const Icon(Icons.attach_money),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
               ),
-          ],
-        ),
-      ],
+              const SizedBox(height: 20),
+
+              // Checkbox de confirmação de pagamento
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isPago ? Colors.green[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isPago ? Colors.green : Colors.orange,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          color: isPago ? Colors.green : Colors.orange,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Confirmação de Pagamento',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      value: isPago,
+                      onChanged: (val) => setState(() => isPago = val ?? false),
+                      title: const Text(
+                        'Confirmar que o pagamento foi recebido',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        isPago
+                            ? '✓ Pagamento confirmado e registrado'
+                            : 'Marque esta opção após confirmar o recebimento',
+                        style: TextStyle(
+                          color:
+                              isPago ? Colors.green[700] : Colors.orange[700],
+                          fontSize: 12,
+                        ),
+                      ),
+                      activeColor: Colors.green,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Alerta informativo
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[700]),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Certifique-se de confirmar o pagamento apenas após a verificação do valor recebido.',
+                        style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Histórico de transações (simulado)
+          _buildSectionCard(
+            title: 'Histórico de Transações',
+            icon: Icons.history,
+            children: [
+              if (isPago) ...[
+                _buildTransactionItem(
+                  'Pagamento Recebido',
+                  price,
+                  DateTime.now(),
+                  true,
+                ),
+              ] else
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Nenhuma transação registrada',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

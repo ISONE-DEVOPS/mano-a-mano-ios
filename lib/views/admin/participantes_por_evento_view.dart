@@ -1337,8 +1337,14 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
               const SizedBox(width: 8),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: darkGrey),
+                elevation: 14,
+                shadowColor: Colors.black54,
+                color: Colors.white,
+                constraints: const BoxConstraints(minWidth: 260),
+                offset: const Offset(-8, 8),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Colors.black26, width: 1),
                 ),
                 onSelected: (value) {
                   switch (value) {
@@ -1353,6 +1359,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                       break;
                     case 'equipa':
                       _abrirEquipa(doc.id);
+                      break;
+                    case 'pagamento':
+                      _abrirPagamento(doc.id);
                       break;
                     case 'detalhes':
                       _abrirDetalhes(doc.id);
@@ -1373,7 +1382,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                           children: [
                             Icon(Icons.edit, size: 18, color: primaryOrange),
                             SizedBox(width: 10),
-                            Text('Editar'),
+                            Text(
+                              'Editar',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1387,7 +1402,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                               color: primaryOrange,
                             ),
                             SizedBox(width: 10),
-                            Text('Veículo'),
+                            Text(
+                              'Veículo',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1397,7 +1418,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                           children: [
                             Icon(Icons.people, size: 18, color: primaryOrange),
                             SizedBox(width: 10),
-                            Text('Acompanhantes'),
+                            Text(
+                              'Acompanhantes',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1407,7 +1434,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                           children: [
                             Icon(Icons.flag, size: 18, color: primaryOrange),
                             SizedBox(width: 10),
-                            Text('Equipa'),
+                            Text(
+                              'Equipa',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1421,7 +1454,13 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                               color: primaryOrange,
                             ),
                             SizedBox(width: 10),
-                            Text('Detalhes'),
+                            Text(
+                              'Detalhes',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1431,7 +1470,34 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                           children: [
                             Icon(Icons.qr_code, size: 18, color: primaryOrange),
                             SizedBox(width: 10),
-                            Text('QR Code'),
+                            Text(
+                              'QR Code',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Insert Pagamento before divider
+                      const PopupMenuItem(
+                        value: 'pagamento',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              size: 18,
+                              color: primaryOrange,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Pagamento',
+                              style: TextStyle(
+                                color: darkGrey,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1448,7 +1514,10 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                             SizedBox(width: 10),
                             Text(
                               'Eliminar',
-                              style: TextStyle(color: primaryRed),
+                              style: TextStyle(
+                                color: primaryRed,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
@@ -2192,6 +2261,252 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     );
   }
 
+  void _abrirPagamento(String userId) async {
+    if (eventoSelecionadoId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selecione um evento para editar o pagamento.'),
+            backgroundColor: primaryRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final eventoRef = userRef.collection('eventos').doc(eventoSelecionadoId);
+
+    // Carrega dados atuais
+    final snap = await eventoRef.get();
+    if (!mounted) return;
+    final Map<String, dynamic> dados = snap.data() ?? {};
+    final Map<String, dynamic> pagamento =
+        (dados['pagamento'] ?? {}) as Map<String, dynamic>;
+
+    final valorPrevistoCtl = TextEditingController(
+      text: ((pagamento['valorPrevisto'] ?? dados['preco'] ?? 0).toString()),
+    );
+    final valorPagoCtl = TextEditingController(
+      text: ((pagamento['valorPago'] ?? 0).toString()),
+    );
+    String metodo = (pagamento['metodo'] ?? 'Pagali').toString();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    children: [
+                      Icon(Icons.payments_outlined, color: darkGrey, size: 26),
+                      SizedBox(width: 12),
+                      Text(
+                        'Pagamento da Inscrição',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: darkGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Valor previsto
+                  TextField(
+                    controller: valorPrevistoCtl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'Valor previsto (CVE)',
+                      prefixIcon: const Icon(
+                        Icons.request_quote,
+                        color: primaryOrange,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Valor pago
+                  TextField(
+                    controller: valorPagoCtl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'Valor pago (CVE)',
+                      prefixIcon: const Icon(
+                        Icons.attach_money,
+                        color: accentGreen,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Método
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: primaryOrange,
+                      ),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: metodo,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Pagali',
+                            child: Text('Pagali'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Transferência',
+                            child: Text('Transferência'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Dinheiro',
+                            child: Text('Dinheiro'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => metodo = v);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryOrange,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.save),
+                          label: const Text('Guardar'),
+                          onPressed: () async {
+                            double parseValor(String txt) {
+                              final t = txt
+                                  .trim()
+                                  .replaceAll(' ', '')
+                                  .replaceAll(',', '.');
+                              if (t.isEmpty) return 0.0;
+                              final v = double.tryParse(t);
+                              return v?.isFinite == true ? v! : 0.0;
+                            }
+
+                            final double valorPrevisto = parseValor(
+                              valorPrevistoCtl.text,
+                            );
+                            final double valorPago = parseValor(
+                              valorPagoCtl.text,
+                            );
+
+                            try {
+                              await eventoRef.set({
+                                'pagamento': {
+                                  'valorPrevisto': valorPrevisto,
+                                  'valorPago': valorPago,
+                                  'metodo': metodo,
+                                  'atualizadoEm': FieldValue.serverTimestamp(),
+                                },
+                              }, SetOptions(merge: true));
+
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Pagamento atualizado com sucesso',
+                                  ),
+                                  backgroundColor: accentGreen,
+                                ),
+                              );
+                              setState(() {}); // refresh a lista
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Erro ao guardar pagamento: $e',
+                                  ),
+                                  backgroundColor: primaryRed,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _abrirVeiculo(String userId) async {
     final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
     final snap = await userRef.get();
@@ -2294,28 +2609,24 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                                   'cor': corCtl.text.trim(),
                                 },
                               });
-                              if (mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Veículo atualizado com sucesso',
-                                    ),
-                                    backgroundColor: accentGreen,
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Veículo atualizado com sucesso',
                                   ),
-                                );
-                              }
+                                  backgroundColor: accentGreen,
+                                ),
+                              );
                             } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Erro ao guardar veículo: $e',
-                                    ),
-                                    backgroundColor: primaryRed,
-                                  ),
-                                );
-                              }
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Erro ao guardar veículo: $e'),
+                                  backgroundColor: primaryRed,
+                                ),
+                              );
                             }
                           },
                         ),
@@ -2418,7 +2729,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                         return ListView.separated(
                           shrinkWrap: true,
                           itemCount: docs.length,
-                          separatorBuilder: (_, __) => const Divider(height: 8),
+                          separatorBuilder: (_, _) => const Divider(height: 8),
                           itemBuilder: (context, i) {
                             final d = docs[i];
                             final m = d.data() as Map<String, dynamic>;
@@ -2501,7 +2812,8 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                                       'telefone': telCtl.text.trim(),
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
-                                    if (mounted) Navigator.pop(context);
+                                    if (!context.mounted) return;
+                                    Navigator.pop(context);
                                   },
                                   child: const Text('Guardar'),
                                 ),
@@ -2594,23 +2906,22 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                       return ListView.separated(
                         shrinkWrap: true,
                         itemCount: docs.length,
-                        separatorBuilder: (_, __) => const Divider(height: 8),
+                        separatorBuilder: (_, _) => const Divider(height: 8),
                         itemBuilder: (context, i) {
                           final d = docs[i];
                           final m = d.data() as Map<String, dynamic>;
                           return ListTile(
                             onTap: () async {
                               await userRef.update({'equipaId': d.id});
-                              if (mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Equipa atualizada'),
-                                    backgroundColor: accentGreen,
-                                  ),
-                                );
-                                setState(() {}); // refresca listagem
-                              }
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Equipa atualizada'),
+                                  backgroundColor: accentGreen,
+                                ),
+                              );
+                              setState(() {}); // refresca listagem
                             },
                             leading: const Icon(
                               Icons.group,
@@ -2820,16 +3131,15 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                         tooltip: 'Copiar',
                         onPressed: () async {
                           await Clipboard.setData(ClipboardData(text: payload));
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Código copiado para a área de transferência',
-                                ),
-                                backgroundColor: primaryOrange,
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Código copiado para a área de transferência',
                               ),
-                            );
-                          }
+                              backgroundColor: primaryOrange,
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.copy, color: darkGrey),
                       ),

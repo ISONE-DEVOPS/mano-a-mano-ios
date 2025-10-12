@@ -763,15 +763,15 @@ class _RegisterViewState extends State<RegisterView>
       String uid;
       if (_isExistingUser) {
         uid = _existingUserId!;
-        // validar duplicidade de registo neste evento
-        final existingEventDoc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(uid)
-                .collection('events')
-                .doc(_selectedEventId)
-                .get();
-        if (existingEventDoc.exists) {
+        // validar duplicidade de registo neste evento com base no caminho completo do evento
+        final dupSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('events')
+            .where('eventoPath', isEqualTo: _selectedEventPath)
+            .limit(1)
+            .get();
+        if (dupSnap.docs.isNotEmpty) {
           if (!mounted) return;
           setState(() => _error = 'Já está registado neste evento.');
           Get.snackbar(
@@ -942,26 +942,37 @@ class _RegisterViewState extends State<RegisterView>
         });
       }
 
-      // Subcoleção de eventos (sempre)
-      await FirebaseFirestore.instance
+      // Subcoleção de eventos (sempre) — garante ID único sem sobrescrever históricos
+      final eventsCol = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
-          .collection('events')
-          .doc(_selectedEventId)
-          .set({
-            'eventoId': _selectedEventId,
-            'checkpointsVisitados': [],
-            'localizacao': _selectedLocation ?? '',
-            'preco': price,
-            'precoBase': price,
-            'acompanhantesExtras': extrasCount,
-            'valorPorAcompanhante': 7500,
-            'precoTotal': finalPrice,
-            'paymentStatus': 'pending',
-            'paymentMethod': _paymentMethod,
-            'registeredAt': FieldValue.serverTimestamp(),
-          });
-      debugPrint('✅ Subcoleção events criada com sucesso');
+          .collection('events');
+      String subEventDocId = _selectedEventId!;
+      final possibleCollision = await eventsCol.doc(subEventDocId).get();
+      if (possibleCollision.exists) {
+        final data = possibleCollision.data();
+        final existingPath = data?['eventoPath'] as String?;
+        if (existingPath != null && existingPath != _selectedEventPath) {
+          // evita overwrite caso exista um doc antigo com mesmo eventoId de outra edição
+          final lastSegment = _selectedEventPath!.split('/').last;
+          subEventDocId = '${_selectedEventId}_$lastSegment';
+        }
+      }
+      await eventsCol.doc(subEventDocId).set({
+        'eventoId': _selectedEventId,
+        'eventoPath': _selectedEventPath,
+        'checkpointsVisitados': [],
+        'localizacao': _selectedLocation ?? '',
+        'preco': price,
+        'precoBase': price,
+        'acompanhantesExtras': extrasCount,
+        'valorPorAcompanhante': 7500,
+        'precoTotal': finalPrice,
+        'paymentStatus': 'pending',
+        'paymentMethod': _paymentMethod,
+        'registeredAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('✅ Subcoleção events criada com sucesso: $subEventDocId');
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'ultimoLogin': FieldValue.serverTimestamp(),
