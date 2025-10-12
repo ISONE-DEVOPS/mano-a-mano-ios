@@ -66,12 +66,15 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
         cardColor: Colors.white,
         popupMenuTheme: PopupMenuThemeData(
           color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
-        ), dialogTheme: DialogThemeData(backgroundColor: Colors.white),
+        ),
+        dialogTheme: DialogThemeData(backgroundColor: Colors.white),
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFFFFCF7),
@@ -1334,7 +1337,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
               const SizedBox(width: 8),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: darkGrey),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 onSelected: (value) {
                   switch (value) {
                     case 'editar':
@@ -1360,82 +1365,95 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                       break;
                   }
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'editar',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('Editar'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'veiculo',
-                    child: Row(
-                      children: [
-                        Icon(Icons.directions_car, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('Veículo'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'acompanhantes',
-                    child: Row(
-                      children: [
-                        Icon(Icons.people, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('Acompanhantes'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'equipa',
-                    child: Row(
-                      children: [
-                        Icon(Icons.flag, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('Equipa'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'detalhes',
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('Detalhes'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'qrcode',
-                    child: Row(
-                      children: [
-                        Icon(Icons.qr_code, size: 18, color: primaryOrange),
-                        SizedBox(width: 10),
-                        Text('QR Code'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'eliminar',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 18, color: primaryRed),
-                        SizedBox(width: 10),
-                        Text(
-                          'Eliminar',
-                          style: TextStyle(color: primaryRed),
+                itemBuilder:
+                    (context) => [
+                      const PopupMenuItem(
+                        value: 'editar',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 18, color: primaryOrange),
+                            SizedBox(width: 10),
+                            Text('Editar'),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                      const PopupMenuItem(
+                        value: 'veiculo',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.directions_car,
+                              size: 18,
+                              color: primaryOrange,
+                            ),
+                            SizedBox(width: 10),
+                            Text('Veículo'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'acompanhantes',
+                        child: Row(
+                          children: [
+                            Icon(Icons.people, size: 18, color: primaryOrange),
+                            SizedBox(width: 10),
+                            Text('Acompanhantes'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'equipa',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag, size: 18, color: primaryOrange),
+                            SizedBox(width: 10),
+                            Text('Equipa'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'detalhes',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 18,
+                              color: primaryOrange,
+                            ),
+                            SizedBox(width: 10),
+                            Text('Detalhes'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'qrcode',
+                        child: Row(
+                          children: [
+                            Icon(Icons.qr_code, size: 18, color: primaryOrange),
+                            SizedBox(width: 10),
+                            Text('QR Code'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'eliminar',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: primaryRed,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Eliminar',
+                              style: TextStyle(color: primaryRed),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
               ),
             ],
           ),
@@ -2150,7 +2168,11 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
   }
   // --- Helpers e ações de menu ---
 
-  Widget _buildTextField(String label, TextEditingController ctl, IconData icon) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController ctl,
+    IconData icon,
+  ) {
     return TextField(
       controller: ctl,
       decoration: InputDecoration(
@@ -2162,7 +2184,10 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -2174,10 +2199,18 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     final data = snap.data() ?? {};
     final veiculo = (data['veiculo'] ?? {}) as Map<String, dynamic>;
 
-    final marcaCtl = TextEditingController(text: (veiculo['marca'] ?? '').toString());
-    final modeloCtl = TextEditingController(text: (veiculo['modelo'] ?? '').toString());
-    final matriculaCtl = TextEditingController(text: (veiculo['matricula'] ?? '').toString());
-    final corCtl = TextEditingController(text: (veiculo['cor'] ?? '').toString());
+    final marcaCtl = TextEditingController(
+      text: (veiculo['marca'] ?? '').toString(),
+    );
+    final modeloCtl = TextEditingController(
+      text: (veiculo['modelo'] ?? '').toString(),
+    );
+    final matriculaCtl = TextEditingController(
+      text: (veiculo['matricula'] ?? '').toString(),
+    );
+    final corCtl = TextEditingController(
+      text: (veiculo['cor'] ?? '').toString(),
+    );
 
     showModalBottomSheet(
       context: context,
@@ -2222,7 +2255,11 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField('Marca', marcaCtl, Icons.directions_car_filled),
+                  _buildTextField(
+                    'Marca',
+                    marcaCtl,
+                    Icons.directions_car_filled,
+                  ),
                   const SizedBox(height: 10),
                   _buildTextField('Modelo', modeloCtl, Icons.build),
                   const SizedBox(height: 10),
@@ -2255,13 +2292,15 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                                   'modelo': modeloCtl.text.trim(),
                                   'matricula': matriculaCtl.text.trim(),
                                   'cor': corCtl.text.trim(),
-                                }
+                                },
                               });
                               if (mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Veículo atualizado com sucesso'),
+                                    content: Text(
+                                      'Veículo atualizado com sucesso',
+                                    ),
                                     backgroundColor: accentGreen,
                                   ),
                                 );
@@ -2270,7 +2309,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Erro ao guardar veículo: $e'),
+                                    content: Text(
+                                      'Erro ao guardar veículo: $e',
+                                    ),
                                     backgroundColor: primaryRed,
                                   ),
                                 );
@@ -2347,7 +2388,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                             child: Padding(
                               padding: EdgeInsets.all(20),
                               child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  primaryOrange,
+                                ),
                               ),
                             ),
                           );
@@ -2365,7 +2408,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                               children: [
                                 Icon(Icons.info_outline, color: primaryOrange),
                                 SizedBox(width: 8),
-                                Expanded(child: Text('Sem acompanhantes adicionados')),
+                                Expanded(
+                                  child: Text('Sem acompanhantes adicionados'),
+                                ),
                               ],
                             ),
                           );
@@ -2380,13 +2425,21 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                             return ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
-                              title: Text(m['nome'] ?? 'Sem nome',
-                                  style: const TextStyle(fontWeight: FontWeight.w700)),
-                              subtitle: (m['telefone'] ?? '').toString().isNotEmpty
-                                  ? Text((m['telefone'] ?? '').toString())
-                                  : null,
+                              title: Text(
+                                m['nome'] ?? 'Sem nome',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle:
+                                  (m['telefone'] ?? '').toString().isNotEmpty
+                                      ? Text((m['telefone'] ?? '').toString())
+                                      : null,
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: primaryRed),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: primaryRed,
+                                ),
                                 onPressed: () async {
                                   await acompRef.doc(d.id).delete();
                                 },
@@ -2418,9 +2471,17 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _buildTextField('Nome', nomeCtl, Icons.person),
+                                  _buildTextField(
+                                    'Nome',
+                                    nomeCtl,
+                                    Icons.person,
+                                  ),
                                   const SizedBox(height: 10),
-                                  _buildTextField('Telefone', telCtl, Icons.phone),
+                                  _buildTextField(
+                                    'Telefone',
+                                    telCtl,
+                                    Icons.phone,
+                                  ),
                                 ],
                               ),
                               actions: [
@@ -2505,14 +2566,20 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 420),
                   child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection('equipas').orderBy('nome').snapshots(),
+                    stream:
+                        FirebaseFirestore.instance
+                            .collection('equipas')
+                            .orderBy('nome')
+                            .snapshots(),
                     builder: (context, snap) {
                       if (!snap.hasData) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(20),
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                primaryOrange,
+                              ),
                             ),
                           ),
                         );
@@ -2545,12 +2612,19 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                                 setState(() {}); // refresca listagem
                               }
                             },
-                            leading: const Icon(Icons.group, color: primaryOrange),
+                            leading: const Icon(
+                              Icons.group,
+                              color: primaryOrange,
+                            ),
                             title: Text(m['nome'] ?? 'Sem nome'),
-                            subtitle: (m['descricao'] ?? '').toString().isNotEmpty
-                                ? Text((m['descricao'] ?? '').toString())
-                                : null,
-                            trailing: const Icon(Icons.check, color: Colors.transparent),
+                            subtitle:
+                                (m['descricao'] ?? '').toString().isNotEmpty
+                                    ? Text((m['descricao'] ?? '').toString())
+                                    : null,
+                            trailing: const Icon(
+                              Icons.check,
+                              color: Colors.transparent,
+                            ),
                           );
                         },
                       );
@@ -2573,7 +2647,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
       builder: (context) {
         return AlertDialog(
           title: const Text('Remover do evento?'),
-          content: const Text('Isto vai remover a inscrição deste participante neste evento e as suas pontuações associadas.'),
+          content: const Text(
+            'Isto vai remover a inscrição deste participante neste evento e as suas pontuações associadas.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -2595,8 +2671,12 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     if (confirmar != true) return;
 
     try {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
-      final eventoDocRef = userRef.collection('eventos').doc(eventoSelecionadoId);
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId);
+      final eventoDocRef = userRef
+          .collection('eventos')
+          .doc(eventoSelecionadoId);
 
       // Apagar pontuações associadas a este evento
       final pontSnap = await eventoDocRef.collection('pontuacoes').get();
@@ -2634,9 +2714,10 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
   }
 
   void _mostrarQrCode(String userId) {
-    final String eventPath = (edicaoSelecionadaId != null && eventoSelecionadoId != null)
-        ? 'editions/$edicaoSelecionadaId/events/$eventoSelecionadoId'
-        : '';
+    final String eventPath =
+        (edicaoSelecionadaId != null && eventoSelecionadoId != null)
+            ? 'editions/$edicaoSelecionadaId/events/$eventoSelecionadoId'
+            : '';
     final String payload = 'CHECKIN|$eventPath|$userId';
     final String url =
         'https://chart.googleapis.com/chart?chs=420x420&cht=qr&chl=${Uri.encodeComponent(payload)}&choe=UTF-8';
@@ -2742,7 +2823,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Código copiado para a área de transferência'),
+                                content: Text(
+                                  'Código copiado para a área de transferência',
+                                ),
                                 backgroundColor: primaryOrange,
                               ),
                             );
@@ -2754,7 +2837,9 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                         tooltip: 'Partilhar',
                         onPressed: () async {
                           // ignore: deprecated_member_use
-                          await Share.share('QR do participante:\n$payload\n$url');
+                          await Share.share(
+                            'QR do participante:\n$payload\n$url',
+                          );
                         },
                         icon: const Icon(Icons.share, color: darkGrey),
                       ),

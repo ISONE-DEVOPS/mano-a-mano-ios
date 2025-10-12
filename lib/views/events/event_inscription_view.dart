@@ -44,6 +44,10 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
   Map<String, dynamic>? _evento;
   String? _eventoPath;
   double _eventPrice = 0.0;
+  // Identificadores existentes (se o utilizador já tem veículo/equipa)
+  String? _existingVeiculoId;
+  String? _existingEquipaId;
+  bool _alreadyRegistered = false;
 
   static const Color shellYellow = Color(0xFFFFCB05);
   static const Color shellRed = Color(0xFFDD1D21);
@@ -105,6 +109,32 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
       final eventId = evento['id'];
       _eventoPath = 'editions/$editionId/events/$eventId';
 
+      // 1) Verificar se utilizador já está inscrito neste evento
+      final existingInscricao =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('events')
+              .doc(eventId)
+              .get();
+      if (existingInscricao.exists) {
+        setState(() {
+          _alreadyRegistered = true;
+          _isLoadingData = false;
+          _error = 'Já está registado neste evento.';
+        });
+        Get.snackbar(
+          'Registo duplicado',
+          'Você já possui uma inscrição ativa neste evento.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: shellRed.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
+
       // Buscar dados do evento para preços e limites
       final eventDoc = await FirebaseFirestore.instance.doc(_eventoPath!).get();
       if (eventDoc.exists) {
@@ -127,17 +157,21 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
       if (userDoc.exists) {
         final data = userDoc.data()!;
         setState(() {
-          _nomeController.text = data['nome'] ?? '';
-          _telefoneController.text = data['telefone'] ?? '';
-          _emergenciaController.text = data['emergencia'] ?? '';
-          _selectedShirtSize = data['tshirt'];
-          _selectedLocation = data['localizacao'];
+          _nomeController.text = data['nome'] ?? _nomeController.text;
+          _telefoneController.text =
+              data['telefone'] ?? _telefoneController.text;
+          _emergenciaController.text =
+              data['emergencia'] ?? _emergenciaController.text;
+          _selectedShirtSize = data['tshirt'] ?? _selectedShirtSize;
+          _selectedLocation = data['localizacao'] ?? _selectedLocation;
 
-          // Se já tem veículo, carregar dados
-          if (data.containsKey('veiculoId') && data['veiculoId'] != null) {
-            _loadVehicleData(data['veiculoId']);
-          }
+          _existingVeiculoId = data['veiculoId'];
+          _existingEquipaId = data['equipaId'];
         });
+        // Se já tem veículo, carregar dados
+        if (_existingVeiculoId != null) {
+          await _loadVehicleData(_existingVeiculoId!);
+        }
       }
 
       setState(() => _isLoadingData = false);
@@ -271,6 +305,35 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
         throw Exception('Usuário não autenticado');
       }
 
+      // Proteção contra duplicidade (duplo clique, etc.)
+      final eventId = _evento?['id'];
+      if (eventId == null) {
+        throw Exception('Evento inválido');
+      }
+      final dupCheck =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('events')
+              .doc(eventId)
+              .get();
+      if (dupCheck.exists) {
+        setState(() {
+          _error = 'Já está registado neste evento.';
+          _loading = false;
+        });
+        Get.snackbar(
+          'Registo duplicado',
+          'Você já possui uma inscrição ativa neste evento.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: shellRed.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+          duration: const Duration(seconds: 4),
+        );
+        return;
+      }
+
       // Verificar limites de vagas
       final locationInfo = await _getLocationPriceInfo(_selectedLocation!);
       final maxVehicles = locationInfo['maxVehicles'] as int;
@@ -307,59 +370,82 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
               .toList();
 
       // Criar ou atualizar veículo
-      final veiculoId =
-          FirebaseFirestore.instance.collection('veiculos').doc().id;
-      final equipaId =
-          FirebaseFirestore.instance.collection('equipas').doc().id;
+      String veiculoId;
+      if (_existingVeiculoId != null && _existingVeiculoId!.isNotEmpty) {
+        veiculoId = _existingVeiculoId!;
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .update({
+              'matricula': _licensePlateController.text.trim(),
+              'modelo': _carModelController.text.trim(),
+              'nome_equipa': _teamNameController.text.trim(),
+              'localizacao': _selectedLocation ?? '',
+              'passageiros': passageiros,
+              'eventoId': _eventoPath,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } else {
+        veiculoId = FirebaseFirestore.instance.collection('veiculos').doc().id;
+        final carData = {
+          'ownerId': user.uid,
+          'matricula': _licensePlateController.text.trim(),
+          'modelo': _carModelController.text.trim(),
+          'nome_equipa': _teamNameController.text.trim(),
+          'localizacao': _selectedLocation ?? '',
+          'passageiros': passageiros,
+          'pontuacao_total': 0,
+          'checkpoints': {},
+          'eventoId': _eventoPath,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .set(carData);
+      }
 
-      final carData = {
-        'ownerId': user.uid,
-        'matricula': _licensePlateController.text.trim(),
-        'modelo': _carModelController.text.trim(),
-        'nome_equipa': _teamNameController.text.trim(),
-        'localizacao': _selectedLocation ?? '',
-        'passageiros': passageiros,
-        'pontuacao_total': 0,
-        'checkpoints': {},
-        'eventoId': _eventoPath,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance
-          .collection('veiculos')
-          .doc(veiculoId)
-          .set(carData);
-
-      // Criar equipa
-      final equipaData = {
-        'nome': _teamNameController.text.trim(),
-        'hino': '',
-        'bandeiraUrl': '',
-        'pontuacaoTotal': 0,
-        'ranking': 0,
-        'membros': [user.uid, ...passageiros.map((p) => p['telefone'])],
-        'localizacao': _selectedLocation ?? '',
-      };
-
-      await FirebaseFirestore.instance
-          .collection('equipas')
-          .doc(equipaId)
-          .set(equipaData);
+      // Criar ou atualizar equipa
+      String equipaId;
+      if (_existingEquipaId != null && _existingEquipaId!.isNotEmpty) {
+        equipaId = _existingEquipaId!;
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .update({
+              'nome': _teamNameController.text.trim(),
+              'membros': [user.uid, ...passageiros.map((p) => p['telefone'])],
+              'localizacao': _selectedLocation ?? '',
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } else {
+        equipaId = FirebaseFirestore.instance.collection('equipas').doc().id;
+        final equipaData = {
+          'nome': _teamNameController.text.trim(),
+          'hino': '',
+          'bandeiraUrl': '',
+          'pontuacaoTotal': 0,
+          'ranking': 0,
+          'membros': [user.uid, ...passageiros.map((p) => p['telefone'])],
+          'localizacao': _selectedLocation ?? '',
+        };
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .set(equipaData);
+      }
 
       // Atualizar dados do usuário
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-            'nome': _nomeController.text.trim(),
-            'telefone': _telefoneController.text.trim(),
-            'emergencia': _emergenciaController.text.trim(),
-            'tshirt': _selectedShirtSize ?? '',
-            'localizacao': _selectedLocation ?? '',
-            'veiculoId': veiculoId,
-            'equipaId': equipaId,
-            'ultimoLogin': FieldValue.serverTimestamp(),
-          });
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'nome': _nomeController.text.trim(),
+        'telefone': _telefoneController.text.trim(),
+        'emergencia': _emergenciaController.text.trim(),
+        'tshirt': _selectedShirtSize ?? '',
+        'localizacao': _selectedLocation ?? '',
+        'veiculoId': veiculoId,
+        'equipaId': equipaId,
+        'ultimoLogin': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       // Criar inscrição no evento
       await FirebaseFirestore.instance
@@ -437,6 +523,26 @@ class _EventInscriptionViewState extends State<EventInscriptionView>
               const Icon(Icons.error_outline, size: 64, color: shellRed),
               const SizedBox(height: 16),
               const Text('Evento não encontrado'),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                child: const Text('Voltar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_alreadyRegistered) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.info_outline, size: 64, color: shellOrange),
+              const SizedBox(height: 16),
+              const Text('Você já está inscrito neste evento.'),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => Get.back(),

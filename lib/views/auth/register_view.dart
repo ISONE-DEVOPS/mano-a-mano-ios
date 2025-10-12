@@ -54,9 +54,39 @@ class _RegisterViewState extends State<RegisterView>
   List<Map<String, String>> _eventOptions = [];
   bool _loadingEvents = true;
 
+  // Novos campos para diferenciar fluxo de registo
+  bool _isExistingUser = false;
+  String? _existingUserId;
+  String? _existingVeiculoId;
+  String? _existingEquipaId;
+
   static const Color shellYellow = Color(0xFFFFCB05);
   static const Color shellRed = Color(0xFFDD1D21);
   static const Color shellOrange = Color(0xFFFF6F00);
+
+  // Helpers para obter valores com chaves alternativas e preencher a partir do Auth
+  String _getFirstNonEmpty(Map<String, dynamic> map, List<String> keys) {
+    for (final k in keys) {
+      final v = map[k];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    return '';
+  }
+
+  void _prefillFromAuthUser(User user) {
+    // Preenche a partir do FirebaseAuth quando o documento no Firestore ainda não existe
+    if (_emailController.text.trim().isEmpty && (user.email ?? '').isNotEmpty) {
+      _emailController.text = user.email!.trim();
+    }
+    if (_nameController.text.trim().isEmpty &&
+        (user.displayName ?? '').isNotEmpty) {
+      _nameController.text = user.displayName!.trim();
+    }
+    // Telefone não vem do Auth por padrão; mantemos em branco se não houver no Firestore
+  }
 
   String _mapFriendlyError(Object error) {
     // Default fallback
@@ -92,12 +122,169 @@ class _RegisterViewState extends State<RegisterView>
   @override
   void initState() {
     super.initState();
+    _checkExistingUser();
     _loadAcceptedTerms();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _fetchActiveEventOptions();
+  }
+
+  Future<void> _checkExistingUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      debugPrint('✅ Utilizador autenticado detectado: ${currentUser.uid}');
+      _prefillFromAuthUser(currentUser);
+      if (mounted) {
+        setState(() {
+          _isExistingUser = true;
+          _existingUserId = currentUser.uid;
+        });
+      }
+      await _loadExistingUserData(currentUser.uid);
+    } else {
+      debugPrint('ℹ️ Nenhum utilizador autenticado. Fluxo de novo registo.');
+    }
+  }
+
+  Future<void> _loadExistingUserData(String uid) async {
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!userDoc.exists) {
+        debugPrint('⚠️ Documento do utilizador não encontrado');
+        if (mounted) {
+          Get.snackbar(
+            'Conta sem perfil',
+            'Ainda não encontramos os seus dados no perfil. Preencha e serão guardados ao finalizar.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: shellYellow.withValues(alpha: 0.9),
+            colorText: Colors.black87,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 4),
+          );
+        }
+        return;
+      }
+      final userData = userDoc.data()!;
+      if (!mounted) return;
+      setState(() {
+        final nome = _getFirstNonEmpty(userData, ['nome', 'name', 'fullName']);
+        final telefone = _getFirstNonEmpty(userData, [
+          'telefone',
+          'phone',
+          'telemovel',
+        ]);
+        final email = _getFirstNonEmpty(userData, ['email', 'mail']);
+        final emergencia = _getFirstNonEmpty(userData, [
+          'emergencia',
+          'emergency',
+          'emergencyContact',
+        ]);
+        final tshirt = _getFirstNonEmpty(userData, [
+          'tshirt',
+          'tShirt',
+          'tshirt_size',
+        ]);
+        final localizacao = _getFirstNonEmpty(userData, [
+          'localizacao',
+          'location',
+          'ilha',
+        ]);
+
+        if (_nameController.text.trim().isEmpty) {
+          _nameController.text = nome;
+        }
+        if (_phoneController.text.trim().isEmpty) {
+          _phoneController.text = telefone;
+        }
+        if (_emailController.text.trim().isEmpty) {
+          _emailController.text = email;
+        }
+        if (_emergencyContactController.text.trim().isEmpty) {
+          _emergencyContactController.text = emergencia;
+        }
+
+        _selectedShirtSize = (tshirt.isNotEmpty) ? tshirt : _selectedShirtSize;
+        _selectedLocation =
+            (localizacao.isNotEmpty) ? localizacao : _selectedLocation;
+
+        _existingVeiculoId = userData['veiculoId'] ?? userData['vehicleId'];
+        _existingEquipaId = userData['equipaId'] ?? userData['teamId'];
+      });
+
+      if (_existingVeiculoId != null) {
+        final veiculoDoc =
+            await FirebaseFirestore.instance
+                .collection('veiculos')
+                .doc(_existingVeiculoId)
+                .get();
+        if (veiculoDoc.exists) {
+          final veiculoData = veiculoDoc.data()!;
+          if (!mounted) return;
+          setState(() {
+            final matricula = _getFirstNonEmpty(veiculoData, [
+              'matricula',
+              'placa',
+              'licensePlate',
+            ]);
+            final modelo = _getFirstNonEmpty(veiculoData, [
+              'modelo',
+              'model',
+              'carModel',
+            ]);
+            final nomeEquipa = _getFirstNonEmpty(veiculoData, [
+              'nome_equipa',
+              'equipa',
+              'teamName',
+            ]);
+            final localizacaoVeiculo = _getFirstNonEmpty(veiculoData, [
+              'localizacao',
+              'location',
+              'ilha',
+            ]);
+
+            if (_licensePlateController.text.trim().isEmpty) {
+              _licensePlateController.text = matricula;
+            }
+            if (_carModelController.text.trim().isEmpty) {
+              _carModelController.text = modelo;
+            }
+            if (_teamNameController.text.trim().isEmpty) {
+              _teamNameController.text = nomeEquipa;
+            }
+            if (_selectedLocation == null || _selectedLocation!.isEmpty) {
+              _selectedLocation =
+                  localizacaoVeiculo.isNotEmpty
+                      ? localizacaoVeiculo
+                      : _selectedLocation;
+            }
+            final passageiros = veiculoData['passageiros'] as List?;
+            if (passageiros != null) {
+              passageirosControllers =
+                  passageiros.map((p) {
+                    final map = Map<String, dynamic>.from(p);
+                    return {
+                      'nome': TextEditingController(
+                        text: _getFirstNonEmpty(map, ['nome', 'name']),
+                      ),
+                      'telefone': TextEditingController(
+                        text: _getFirstNonEmpty(map, ['telefone', 'phone']),
+                      ),
+                      'tshirt': TextEditingController(
+                        text: _getFirstNonEmpty(map, ['tshirt', 'tShirt']),
+                      ),
+                    };
+                  }).toList();
+            }
+          });
+        }
+      }
+      debugPrint('✅ Dados do utilizador carregados com sucesso');
+    } catch (e) {
+      debugPrint('❌ Erro ao carregar dados do utilizador: $e');
+    }
   }
 
   @override
@@ -393,19 +580,28 @@ class _RegisterViewState extends State<RegisterView>
 
   void _register() async {
     debugPrint('▶️ Método _register() iniciado');
+    debugPrint(
+      '🔍 Tipo de registo: ${_isExistingUser ? "Utilizador existente" : "Novo utilizador"}',
+    );
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      if (!mounted) return;
-      setState(() => _error = 'As senhas não coincidem');
-      return;
+    if (!_isExistingUser) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        if (!mounted) return;
+        setState(() => _error = 'As senhas não coincidem');
+        return;
+      }
+      if (_emailController.text.trim().isEmpty ||
+          _passwordController.text.trim().isEmpty ||
+          _confirmPasswordController.text.trim().isEmpty) {
+        if (!mounted) return;
+        setState(() => _error = 'Email e senha são obrigatórios');
+        return;
+      }
     }
 
     if (_nameController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty ||
         _emergencyContactController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty ||
-        _confirmPasswordController.text.trim().isEmpty ||
         _licensePlateController.text.trim().isEmpty ||
         _carModelController.text.trim().isEmpty ||
         _selectedLocation == null ||
@@ -429,7 +625,6 @@ class _RegisterViewState extends State<RegisterView>
       }
     }
 
-    // Defensive: evento selecionado existe?
     if (_selectedEventPath == null || _selectedEventPath!.trim().isEmpty) {
       setState(() => _error = 'Selecione um evento válido antes de finalizar.');
       return;
@@ -444,25 +639,9 @@ class _RegisterViewState extends State<RegisterView>
     });
 
     try {
-      // Defensive: wrap leitura do evento
-      DocumentSnapshot<Map<String, dynamic>> eventDoc;
-      try {
-        eventDoc =
-            await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
-      } on FirebaseException catch (e) {
-        if (!mounted) return;
-        setState(() => _error = _mapFriendlyError(e));
-        Get.snackbar(
-          'Falha ao carregar evento',
-          _mapFriendlyError(e),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: shellRed.withValues(alpha: 0.9),
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(12),
-          duration: const Duration(seconds: 4),
-        );
-        return;
-      }
+      // Ler evento
+      final eventDoc =
+          await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
       if (!mounted) return;
       if (!eventDoc.exists) {
         setState(
@@ -483,7 +662,6 @@ class _RegisterViewState extends State<RegisterView>
       }
 
       final Map<String, dynamic> eventData = eventDoc.data()!;
-
       String? editionName;
       final parentEditionRef = eventDoc.reference.parent.parent;
       if (parentEditionRef != null) {
@@ -504,14 +682,12 @@ class _RegisterViewState extends State<RegisterView>
 
       double price = 0;
       int maxVehicles = -1;
-
       if (eventData.containsKey('pricesByLocation')) {
         final raw = eventData['pricesByLocation'];
         Map<String, dynamic>? pricesByLocation;
         if (raw is Map) {
           pricesByLocation = Map<String, dynamic>.from(raw);
         }
-
         if (pricesByLocation != null &&
             pricesByLocation.containsKey(_selectedLocation)) {
           final val = pricesByLocation[_selectedLocation];
@@ -534,7 +710,6 @@ class _RegisterViewState extends State<RegisterView>
               maxVehicles = int.tryParse('${mv ?? -1}') ?? -1;
             }
           }
-
           debugPrint('💰 Preço para $_selectedLocation: $price CVE');
           debugPrint(
             '🚗 Limite de veículos: ${maxVehicles == -1 ? "Ilimitado" : maxVehicles}',
@@ -544,6 +719,7 @@ class _RegisterViewState extends State<RegisterView>
         price = double.tryParse('${eventData['price'] ?? 0}') ?? 0;
       }
 
+      // Verificar limite de veículos
       if (maxVehicles > 0) {
         final veiculosQuery =
             await FirebaseFirestore.instance
@@ -551,12 +727,10 @@ class _RegisterViewState extends State<RegisterView>
                 .where('eventoId', isEqualTo: _selectedEventPath)
                 .where('localizacao', isEqualTo: _selectedLocation)
                 .get();
-
         final totalVeiculos = veiculosQuery.size;
         debugPrint(
           '📊 Veículos já registrados em $_selectedLocation (evento $_selectedEventId): $totalVeiculos/$maxVehicles',
         );
-
         if (totalVeiculos >= maxVehicles) {
           if (!mounted) return;
           setState(
@@ -564,7 +738,6 @@ class _RegisterViewState extends State<RegisterView>
                 _error =
                     'Vagas esgotadas em $_selectedLocation. Limite de $maxVehicles veículos atingido.',
           );
-          // Alerta visual e bloqueio do fluxo de registro
           Get.snackbar(
             'Vagas esgotadas',
             'Não é possível registrar mais veículos em $_selectedLocation para este evento.',
@@ -578,7 +751,7 @@ class _RegisterViewState extends State<RegisterView>
         }
       }
 
-      // Cálculo de preço final: inscrição inclui piloto + co-piloto.
+      // Acompanhantes extra e preço final
       final int extrasCount = (passageirosControllers.length - 1).clamp(0, 2);
       final double extrasTotal = extrasCount * 7500.0;
       final double finalPrice = price + extrasTotal;
@@ -588,35 +761,58 @@ class _RegisterViewState extends State<RegisterView>
       debugPrint('💵 Preço final: ${finalPrice.toStringAsFixed(0)} CVE');
 
       String uid;
-      try {
-        uid = await _firebaseService.signUp(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
+      if (_isExistingUser) {
+        uid = _existingUserId!;
+        // validar duplicidade de registo neste evento
+        final existingEventDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('events')
+                .doc(_selectedEventId)
+                .get();
+        if (existingEventDoc.exists) {
+          if (!mounted) return;
+          setState(() => _error = 'Já está registado neste evento.');
+          Get.snackbar(
+            'Registo duplicado',
+            'Já possui uma inscrição ativa neste evento.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: shellRed.withValues(alpha: 0.9),
+            colorText: Colors.white,
+            margin: const EdgeInsets.all(12),
+            duration: const Duration(seconds: 4),
+          );
+          return;
+        }
+      } else {
+        try {
+          uid = await _firebaseService.signUp(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+          );
+          debugPrint('✅ signUp retornou UID: $uid');
+        } catch (e) {
+          debugPrint('❌ Erro durante signUp: $e');
+          if (!mounted) return;
+          setState(() => _error = 'Erro ao criar utilizador: ${e.toString()}');
+          return;
+        }
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
         );
-        debugPrint('✅ signUp retornou UID: $uid');
-      } catch (e) {
-        debugPrint('❌ Erro durante signUp: $e');
+        await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
-        setState(() => _error = 'Erro ao criar utilizador: ${e.toString()}');
-        return;
-      }
-
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-      final confirmedUser = FirebaseAuth.instance.currentUser;
-      debugPrint('✅ UID após delay: ${confirmedUser?.uid}');
-
-      if (uid.isEmpty) {
-        if (!mounted) return;
-        setState(
-          () => _error = 'Erro: UID inválido. Utilizador não autenticado.',
-        );
-        return;
+        final confirmedUser = FirebaseAuth.instance.currentUser;
+        debugPrint('✅ UID após delay: ${confirmedUser?.uid}');
+        if (uid.isEmpty) {
+          if (!mounted) return;
+          setState(
+            () => _error = 'Erro: UID inválido. Utilizador não autenticado.',
+          );
+          return;
+        }
       }
 
       final passageiros =
@@ -630,79 +826,123 @@ class _RegisterViewState extends State<RegisterView>
               )
               .toList();
 
-      // Logging event path/id before creating docs
       debugPrint(
         '🧭 _selectedEventPath=$_selectedEventPath | _selectedEventId=$_selectedEventId',
       );
 
-      final veiculoId =
-          FirebaseFirestore.instance.collection('veiculos').doc().id;
-      final equipaId =
-          FirebaseFirestore.instance.collection('equipas').doc().id;
+      String veiculoId;
+      String equipaId;
 
-      final carData = {
-        'ownerId': uid,
-        'matricula': _licensePlateController.text.trim(),
-        'modelo': _carModelController.text.trim(),
-        'nome_equipa': _teamNameController.text.trim(),
-        'localizacao': _selectedLocation ?? '',
-        'passageiros': passageiros,
-        'pontuacao_total': 0,
-        'checkpoints': {},
-        'eventoId': _selectedEventPath,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
+      // Criar/atualizar veículo
+      if (_isExistingUser && _existingVeiculoId != null) {
+        veiculoId = _existingVeiculoId!;
+        debugPrint('🔄 Atualizando veículo existente: $veiculoId');
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .update({
+              'matricula': _licensePlateController.text.trim(),
+              'modelo': _carModelController.text.trim(),
+              'nome_equipa': _teamNameController.text.trim(),
+              'localizacao': _selectedLocation ?? '',
+              'passageiros': passageiros,
+              'eventoId': _selectedEventPath,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } else {
+        veiculoId = FirebaseFirestore.instance.collection('veiculos').doc().id;
+        debugPrint('🆕 Criando novo veículo: $veiculoId');
+        final carData = {
+          'ownerId': uid,
+          'matricula': _licensePlateController.text.trim(),
+          'modelo': _carModelController.text.trim(),
+          'nome_equipa': _teamNameController.text.trim(),
+          'localizacao': _selectedLocation ?? '',
+          'passageiros': passageiros,
+          'pontuacao_total': 0,
+          'checkpoints': {},
+          'eventoId': _selectedEventPath,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await FirebaseFirestore.instance
+            .collection('veiculos')
+            .doc(veiculoId)
+            .set(carData);
+      }
 
-      await FirebaseFirestore.instance
-          .collection('veiculos')
-          .doc(veiculoId)
-          .set(carData);
-      debugPrint('✅ Documento do carro criado em /veiculos/$veiculoId');
+      // Criar/atualizar equipa
+      if (_isExistingUser && _existingEquipaId != null) {
+        equipaId = _existingEquipaId!;
+        debugPrint('🔄 Atualizando equipa existente: $equipaId');
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .update({
+              'nome': _teamNameController.text.trim(),
+              'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+              'localizacao': _selectedLocation ?? '',
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } else {
+        equipaId = FirebaseFirestore.instance.collection('equipas').doc().id;
+        debugPrint('🆕 Criando nova equipa: $equipaId');
+        final equipaData = {
+          'nome': _teamNameController.text.trim(),
+          'hino': '',
+          'bandeiraUrl': '',
+          'pontuacaoTotal': 0,
+          'ranking': 0,
+          'membros': [uid, ...passageiros.map((p) => p['telefone'])],
+          'localizacao': _selectedLocation ?? '',
+        };
+        await FirebaseFirestore.instance
+            .collection('equipas')
+            .doc(equipaId)
+            .set(equipaData);
+      }
 
-      final equipaData = {
-        'nome': _teamNameController.text.trim(),
-        'hino': '',
-        'bandeiraUrl': '',
-        'pontuacaoTotal': 0,
-        'ranking': 0,
-        'membros': [uid, ...passageiros.map((p) => p['telefone'])],
-        'localizacao': _selectedLocation ?? '',
-      };
+      // Atualizar/criar documento do utilizador
+      if (_isExistingUser) {
+        debugPrint('🔄 Atualizando dados do utilizador existente');
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'nome': _nameController.text.trim(),
+          'telefone': _phoneController.text.trim(),
+          'emergencia': _emergencyContactController.text.trim(),
+          'tshirt': _selectedShirtSize ?? '',
+          'localizacao': _selectedLocation ?? '',
+          'veiculoId': veiculoId,
+          'equipaId': equipaId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        debugPrint('🆕 Criando documento do novo utilizador');
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'nome': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'telefone': _phoneController.text.trim(),
+          'emergencia': _emergencyContactController.text.trim(),
+          'tshirt': _selectedShirtSize ?? '',
+          'localizacao': _selectedLocation ?? '',
+          'role': 'user',
+          'eventoId': _selectedEventPath,
+          'eventoNome': nomeEvento,
+          'ativo': true,
+          'veiculoId': veiculoId,
+          'equipaId': equipaId,
+          'checkpointsVisitados': [],
+          'createdAt': FieldValue.serverTimestamp(),
+          'paymentStatus': 'pending',
+          'transactionId': '',
+          'amountPaid': 0,
+          'paymentMethod': _paymentMethod,
+          'precoBase': price,
+          'acompanhantesExtras': extrasCount,
+          'valorPorAcompanhante': 7500,
+          'precoTotal': finalPrice,
+        });
+      }
 
-      await FirebaseFirestore.instance
-          .collection('equipas')
-          .doc(equipaId)
-          .set(equipaData);
-      debugPrint('✅ Documento da equipa criado em /equipas/$equipaId');
-
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'nome': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'telefone': _phoneController.text.trim(),
-        'emergencia': _emergencyContactController.text.trim(),
-        'tshirt': _selectedShirtSize ?? '',
-        'localizacao': _selectedLocation ?? '',
-        'role': 'user',
-        'eventoId': _selectedEventPath,
-        'eventoNome': nomeEvento,
-        'ativo': true,
-        'veiculoId': veiculoId,
-        'equipaId': equipaId,
-        'checkpointsVisitados': [],
-        'createdAt': FieldValue.serverTimestamp(),
-        // inscrição aberta, pagamento será tratado depois
-        'paymentStatus': 'pending',
-        'transactionId': '',
-        'amountPaid': 0,
-        'paymentMethod': _paymentMethod,
-        'precoBase': price,
-        'acompanhantesExtras': extrasCount,
-        'valorPorAcompanhante': 7500,
-        'precoTotal': finalPrice,
-      });
-
-      debugPrint('✅ Documento do utilizador criado em /users/$uid');
-
+      // Subcoleção de eventos (sempre)
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -717,6 +957,9 @@ class _RegisterViewState extends State<RegisterView>
             'acompanhantesExtras': extrasCount,
             'valorPorAcompanhante': 7500,
             'precoTotal': finalPrice,
+            'paymentStatus': 'pending',
+            'paymentMethod': _paymentMethod,
+            'registeredAt': FieldValue.serverTimestamp(),
           });
       debugPrint('✅ Subcoleção events criada com sucesso');
 
@@ -739,9 +982,14 @@ class _RegisterViewState extends State<RegisterView>
           eventoNome: nomeEvento,
         ),
       );
+
+      final mensagem =
+          _isExistingUser
+              ? 'Registo no evento submetido com sucesso!'
+              : 'Conta criada e registo no evento submetido!';
       Get.snackbar(
-        'Inscrição submetida',
-        'Receberá instruções de pagamento pela organização.',
+        'Sucesso',
+        '$mensagem Receberá instruções de pagamento pela organização.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green.withValues(alpha: 0.9),
         colorText: Colors.white,
@@ -749,7 +997,6 @@ class _RegisterViewState extends State<RegisterView>
         duration: const Duration(seconds: 4),
       );
     } on FirebaseException catch (e) {
-      // Trata especificamente erros Firebase (inclui cloud_firestore/not-found)
       debugPrint(
         '❌ FirebaseException no register: ${e.plugin} ${e.code} ${e.message}',
       );
@@ -821,7 +1068,7 @@ class _RegisterViewState extends State<RegisterView>
               ),
               SizedBox(width: _getResponsiveSpacing(context, 12)),
               Text(
-                'Criar Conta',
+                _isExistingUser ? 'Registar em Evento' : 'Criar Conta',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: _getResponsiveFontSize(context, 24),
@@ -964,6 +1211,62 @@ class _RegisterViewState extends State<RegisterView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_isExistingUser)
+                  Container(
+                    margin: EdgeInsets.only(
+                      bottom: _getResponsiveSpacing(context, 24),
+                    ),
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 16)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blue.withValues(alpha: 0.10),
+                          Colors.blue.withValues(alpha: 0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        _getResponsiveSpacing(context, 12),
+                      ),
+                      border: Border.all(
+                        color: Colors.blue.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          color: Colors.blue,
+                          size: _getResponsiveSpacing(context, 24),
+                        ),
+                        SizedBox(width: _getResponsiveSpacing(context, 12)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Bem-vindo de volta!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: _getResponsiveFontSize(context, 16),
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                              SizedBox(
+                                height: _getResponsiveSpacing(context, 4),
+                              ),
+                              Text(
+                                'Os seus dados foram carregados. Pode alterá-los antes de registar no novo evento.',
+                                style: TextStyle(
+                                  fontSize: _getResponsiveFontSize(context, 14),
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 _inputCard(
                   context: context,
                   icon: Icons.person_outline,
@@ -997,68 +1300,71 @@ class _RegisterViewState extends State<RegisterView>
                       _error != null &&
                       _emergencyContactController.text.trim().isEmpty,
                 ),
-                _inputCard(
-                  context: context,
-                  icon: Icons.email_outlined,
-                  label: 'Email',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  hintText: 'exemplo@email.com',
-                  isRequired: true,
-                  isError:
-                      _error != null && _emailController.text.trim().isEmpty,
-                ),
-                _inputCard(
-                  context: context,
-                  icon: Icons.lock_outline,
-                  label: 'Senha',
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  hintText: 'Mínimo 6 caracteres',
-                  isRequired: true,
-                  isError:
-                      _error != null && _passwordController.text.trim().isEmpty,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey.shade600,
-                      size: _getResponsiveSpacing(context, 20),
-                    ),
-                    onPressed:
-                        () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
+                if (!_isExistingUser) ...[
+                  _inputCard(
+                    context: context,
+                    icon: Icons.email_outlined,
+                    label: 'Email',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    hintText: 'exemplo@email.com',
+                    isRequired: true,
+                    isError:
+                        _error != null && _emailController.text.trim().isEmpty,
                   ),
-                ),
-                _inputCard(
-                  context: context,
-                  icon: Icons.lock_outline,
-                  label: 'Confirmar Senha',
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  hintText: 'Repita a senha',
-                  isRequired: true,
-                  isError:
-                      _error != null &&
-                      _confirmPasswordController.text.trim().isEmpty,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey.shade600,
-                      size: _getResponsiveSpacing(context, 20),
+                  _inputCard(
+                    context: context,
+                    icon: Icons.lock_outline,
+                    label: 'Senha',
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    hintText: 'Mínimo 6 caracteres',
+                    isRequired: true,
+                    isError:
+                        _error != null &&
+                        _passwordController.text.trim().isEmpty,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey.shade600,
+                        size: _getResponsiveSpacing(context, 20),
+                      ),
+                      onPressed:
+                          () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                     ),
-                    onPressed:
-                        () => setState(
-                          () =>
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                        ),
                   ),
-                ),
+                  _inputCard(
+                    context: context,
+                    icon: Icons.lock_outline,
+                    label: 'Confirmar Senha',
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    hintText: 'Repita a senha',
+                    isRequired: true,
+                    isError:
+                        _error != null &&
+                        _confirmPasswordController.text.trim().isEmpty,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey.shade600,
+                        size: _getResponsiveSpacing(context, 20),
+                      ),
+                      onPressed:
+                          () => setState(
+                            () =>
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword,
+                          ),
+                    ),
+                  ),
+                ],
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
@@ -1115,14 +1421,26 @@ class _RegisterViewState extends State<RegisterView>
                     if (_nameController.text.trim().isEmpty ||
                         _phoneController.text.trim().isEmpty ||
                         _emergencyContactController.text.trim().isEmpty ||
-                        _emailController.text.trim().isEmpty ||
-                        _passwordController.text.trim().isEmpty ||
-                        _confirmPasswordController.text.trim().isEmpty ||
                         _selectedShirtSize == null) {
                       setState(
                         () => _error = 'Preencha todos os campos obrigatórios.',
                       );
                       return;
+                    }
+                    if (!_isExistingUser) {
+                      if (_passwordController.text !=
+                          _confirmPasswordController.text) {
+                        setState(() => _error = 'As senhas não coincidem');
+                        return;
+                      }
+                      if (_emailController.text.trim().isEmpty ||
+                          _passwordController.text.trim().isEmpty ||
+                          _confirmPasswordController.text.trim().isEmpty) {
+                        setState(
+                          () => _error = 'Email e senha são obrigatórios.',
+                        );
+                        return;
+                      }
                     }
                     setState(() {
                       _error = null;

@@ -25,15 +25,18 @@ class _HomeViewState extends State<HomeView> {
   bool _locationError = false;
   final FirebaseService firebaseService = FirebaseService();
   Map<String, String> _checkpointNames = {};
+  String?
+  _selectedEventPath; // Full Firestore path of the active event doc (editions/{editionId}/events/{eventId})
 
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   bool _isOnline = true;
+  Future<Map<String, dynamic>>?
+  _userDataFuture; // cache para evitar rebuilds infinitos
 
   @override
   void initState() {
     super.initState();
     _determinePosition();
-    _loadCheckpointNames();
     // Monitor de conectividade — não bloqueia a UI
     Connectivity().checkConnectivity().then((results) {
       if (!mounted) return;
@@ -47,6 +50,7 @@ class _HomeViewState extends State<HomeView> {
         _isOnline = !(results.contains(ConnectivityResult.none));
       });
     });
+    _userDataFuture = _loadUserData();
   }
 
   @override
@@ -56,15 +60,14 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _loadCheckpointNames() async {
+    final String? eventPath = _selectedEventPath;
+    if (eventPath == null) {
+      // Ainda não temos um evento selecionado (user pode não estar autenticado ou sem inscrição ativa)
+      return;
+    }
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .doc('shell_2025')
-              .collection('events')
-              .doc('shell_km_02')
-              .collection('checkpoints')
-              .get();
+      final eventRef = FirebaseFirestore.instance.doc(eventPath);
+      final snapshot = await eventRef.collection('checkpoints').get();
 
       final Map<String, String> names = {};
       for (var doc in snapshot.docs) {
@@ -72,11 +75,12 @@ class _HomeViewState extends State<HomeView> {
         names[doc.id] = data['nome'] ?? data['name'] ?? doc.id;
       }
 
+      if (!mounted) return;
       setState(() {
         _checkpointNames = names;
       });
     } catch (e) {
-      debugPrint('Erro ao carregar nomes dos checkpoints: $e');
+      debugPrint('Erro ao carregar nomes dos checkpoints para $eventPath: $e');
     }
   }
 
@@ -263,7 +267,7 @@ class _HomeViewState extends State<HomeView> {
                       ),
                     Expanded(
                       child: FutureBuilder<Map<String, dynamic>>(
-                        future: _loadUserData(),
+                        future: _userDataFuture,
                         builder: (context, dataSnapshot) {
                           if (dataSnapshot.connectionState ==
                               ConnectionState.waiting) {
@@ -283,6 +287,22 @@ class _HomeViewState extends State<HomeView> {
                           final uid = data['uid'] as String?;
                           final userData =
                               data['userData'] as Map<String, dynamic>?;
+
+                          // Garante que apenas atualizamos o evento selecionado uma vez, evitando blink por rebuild infinito
+                          if (eventData != null &&
+                              eventData['eventPath'] != null &&
+                              _selectedEventPath != eventData['eventPath']) {
+                            WidgetsBinding.instance.addPostFrameCallback((
+                              _,
+                            ) async {
+                              if (!mounted) return;
+                              setState(() {
+                                _selectedEventPath =
+                                    eventData['eventPath'] as String;
+                              });
+                              await _loadCheckpointNames();
+                            });
+                          }
 
                           if (eventData == null || uid == null) {
                             return Column(
@@ -426,87 +446,114 @@ class _HomeViewState extends State<HomeView> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return <String, dynamic>{};
 
+    // Carrega dados base do utilizador
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
     final userData = userDoc.data() ?? {};
     final userName = userData['nome'] ?? '';
 
-    // Verifica se o usuário tem qualquer evento (atual ou passado)
-    final eventosSnapshot =
+    // 1) Lê todos os eventos em que o user tem registo (passado/presente), guardando os IDs
+    final userEventosSnap =
         await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
             .collection('eventos')
-            // Mostrar qualquer evento no qual o user tenha registo (participou/inscreveu)
-            // Caso exista o campo createdAt ou data, pode-se ordenar — deixamos sem filtro para garantir que aparece.
-            .limit(1)
             .get();
+    final Set<String> userEventoIds =
+        userEventosSnap.docs.map((d) => d.id).toSet();
+
+    if (userEventoIds.isEmpty) {
+      // Nenhuma inscrição encontrada
+      if (!mounted) {
+        // only return data map
+      }
+      return {
+        'userName': userName,
+        'userData': userData,
+        'eventData': null,
+        'uid': uid,
+      };
+    }
+
+    // 2) Lista os eventos ATIVOS no Firestore (status == true) em todas as edições
+    final activeEventsSnap =
+        await FirebaseFirestore.instance
+            .collectionGroup('events')
+            .where('status', isEqualTo: true)
+            .get();
+
+    // 3) Encontra o primeiro evento ativo no qual o user esteja inscrito (interseção por eventId)
+    DocumentSnapshot? chosenEventDoc;
+    String? chosenEditionName;
+    for (final doc in activeEventsSnap.docs) {
+      final eventId = doc.id;
+      if (userEventoIds.contains(eventId)) {
+        chosenEventDoc = doc;
+        // Recupera a edição a partir do parent da coleção 'events'
+        final editionRef = doc.reference.parent.parent;
+        if (editionRef != null) {
+          final editionSnap = await editionRef.get();
+          final editionData = editionSnap.data();
+          chosenEditionName = editionData?['nome'] ?? editionRef.id;
+        }
+        break;
+      }
+    }
 
     Map<String, dynamic>? eventData;
 
-    if (eventosSnapshot.docs.isNotEmpty) {
-      final eventoDoc = eventosSnapshot.docs.first;
-      final eventoId = eventoDoc.id;
+    if (chosenEventDoc != null) {
+      final event = chosenEventDoc.data() as Map<String, dynamic>;
+      final String eventPath =
+          chosenEventDoc
+              .reference
+              .path; // editions/{editionId}/events/{eventId}
+      final String eventId = chosenEventDoc.id;
 
-      // Busca dados completos do evento
-      final editionSnapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .doc('shell_2025')
-              .get();
+      // Busca dados da equipa e veículo do utilizador (se existirem)
+      String? grupo;
+      Map<String, dynamic>? carData;
+      Map<String, dynamic>? equipaData;
 
-      final eventSnapshot =
-          await FirebaseFirestore.instance
-              .collection('editions')
-              .doc('shell_2025')
-              .collection('events')
-              .doc(eventoId)
-              .get();
-
-      if (eventSnapshot.exists) {
-        final event = eventSnapshot.data()!;
-        final edition = editionSnapshot.data() ?? {};
-
-        // Busca dados da equipa e veículo
-        String? grupo;
-        Map<String, dynamic>? carData;
-        Map<String, dynamic>? equipaData;
-
-        if (userData['equipaId'] != null) {
-          final equipaDoc =
-              await FirebaseFirestore.instance
-                  .collection('equipas')
-                  .doc(userData['equipaId'])
-                  .get();
-          if (equipaDoc.exists) {
-            equipaData = equipaDoc.data();
-            grupo = equipaData?['grupo'];
-          }
+      if (userData['equipaId'] != null) {
+        final equipaDoc =
+            await FirebaseFirestore.instance
+                .collection('equipas')
+                .doc(userData['equipaId'])
+                .get();
+        if (equipaDoc.exists) {
+          equipaData = equipaDoc.data();
+          grupo = (equipaData?['grupo'] as String?);
         }
-
-        if (userData['veiculoId'] != null) {
-          final carDoc =
-              await FirebaseFirestore.instance
-                  .collection('veiculos')
-                  .doc(userData['veiculoId'])
-                  .get();
-          if (carDoc.exists) {
-            carData = carDoc.data();
-          }
-        }
-
-        eventData = {
-          'eventId': eventoId,
-          'eventName': event['nome'] ?? 'Shell ao Km',
-          'editionName': edition['nome'] ?? '2ª Edição',
-          'status': event['status'] ?? false,
-          'data': event['data'],
-          'grupo': grupo,
-          'carData': carData,
-          'equipaData': equipaData,
-        };
       }
+
+      if (userData['veiculoId'] != null) {
+        final carDoc =
+            await FirebaseFirestore.instance
+                .collection('veiculos')
+                .doc(userData['veiculoId'])
+                .get();
+        if (carDoc.exists) {
+          carData = carDoc.data();
+        }
+      }
+
+      // (Removido setState e _loadCheckpointNames, agora feito no build via addPostFrameCallback)
+
+      eventData = {
+        'eventId': eventId,
+        'eventName': event['nome'] ?? 'Evento',
+        'editionName': chosenEditionName ?? 'Edição',
+        'status': event['status'] ?? false,
+        'data': event['data'],
+        'grupo': grupo,
+        'carData': carData,
+        'equipaData': equipaData,
+        'eventPath': eventPath,
+      };
+    } else {
+      // O user tem eventos registados, mas nenhum deles está ativo neste momento
+      eventData = null;
     }
 
     return {
@@ -604,7 +651,8 @@ class _HomeViewState extends State<HomeView> {
                   (cp['pontuacaoJogo'] as int? ?? 0))),
     );
 
-    final int totalCheckpoints = 8;
+    final int totalCheckpoints =
+        _checkpointNames.isNotEmpty ? _checkpointNames.length : 8;
     final postosRestantes = totalCheckpoints - postosCompletos;
     final taxaAcerto =
         perguntasRespondidas > 0
@@ -692,6 +740,14 @@ class _HomeViewState extends State<HomeView> {
                         _buildProgressBar(
                           'Postos completos: $postosCompletos de $totalCheckpoints',
                           postosCompletos / totalCheckpoints,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Evento: ${eventData['editionName'] ?? ''} — ${eventData['eventName'] ?? ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
