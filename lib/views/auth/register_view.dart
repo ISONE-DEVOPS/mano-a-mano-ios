@@ -60,7 +60,8 @@ class _RegisterViewState extends State<RegisterView>
 
   String _mapFriendlyError(Object error) {
     // Default fallback
-    const fallback = 'Ocorreu um erro ao realizar a inscrição. Tente novamente.';
+    const fallback =
+        'Ocorreu um erro ao realizar a inscrição. Tente novamente.';
     if (error is FirebaseException) {
       // cloud_firestore plugin
       if (error.plugin == 'cloud_firestore') {
@@ -446,7 +447,8 @@ class _RegisterViewState extends State<RegisterView>
       // Defensive: wrap leitura do evento
       DocumentSnapshot<Map<String, dynamic>> eventDoc;
       try {
-        eventDoc = await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
+        eventDoc =
+            await FirebaseFirestore.instance.doc(_selectedEventPath!).get();
       } on FirebaseException catch (e) {
         if (!mounted) return;
         setState(() => _error = _mapFriendlyError(e));
@@ -463,7 +465,11 @@ class _RegisterViewState extends State<RegisterView>
       }
       if (!mounted) return;
       if (!eventDoc.exists) {
-        setState(() => _error = 'Evento selecionado não existe mais. Atualize a lista e escolha outro.');
+        setState(
+          () =>
+              _error =
+                  'Evento selecionado não existe mais. Atualize a lista e escolha outro.',
+        );
         Get.snackbar(
           'Evento indisponível',
           'O evento selecionado foi removido ou está inativo. Selecione outro evento.',
@@ -625,7 +631,9 @@ class _RegisterViewState extends State<RegisterView>
               .toList();
 
       // Logging event path/id before creating docs
-      debugPrint('🧭 _selectedEventPath=$_selectedEventPath | _selectedEventId=$_selectedEventId');
+      debugPrint(
+        '🧭 _selectedEventPath=$_selectedEventPath | _selectedEventId=$_selectedEventId',
+      );
 
       final veiculoId =
           FirebaseFirestore.instance.collection('veiculos').doc().id;
@@ -742,7 +750,9 @@ class _RegisterViewState extends State<RegisterView>
       );
     } on FirebaseException catch (e) {
       // Trata especificamente erros Firebase (inclui cloud_firestore/not-found)
-      debugPrint('❌ FirebaseException no register: ${e.plugin} ${e.code} ${e.message}');
+      debugPrint(
+        '❌ FirebaseException no register: ${e.plugin} ${e.code} ${e.message}',
+      );
       if (!mounted) return;
       final msg = _mapFriendlyError(e);
       setState(() => _error = msg);
@@ -1946,7 +1956,9 @@ class _RegisterViewState extends State<RegisterView>
                             _selectedEventId = selectedEvent['eventId'];
                             _error = null;
                           });
-                          debugPrint('✅ Evento selecionado: ${selectedEvent['label']} | path=${selectedEvent['path']} | id=${selectedEvent['eventId']}');
+                          debugPrint(
+                            '✅ Evento selecionado: ${selectedEvent['label']} | path=${selectedEvent['path']} | id=${selectedEvent['eventId']}',
+                          );
                         }
                       },
                       decoration: InputDecoration(
@@ -2080,8 +2092,11 @@ class _RegisterViewState extends State<RegisterView>
                     _pageController.jumpToPage(2);
                   },
                   onNext: () {
-                    if (_selectedEventPath == null || _selectedEventPath!.isEmpty) {
-                      setState(() => _error = 'Por favor, selecione um evento válido.');
+                    if (_selectedEventPath == null ||
+                        _selectedEventPath!.isEmpty) {
+                      setState(
+                        () => _error = 'Por favor, selecione um evento válido.',
+                      );
                       return;
                     }
                     if (!_acceptedTerms) {
@@ -2458,7 +2473,7 @@ class _RegisterViewState extends State<RegisterView>
                             ),
                             SizedBox(height: _getResponsiveSpacing(context, 8)),
                             Text(
-                              'Efetue a transferência para o NIB: 0005000000831804210197 (Banco Interatlântico). Envie o comprovativo para: manoamanooffroad@gmail.com.',
+                              'Efetue a transferência para o NIB: 000500000831804210197 (Banco Interatlântico). Envie o comprovativo para: manoamanooffroad@gmail.com.',
                               style: TextStyle(
                                 fontSize: _getResponsiveFontSize(context, 14),
                               ),

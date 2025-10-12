@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'edit_participantes.dart';
+import 'package:flutter/services.dart';
 
 class ParticipantesPorEventoView extends StatefulWidget {
   const ParticipantesPorEventoView({super.key});
@@ -22,19 +23,20 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
   String searchQuery = '';
   String? filtroEquipa;
   bool showOnlyWithPoints = false;
-  String ordenacao = 'pontuacao';
-  bool ordenacaoDecrescente = true;
+  String ordenacao = 'nome';
+  bool ordenacaoDecrescente = false;
   late AnimationController _animationController;
 
   final Map<String, String> equipasCache = {};
   final Map<String, int> pontuacoesCache = {};
 
-  // Cores em sintonia com o logo Shell
-  static const Color primaryYellow = Color(0xFFFBBC04);
-  static const Color primaryOrange = Color(0xFFFF6F00);
-  static const Color primaryRed = Color(0xFFE53935);
-  static const Color lightYellow = Color(0xFFFFF9C4);
-  static const Color lightOrange = Color(0xFFFFE0B2);
+  // Cores oficiais Shell (conforme swatch)
+  // Shell Yellow #ffc600, Shell Red #dd1d21, Sunrise (laranja) #ed8a00
+  static const Color primaryYellow = Color(0xFFFFC600);
+  static const Color primaryOrange = Color(0xFFED8A00);
+  static const Color primaryRed = Color(0xFFDD1D21);
+  static const Color lightYellow = Color(0xFFFFF3E5); // Sunrise 50
+  static const Color lightOrange = Color(0xFFFFDAAE); // Sunrise 100 aproximado
   static const Color accentGreen = Color(0xFF4CAF50);
   static const Color lightGreen = Color(0xFFC8E6C9);
   static const Color darkGrey = Color(0xFF424242);
@@ -57,21 +59,36 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(child: _buildEventoSelector()),
-          if (eventoSelecionadoId != null) ...[
-            SliverToBoxAdapter(child: _buildSearchAndFilters()),
-            SliverToBoxAdapter(child: _buildQuickStats()),
-          ],
-          _buildParticipantesList(),
-        ],
+    return Theme(
+      data: Theme.of(context).copyWith(
+        scaffoldBackgroundColor: const Color(0xFFFFFCF7),
+        canvasColor: const Color(0xFFFFFCF7),
+        cardColor: Colors.white,
+        popupMenuTheme: PopupMenuThemeData(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ), dialogTheme: DialogThemeData(backgroundColor: Colors.white),
       ),
-      floatingActionButton:
-          eventoSelecionadoId != null ? _buildFloatingButtons() : null,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFFCF7),
+        body: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(),
+            SliverToBoxAdapter(child: _buildEventoSelector()),
+            if (eventoSelecionadoId != null) ...[
+              SliverToBoxAdapter(child: _buildSearchAndFilters()),
+              SliverToBoxAdapter(child: _buildQuickStats()),
+            ],
+            _buildParticipantesList(),
+          ],
+        ),
+        floatingActionButton:
+            eventoSelecionadoId != null ? _buildFloatingButtons() : null,
+      ),
     );
   }
 
@@ -1072,7 +1089,10 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color:
+                  (color == primaryYellow
+                      ? primaryYellow.withValues(alpha: 0.12)
+                      : color.withValues(alpha: 0.1)),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 80, color: color),
@@ -1104,27 +1124,20 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [lightYellow, lightOrange.withValues(alpha: 0.5)],
+        color: lightYellow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: primaryYellow.withValues(alpha: 0.35),
+          width: 1.2,
         ),
-        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [primaryOrange, primaryRed],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: primaryOrange.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: primaryYellow,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1149,295 +1162,282 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
 
   Widget _buildParticipanteCard(QueryDocumentSnapshot doc, int index) {
     final data = doc.data() as Map<String, dynamic>;
-    final nome = data['nome'] ?? 'Sem nome';
-    final email = data['email'] ?? '';
-    final telefone = data['telefone'] ?? '';
+    final nome = (data['nome'] ?? 'Sem nome').toString();
+    final email = (data['email'] ?? '').toString();
+    final telefone = (data['telefone'] ?? '').toString();
     final equipaId = data['equipaId'];
-    final nomeEquipa = equipaId != null ? equipasCache[equipaId] : null;
+    final nomeEquipa =
+        equipaId != null
+            ? (equipasCache[equipaId] ?? 'Sem equipa')
+            : 'Sem equipa';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => _abrirDetalhes(doc.id),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Avatar com ranking
-                    Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [primaryOrange, primaryRed],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryOrange.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(3),
-                          child: CircleAvatar(
-                            radius: 32,
-                            backgroundColor: Colors.white,
-                            child: Text(
-                              nome.isNotEmpty ? nome[0].toUpperCase() : '?',
-                              style: const TextStyle(
-                                color: primaryOrange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 28,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (ordenacao == 'pontuacao' && index < 3)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: _getRankColor(index),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.emoji_events,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            nome,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: darkGrey,
-                            ),
-                          ),
-                          if (nomeEquipa != null) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: lightOrange,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: primaryOrange.withValues(alpha: 0.3),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.group,
-                                    size: 14,
-                                    color: primaryOrange,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      nomeEquipa,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: primaryOrange,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    FutureBuilder<int>(
-                      future: _getPontuacaoTotal(doc.id),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    primaryOrange,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-
-                        final pontos = snapshot.data ?? 0;
-                        if (!pontuacoesCache.containsKey(doc.id)) {
-                          pontuacoesCache[doc.id] = pontos;
-                        }
-
-                        return Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors:
-                                  pontos > 0
-                                      ? [
-                                        accentGreen,
-                                        accentGreen.withValues(alpha: 0.7),
-                                      ]
-                                      : [Colors.grey[300]!, Colors.grey[400]!],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    pontos > 0
-                                        ? accentGreen.withValues(alpha: 0.3)
-                                        : Colors.transparent,
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.emoji_events,
-                                color:
-                                    pontos > 0
-                                        ? Colors.white
-                                        : Colors.grey[600],
-                                size: 24,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$pontos',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color:
-                                      pontos > 0
-                                          ? Colors.white
-                                          : Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                'pts',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color:
-                                      pontos > 0
-                                          ? Colors.white70
-                                          : Colors.grey[500],
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildContactInfo(
-                        Icons.email_outlined,
-                        email,
-                        primaryYellow,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildContactInfo(
-                        Icons.phone_outlined,
-                        telefone,
-                        accentGreen,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _abrirDetalhes(doc.id),
-                    icon: const Icon(Icons.visibility_outlined),
-                    label: const Text(
-                      'Ver detalhe',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: primaryOrange,
-                      side: const BorderSide(color: primaryOrange, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
+    return Card(
+      color: const Color(0xFFFFFFFF),
+      elevation: 1,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _abrirDetalhes(doc.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              // Avatar simples com iniciais
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: primaryYellow.withAlpha(64),
+                child: Text(
+                  nome.isNotEmpty ? nome[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: primaryOrange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              // Texto (nome, email/equipa, telefone)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nome,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: darkGrey,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            email,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (email.isNotEmpty) const SizedBox(width: 6),
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.group,
+                                size: 14,
+                                color: primaryOrange,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  nomeEquipa,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: primaryOrange,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (telefone.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.phone_outlined,
+                            size: 14,
+                            color: darkGrey,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              telefone,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Trailing: pontos em Chip
+              FutureBuilder<int>(
+                future: _getPontuacaoTotal(doc.id),
+                builder: (context, snapshot) {
+                  final pontos = snapshot.data ?? 0;
+                  if (!pontuacoesCache.containsKey(doc.id)) {
+                    pontuacoesCache[doc.id] = pontos;
+                  }
+                  final bool temPontos = pontos > 0;
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          temPontos
+                              ? primaryRed.withAlpha(25)
+                              : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            temPontos
+                                ? primaryRed.withAlpha(90)
+                                : Colors.grey[300]!,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.emoji_events,
+                          size: 16,
+                          color: temPontos ? primaryRed : Colors.grey[600],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$pontos pts',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: temPontos ? primaryRed : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: darkGrey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'editar':
+                      _abrirDetalhes(doc.id);
+                      break;
+                    case 'veiculo':
+                      _abrirVeiculo(doc.id);
+                      break;
+                    case 'acompanhantes':
+                      _abrirAcompanhantes(doc.id);
+                      break;
+                    case 'equipa':
+                      _abrirEquipa(doc.id);
+                      break;
+                    case 'detalhes':
+                      _abrirDetalhes(doc.id);
+                      break;
+                    case 'qrcode':
+                      _mostrarQrCode(doc.id);
+                      break;
+                    case 'eliminar':
+                      _removerParticipanteDoEvento(doc.id);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'editar',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('Editar'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'veiculo',
+                    child: Row(
+                      children: [
+                        Icon(Icons.directions_car, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('Veículo'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'acompanhantes',
+                    child: Row(
+                      children: [
+                        Icon(Icons.people, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('Acompanhantes'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'equipa',
+                    child: Row(
+                      children: [
+                        Icon(Icons.flag, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('Equipa'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'detalhes',
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('Detalhes'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'qrcode',
+                    child: Row(
+                      children: [
+                        Icon(Icons.qr_code, size: 18, color: primaryOrange),
+                        SizedBox(width: 10),
+                        Text('QR Code'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'eliminar',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 18, color: primaryRed),
+                        SizedBox(width: 10),
+                        Text(
+                          'Eliminar',
+                          style: TextStyle(color: primaryRed),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -1455,35 +1455,6 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
       default:
         return primaryOrange;
     }
-  }
-
-  Widget _buildContactInfo(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: darkGrey,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildFloatingButtons() {
@@ -2175,6 +2146,626 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
               ),
             );
           }).toList(),
+    );
+  }
+  // --- Helpers e ações de menu ---
+
+  Widget _buildTextField(String label, TextEditingController ctl, IconData icon) {
+    return TextField(
+      controller: ctl,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: primaryOrange),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
+
+  void _abrirVeiculo(String userId) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final snap = await userRef.get();
+    if (!mounted) return;
+    final data = snap.data() ?? {};
+    final veiculo = (data['veiculo'] ?? {}) as Map<String, dynamic>;
+
+    final marcaCtl = TextEditingController(text: (veiculo['marca'] ?? '').toString());
+    final modeloCtl = TextEditingController(text: (veiculo['modelo'] ?? '').toString());
+    final matriculaCtl = TextEditingController(text: (veiculo['matricula'] ?? '').toString());
+    final corCtl = TextEditingController(text: (veiculo['cor'] ?? '').toString());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    children: [
+                      Icon(Icons.directions_car, color: darkGrey, size: 26),
+                      SizedBox(width: 12),
+                      Text(
+                        'Veículo do Participante',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: darkGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField('Marca', marcaCtl, Icons.directions_car_filled),
+                  const SizedBox(height: 10),
+                  _buildTextField('Modelo', modeloCtl, Icons.build),
+                  const SizedBox(height: 10),
+                  _buildTextField('Matrícula', matriculaCtl, Icons.badge),
+                  const SizedBox(height: 10),
+                  _buildTextField('Cor', corCtl, Icons.color_lens),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryOrange,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.save),
+                          label: const Text('Guardar'),
+                          onPressed: () async {
+                            try {
+                              await userRef.update({
+                                'veiculo': {
+                                  'marca': marcaCtl.text.trim(),
+                                  'modelo': modeloCtl.text.trim(),
+                                  'matricula': matriculaCtl.text.trim(),
+                                  'cor': corCtl.text.trim(),
+                                }
+                              });
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Veículo atualizado com sucesso'),
+                                    backgroundColor: accentGreen,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erro ao guardar veículo: $e'),
+                                    backgroundColor: primaryRed,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _abrirAcompanhantes(String userId) {
+    final acompRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('acompanhantes');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    children: [
+                      Icon(Icons.people, color: darkGrey, size: 26),
+                      SizedBox(width: 12),
+                      Text(
+                        'Acompanhantes',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: darkGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: acompRef.orderBy('nome').snapshots(),
+                      builder: (context, snap) {
+                        if (!snap.hasData) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                              ),
+                            ),
+                          );
+                        }
+                        final docs = snap.data!.docs;
+                        if (docs.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.info_outline, color: primaryOrange),
+                                SizedBox(width: 8),
+                                Expanded(child: Text('Sem acompanhantes adicionados')),
+                              ],
+                            ),
+                          );
+                        }
+                        return ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: docs.length,
+                          separatorBuilder: (_, __) => const Divider(height: 8),
+                          itemBuilder: (context, i) {
+                            final d = docs[i];
+                            final m = d.data() as Map<String, dynamic>;
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(m['nome'] ?? 'Sem nome',
+                                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                              subtitle: (m['telefone'] ?? '').toString().isNotEmpty
+                                  ? Text((m['telefone'] ?? '').toString())
+                                  : null,
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline, color: primaryRed),
+                                onPressed: () async {
+                                  await acompRef.doc(d.id).delete();
+                                },
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryOrange,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Adicionar'),
+                      onPressed: () async {
+                        final nomeCtl = TextEditingController();
+                        final telCtl = TextEditingController();
+                        await showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: const Text('Novo acompanhante'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildTextField('Nome', nomeCtl, Icons.person),
+                                  const SizedBox(height: 10),
+                                  _buildTextField('Telefone', telCtl, Icons.phone),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancelar'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentGreen,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    if (nomeCtl.text.trim().isEmpty) return;
+                                    await acompRef.add({
+                                      'nome': nomeCtl.text.trim(),
+                                      'telefone': telCtl.text.trim(),
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    });
+                                    if (mounted) Navigator.pop(context);
+                                  },
+                                  child: const Text('Guardar'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _abrirEquipa(String userId) {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    Icon(Icons.flag, color: darkGrey, size: 26),
+                    SizedBox(width: 12),
+                    Text(
+                      'Selecionar Equipa',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: darkGrey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 420),
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('equipas').orderBy('nome').snapshots(),
+                    builder: (context, snap) {
+                      if (!snap.hasData) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
+                            ),
+                          ),
+                        );
+                      }
+                      final docs = snap.data!.docs;
+                      if (docs.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text('Nenhuma equipa cadastrada'),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const Divider(height: 8),
+                        itemBuilder: (context, i) {
+                          final d = docs[i];
+                          final m = d.data() as Map<String, dynamic>;
+                          return ListTile(
+                            onTap: () async {
+                              await userRef.update({'equipaId': d.id});
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Equipa atualizada'),
+                                    backgroundColor: accentGreen,
+                                  ),
+                                );
+                                setState(() {}); // refresca listagem
+                              }
+                            },
+                            leading: const Icon(Icons.group, color: primaryOrange),
+                            title: Text(m['nome'] ?? 'Sem nome'),
+                            subtitle: (m['descricao'] ?? '').toString().isNotEmpty
+                                ? Text((m['descricao'] ?? '').toString())
+                                : null,
+                            trailing: const Icon(Icons.check, color: Colors.transparent),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _removerParticipanteDoEvento(String userId) async {
+    if (edicaoSelecionadaId == null || eventoSelecionadoId == null) return;
+
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remover do evento?'),
+          content: const Text('Isto vai remover a inscrição deste participante neste evento e as suas pontuações associadas.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryRed,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remover'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+      final eventoDocRef = userRef.collection('eventos').doc(eventoSelecionadoId);
+
+      // Apagar pontuações associadas a este evento
+      final pontSnap = await eventoDocRef.collection('pontuacoes').get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final d in pontSnap.docs) {
+        batch.delete(d.reference);
+      }
+      // Apagar doc de evento do user
+      batch.delete(eventoDocRef);
+      // Remover referência de eventoId (se usada para inscrição)
+      batch.update(userRef, {'eventoId': FieldValue.delete()});
+      await batch.commit();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Participante removido do evento'),
+            backgroundColor: accentGreen,
+          ),
+        );
+        setState(() {
+          pontuacoesCache.remove(userId);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao remover: $e'),
+            backgroundColor: primaryRed,
+          ),
+        );
+      }
+    }
+  }
+
+  void _mostrarQrCode(String userId) {
+    final String eventPath = (edicaoSelecionadaId != null && eventoSelecionadoId != null)
+        ? 'editions/$edicaoSelecionadaId/events/$eventoSelecionadoId'
+        : '';
+    final String payload = 'CHECKIN|$eventPath|$userId';
+    final String url =
+        'https://chart.googleapis.com/chart?chs=420x420&cht=qr&chl=${Uri.encodeComponent(payload)}&choe=UTF-8';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: false,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Row(
+                  children: [
+                    Icon(Icons.qr_code_2, color: darkGrey, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'QR Code do Participante',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: darkGrey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    url,
+                    width: 280,
+                    height: 280,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) {
+                      return Container(
+                        width: 280,
+                        height: 280,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: SelectableText(
+                            payload,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.link, size: 18, color: primaryOrange),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          payload,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[800],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Copiar',
+                        onPressed: () async {
+                          await Clipboard.setData(ClipboardData(text: payload));
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Código copiado para a área de transferência'),
+                                backgroundColor: primaryOrange,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.copy, color: darkGrey),
+                      ),
+                      IconButton(
+                        tooltip: 'Partilhar',
+                        onPressed: () async {
+                          // ignore: deprecated_member_use
+                          await Share.share('QR do participante:\n$payload\n$url');
+                        },
+                        icon: const Icon(Icons.share, color: darkGrey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
