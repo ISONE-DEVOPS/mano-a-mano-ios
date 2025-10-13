@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
@@ -55,26 +58,62 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView>
     super.dispose();
   }
 
+
+  /// Tenta obter um resetLink (Firebase) gerado no backend.
+  /// Se `RESET_LINK_ENDPOINT` não estiver configurado, devolve null.
+  Future<String?> _getResetLink(String email) async {
+    try {
+      final endpoint = dotenv.env['RESET_LINK_ENDPOINT'];
+      if (endpoint == null || endpoint.isEmpty) return null;
+      final uri = Uri.parse(endpoint);
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final link = data['resetLink'] as String?;
+        return (link != null && link.isNotEmpty) ? link : null;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
-
+  
     setState(() {
       _loading = true;
       _message = null;
       _isSuccess = false;
     });
-
+  
     final email = _emailController.text.trim();
-
-    final success = await AuthService.to.sendPasswordResetEmail(email);
-
+  
+    // 1) Tenta obter um resetLink do backend (quando houver Cloud Function/API)
+    final resetLink = await _getResetLink(email);
+  
+    bool success = false;
+    if (resetLink != null) {
+      // 2) Se houver resetLink, usa SMTP Pagali
+      success = await AuthService.to.sendPasswordResetEmailSmtp(
+        toEmail: email,
+        resetLink: resetLink,
+      );
+    } else {
+      // 3) Caso não haja endpoint configurado, fallback para Firebase padrão
+      success = await AuthService.to.sendPasswordResetEmail(email);
+    }
+  
     setState(() {
       _loading = false;
       _isSuccess = success;
-      _message =
-          success
-              ? 'Se o email estiver registado, você receberá um link de redefinição.'
-              : 'Erro ao enviar email de recuperação. Tente novamente.';
+      _message = success
+          ? 'Se o email estiver registado, você receberá um link de redefinição.'
+          : 'Erro ao enviar email de recuperação. Tente novamente.';
     });
   }
 

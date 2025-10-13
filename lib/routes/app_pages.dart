@@ -23,22 +23,6 @@ import '../views/staff/staff_jogos_view.dart';
 import '../views/staff/checkin_staff_view.dart';
 import '../views/staff/staff_profile.dart';
 
-// Views Admin
-import '../views/admin/admin_view.dart';
-import '../views/admin/edition_view.dart';
-import '../views/admin/challenge_view.dart';
-import '../views/admin/ranking_detailed_view.dart';
-import '../views/admin/loading_admin_view.dart';
-import '../views/admin/scan_and_score_view.dart';
-import '../views/admin/pontuacoes_view.dart';
-import '../views/admin/participantes_view.dart';
-import '../views/admin/generate_qr_view.dart';
-import '../views/admin/perguntas_view.dart';
-import '../views/admin/report_geral_view.dart';
-import '../views/admin/donation_pagali_view.dart';
-import '../views/admin/user_management_view.dart';
-import '../views/admin/participantes_por_evento_view.dart';
-
 // Views Check-in
 import '../views/checkin/checkin_view.dart';
 import '../views/checkin/checkpoint_questions_view.dart';
@@ -51,7 +35,6 @@ import '../views/events/event_inscription_view.dart'; // NOVA IMPORTAÇÃO
 
 // Views Ranking
 import '../views/ranking/ranking_view.dart';
-import '../views/admin/update_total_score_view.dart';
 
 // Views Pontuacao
 import '../views/pontuacao/pontuacao_detalhada_view.dart';
@@ -68,6 +51,9 @@ import '../views/error/not_found_page.dart';
 
 // Utils
 import '../utils/route_helpers.dart';
+
+// Admin routes are included only on Web
+import 'admin_routes_stub.dart' if (dart.library.html) 'admin_routes_web.dart';
 
 class AppPages {
   static const initial = '/splash';
@@ -113,118 +99,8 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
 
-    // =================== ADMINISTRAÇÃO ===================
-    GetPage(
-      name: '/loading-admin',
-      page: () => const LoadingAdminView(),
-      transition: Transition.fadeIn,
-    ),
-    GetPage(
-      name: '/admin',
-      page: () => const AdminView(),
-      transition: Transition.fadeIn,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/editions',
-      page: () => const EditionView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/add-checkpoints',
-      page: () => RouteHelpers.buildAddCheckpointsView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/challenges',
-      page: () => ChallengeView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/jogos',
-      page: () => ChallengeView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/ranking-detailed',
-      page: () => const RankingDetailedView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/gestao-utilizadores',
-      page: () => const UserManagementView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/gestao-reports',
-      page: () => const ReportsView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/gestao-participantes',
-      page: () => const ParticipantesView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/participantesPorEvento',
-      page: () => const ParticipantesPorEventoView(),
-    ),
-    GetPage(
-      name: '/pontuacoes',
-      page: () => const PontuacoesView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/participantes',
-      page: () => const ParticipantesView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/generate-qr',
-      page: () => const GenerateQrView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/perguntas',
-      page: () => const PerguntasView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/register-participant',
-      page: () => RouteHelpers.buildRegisterParticipantView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/admin/scan-score',
-      page: () => const ScanAndScoreView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/user_management',
-      page: () => const UserManagementView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
-    GetPage(
-      name: '/donations',
-      page: () => const DonationShellScreen(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
-    ),
+    // =================== ADMINISTRAÇÃO (somente Web) ===================
+    ...adminRoutes,
 
     // =================== STAFF ===================
     GetPage(
@@ -332,12 +208,6 @@ class AppPages {
       name: '/resultados-finais',
       page: () => const ResultadosFinaisView(),
       transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: '/update_total_score',
-      page: () => const UpdateTotalScoreView(),
-      transition: Transition.rightToLeft,
-      middlewares: [AdminMiddleware()],
     ),
 
     // =================== EVENTOS ===================

@@ -2,6 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
@@ -370,6 +373,95 @@ class AuthService extends GetxService {
     }
   }
 
+  // =========================
+  // SMTP (Pagali noreply@pagali.cv)
+  // =========================
+
+  SmtpServer _buildSmtpServer() {
+    final host = dotenv.env['SMTP_HOST'] ?? 'mail.pagali.cv';
+    final user = dotenv.env['SMTP_USER'] ?? 'noreply@pagali.cv';
+    final pass = dotenv.env['SMTP_PASS'] ?? '';
+    final portEnv = int.tryParse(dotenv.env['SMTP_PORT'] ?? '');
+    // Default to secure SMTPS (465) unless explicitly overridden
+    final port = portEnv ?? 465;
+    final useSslEnv = (dotenv.env['SMTP_SSL'] ?? 'true').toLowerCase();
+    final useSsl = useSslEnv == 'true' || port == 465;
+    return SmtpServer(
+      host,
+      username: user,
+      password: pass,
+      port: port,
+      ssl: useSsl,
+    );
+  }
+
+  Future<void> sendRegistrationEmail({
+    required String toEmail,
+    required String nome,
+  }) async {
+    try {
+      final server = _buildSmtpServer();
+
+      final message =
+          Message()
+            ..from = Address(
+              dotenv.env['SMTP_FROM'] ?? 'noreply@pagali.cv',
+              'Mano a Mano – Shell ao KM',
+            )
+            ..recipients.add(toEmail)
+            ..subject = 'Confirmação de Registo – Shell ao KM'
+            ..html = '''
+          &lt;h3&gt;Olá, $nome!&lt;/h3&gt;
+          &lt;p&gt;O teu registo foi concluído com sucesso 🎉&lt;/p&gt;
+          &lt;p&gt;Já podes iniciar sessão na app Mano a Mano e completar as etapas do evento.&lt;/p&gt;
+          &lt;p&gt;&lt;b&gt;Suporte:&lt;/b&gt; suporte@pagali.cv&lt;/p&gt;
+          &lt;hr /&gt;
+          &lt;small&gt;Este email foi enviado automaticamente por noreply@pagali.cv&lt;/small&gt;
+        ''';
+
+      await send(message, server);
+      debugPrint('📧 Email de confirmação enviado para $toEmail');
+    } catch (e) {
+      debugPrint('❌ Falha ao enviar email de confirmação: $e');
+    }
+  }
+
+  /// Envia email de recuperação de senha via SMTP (Pagali)
+  /// IMPORTANTE: É necessário fornecer um `resetLink` válido gerado no backend (ex.: Cloud Function com Firebase Admin).
+  Future<bool> sendPasswordResetEmailSmtp({
+    required String toEmail,
+    required String resetLink,
+  }) async {
+    try {
+      final server = _buildSmtpServer();
+      final fromAddr = Address(
+        dotenv.env['SMTP_FROM'] ?? 'noreply@pagali.cv',
+        'Mano a Mano – Suporte',
+      );
+
+      final message =
+          Message()
+            ..from = fromAddr
+            ..recipients.add(toEmail)
+            ..subject = 'Redefinição de Senha – Mano a Mano'
+            ..html = '''
+          &lt;p&gt;Recebemos um pedido para redefinir a tua senha.&lt;/p&gt;
+          &lt;p&gt;Para criares uma nova senha, clica no botão abaixo:&lt;/p&gt;
+          &lt;p&gt;&lt;a href="$resetLink" style="display:inline-block;padding:10px 16px;text-decoration:none;border-radius:6px;background:#336094;color:#fff;font-weight:600;"&gt;Redefinir Senha&lt;/a&gt;&lt;/p&gt;
+          &lt;p&gt;Se não fizeste este pedido, podes ignorar este email.&lt;/p&gt;
+          &lt;hr/&gt;
+          &lt;small&gt;Email automático enviado por noreply@pagali.cv&lt;/small&gt;
+        ''';
+
+      await send(message, server);
+      debugPrint('📧 Email de reset enviado (SMTP) para $toEmail');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Falha ao enviar email de reset (SMTP): $e');
+      return false;
+    }
+  }
+
   // Registro com email, nome e senha
   Future<bool> registerWithEmail(
     String nome,
@@ -389,6 +481,12 @@ class AuthService extends GetxService {
         'ativo': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // (Opcional) Verificação do email pelo Firebase
+      await cred.user!.sendEmailVerification();
+
+      // Email de confirmação via SMTP (noreply@pagali.cv)
+      await sendRegistrationEmail(toEmail: email, nome: nome);
 
       _user.value = cred.user;
       await _loadUserData();
