@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mano_mano_dashboard/views/admin/create_user_view.dart';
+//import 'package:mano_mano_dashboard/views/admin/create_user_view.dart';
+//import 'manage_users_view.dart';
 import 'participantes_view.dart';
 import 'dashboard_admin_view.dart';
 import 'edition_view.dart';
@@ -12,6 +13,7 @@ import 'jogos_create_view.dart';
 import 'ranking_detailed_view.dart';
 import 'participantes_por_evento_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
+import 'create_user_view.dart';
 
 void showAddEventDialog(BuildContext context) {
   final formKey = GlobalKey<FormState>();

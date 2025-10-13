@@ -6,7 +6,16 @@ import 'dart:developer' as developer;
 
 class EditParticipantesView extends StatefulWidget {
   final String userId;
-  const EditParticipantesView({super.key, required this.userId});
+  // Opcional: caminho completo do evento (ex.: editions/{ed}/events/{ev})
+  final String? eventPath;
+  // Opcional: ID do documento dentro de users/{uid}/events/{docId}
+  final String? eventDocId;
+  const EditParticipantesView({
+    super.key,
+    required this.userId,
+    this.eventPath,
+    this.eventDocId,
+  });
 
   @override
   State<EditParticipantesView> createState() => _EditParticipantesViewState();
@@ -14,8 +23,23 @@ class EditParticipantesView extends StatefulWidget {
 
 class _EditParticipantesViewState extends State<EditParticipantesView>
     with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
+  final _personalFormKey = GlobalKey<FormState>();
+  final _paymentFormKey = GlobalKey<FormState>();
   late TabController _tabController;
+
+  // Scroll controllers por aba
+  final ScrollController _personalScroll = ScrollController();
+  final ScrollController _paymentScroll = ScrollController();
+
+  // Keys para rolar até o primeiro campo inválido
+  final _nomeKey = GlobalKey();
+  final _emailKey = GlobalKey();
+  final _telKey = GlobalKey();
+  final _emergKey = GlobalKey();
+  final _tshirtKey = GlobalKey();
+  final _equipaKey = GlobalKey();
+  final _veiculoKey = GlobalKey();
+  final _priceKey = GlobalKey();
 
   // Controllers
   final nomeController = TextEditingController();
@@ -52,13 +76,18 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _carregarDados();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _personalScroll.dispose();
+    _paymentScroll.dispose();
     nomeController.dispose();
     emailController.dispose();
     telefoneController.dispose();
@@ -66,6 +95,54 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     tshirtController.dispose();
     priceController.dispose();
     super.dispose();
+  }
+
+  // Helper para normalizar valores numéricos vindos do Firestore
+  double? _asDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) {
+      final s = v.trim().replaceAll(' ', '').replaceAll(',', '.');
+      return double.tryParse(s);
+    }
+    return null;
+  }
+
+  /// Resolve o documento alvo em users/{uid}/events com base em [widget.eventDocId] ou [widget.eventPath].
+  /// Fallback: último evento por registeredAt.
+  Future<DocumentReference<Map<String, dynamic>>?> _getTargetEventRef() async {
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId);
+    final eventsCol = userRef.collection('events');
+    // 1) Se veio eventDocId diretamente
+    if (widget.eventDocId != null && widget.eventDocId!.trim().isNotEmpty) {
+      return eventsCol.doc(widget.eventDocId!.trim());
+    }
+    // 2) Se veio eventPath, procura por campo eventoPath
+    if (widget.eventPath != null && widget.eventPath!.trim().isNotEmpty) {
+      final byPath =
+          await eventsCol
+              .where('eventoPath', isEqualTo: widget.eventPath!.trim())
+              .limit(1)
+              .get();
+      if (byPath.docs.isNotEmpty) {
+        return eventsCol.doc(byPath.docs.first.id);
+      }
+    }
+    // 3) Fallback: último por registeredAt (pode não ser o ativo, mas evita null)
+    try {
+      final last =
+          await eventsCol
+              .orderBy('registeredAt', descending: true)
+              .limit(1)
+              .get();
+      if (last.docs.isNotEmpty) return eventsCol.doc(last.docs.first.id);
+    } catch (_) {
+      final any = await eventsCol.limit(1).get();
+      if (any.docs.isNotEmpty) return eventsCol.doc(any.docs.first.id);
+    }
+    return null;
   }
 
   Future<void> _carregarDados() async {
@@ -94,6 +171,39 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             '${doc['modelo'] ?? 'Modelo'} - ${doc['matricula'] ?? 'Sem matrícula'}';
       }
 
+      // Carrega o evento alvo (por eventDocId, eventPath ou fallback)
+      double? latestEventValorPago;
+      double? latestEventPrecoTotal;
+      double? latestEventPreco;
+      bool? latestEventPagoFlag;
+      try {
+        final targetRef = await _getTargetEventRef();
+        if (targetRef != null) {
+          final evSnap = await targetRef.get();
+          if (evSnap.exists) {
+            final evData = evSnap.data() ?? {};
+            final pagamento =
+                (evData['pagamento'] ?? {}) as Map<String, dynamic>;
+            latestEventValorPago = _asDouble(pagamento['valorPago']);
+            latestEventPrecoTotal = _asDouble(evData['precoTotal']);
+            latestEventPreco = _asDouble(evData['preco']);
+            final status = (evData['paymentStatus'] ?? '').toString();
+            if (status.isNotEmpty) {
+              latestEventPagoFlag = status.toLowerCase() == 'paid';
+            }
+            // Se status não existir, infere com base em um dos valores > 0
+            latestEventPagoFlag ??=
+                (latestEventValorPago ??
+                    latestEventPrecoTotal ??
+                    latestEventPreco ??
+                    0) >
+                0;
+          }
+        }
+      } catch (_) {
+        // silencioso
+      }
+
       if (!mounted) return;
       setState(() {
         equipas = equipasTemp;
@@ -115,6 +225,23 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
           isAtivo = data['ativo'] ?? true;
           role = data['role'] ?? 'user';
 
+          // Prioridade para exibição do preço ao reabrir a tela:
+          // 1) pagamento.valorPago  2) precoTotal  3) preco  4) users.price
+          final userPrice =
+              _asDouble(data['price']) ?? _asDouble(data['preco']);
+          final displayPrice =
+              latestEventValorPago ??
+              latestEventPrecoTotal ??
+              latestEventPreco ??
+              userPrice ??
+              0.0;
+          priceController.text = displayPrice.toString();
+
+          // Sincroniza status de pagamento com o evento se existir, senão mantém do user
+          if (latestEventPagoFlag != null) {
+            isPago = latestEventPagoFlag;
+          }
+
           if (data['createAt'] != null) {
             createAt = (data['createAt'] as Timestamp).toDate();
           }
@@ -133,19 +260,43 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
   }
 
   Future<void> _salvarAlteracoes() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Valida apenas a aba ativa + rola até o primeiro campo inválido
+    final currentTab = _tabController.index;
+    if (currentTab == 0) {
+      if (!(_personalFormKey.currentState?.validate() ?? false)) {
+        _showErrorSnackBar('Verifique os campos obrigatórios na aba Pessoal.');
+        await _scrollToFirstInvalidPersonal();
+        return;
+      }
+    } else if (currentTab == 2) {
+      if (!(_paymentFormKey.currentState?.validate() ?? false)) {
+        _showErrorSnackBar(
+          'Verifique os campos obrigatórios na aba Pagamento.',
+        );
+        await _scrollToFirstInvalidPayment();
+        return;
+      }
+    }
 
     setState(() => isSaving = true);
 
     try {
       // Garantir que o valor está correto (aceita vírgula e espaço)
-      final raw = priceController.text.trim().replaceAll(' ', '').replaceAll(',', '.');
+      final raw = priceController.text
+          .trim()
+          .replaceAll(' ', '')
+          .replaceAll(',', '.');
       final price = double.tryParse(raw.isEmpty ? '0' : raw) ?? 0.0;
 
       // Debug - remover depois de testar
-      developer.log('Salvando price: $price, isPago: $isPago', name: 'EditParticipantes');
+      developer.log(
+        'Salvando price: $price, isPago: $isPago',
+        name: 'EditParticipantes',
+      );
 
-      final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId);
       // Grava no documento do utilizador
       await userRef.update({
         'nome': nomeController.text.trim(),
@@ -156,27 +307,61 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         'equipaId': equipaSelecionada,
         'veiculoId': veiculoSelecionado,
         'price': price,
-        'isPago': isPago,
+        'isPago':
+            isPago ||
+            price > 0, // se há valor, considera pago no perfil (espelho)
         'ativo': isAtivo,
         'role': role,
       });
 
-      // (Opcional) grava também no primeiro evento do utilizador, se existir
+      // Garante que o controller reflete o valor normalizado (com ponto)
+      priceController.text = price.toString();
+
+      // Grava no evento alvo (por eventDocId / eventPath / fallback)
       try {
-        final eventosSnapshot = await userRef.collection('eventos').limit(1).get();
-        if (eventosSnapshot.docs.isNotEmpty) {
-          final eventoId = eventosSnapshot.docs.first.id;
-          final eventoRef = userRef.collection('eventos').doc(eventoId);
+        final userRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId);
+        final targetRef = await _getTargetEventRef();
+        DocumentReference<Map<String, dynamic>> eventoRef;
+        if (targetRef != null) {
+          eventoRef = targetRef;
+        } else {
+          // Se não existir nenhum, cria um novo doc na subcoleção 'events'
+          final eventsCol = userRef.collection('events');
+          // Tenta usar o último segmento do eventPath como id (se fornecido), senão gera id automático
+          String? newId;
+          if (widget.eventPath != null && widget.eventPath!.trim().isNotEmpty) {
+            newId = widget.eventPath!.trim().split('/').last;
+          }
+          eventoRef = newId != null ? eventsCol.doc(newId) : eventsCol.doc();
           await eventoRef.set({
-            'pagamento': {
-              'valorPago': price,
-              'metodo': isPago ? 'Pagali' : 'Pendente',
-              'atualizadoEm': FieldValue.serverTimestamp(),
-            }
+            if (widget.eventPath != null && widget.eventPath!.trim().isNotEmpty)
+              'eventoPath': widget.eventPath!.trim(),
+            'registeredAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
+        await eventoRef.set({
+          // Mantém o espelho do preço do evento nesta edição
+          'preco': price.toDouble(),
+          'precoTotal': price.toDouble(),
+          'amountPaid': (isPago || price > 0) ? price.toDouble() : 0.0,
+          'pagamento': {
+            'valorPago': price.toDouble(),
+            'metodo': isPago ? 'Pagali' : 'Pendente',
+            'atualizadoEm': FieldValue.serverTimestamp(),
+          },
+          'paymentStatus': (isPago || price > 0) ? 'paid' : 'pending',
+          // Garante que o path fica associado, se fornecido
+          if (widget.eventPath != null && widget.eventPath!.trim().isNotEmpty)
+            'eventoPath': widget.eventPath!.trim(),
+        }, SetOptions(merge: true));
       } catch (e) {
-        developer.log('Falha ao atualizar pagamento no evento: $e', name: 'EditParticipantes', error: e);
+        developer.log(
+          'Falha ao atualizar pagamento no evento (alvo): $e',
+          name: 'EditParticipantes',
+          error: e,
+        );
       }
 
       if (!mounted) return;
@@ -223,6 +408,76 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  // Rola até tornar visível um campo identificado por key e scrollController
+  Future<void> _ensureVisible(
+    GlobalKey key,
+    ScrollController controller,
+  ) async {
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      await Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+        alignment: 0.1,
+      );
+    } else {
+      await controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Future<void> _scrollToFirstInvalidPersonal() async {
+    // Usa as mesmas regras dos validadores
+    if ((_validateRequired(nomeController.text, 'Nome') != null)) {
+      return _ensureVisible(_nomeKey, _personalScroll);
+    }
+    if (_validateEmail(emailController.text) != null) {
+      return _ensureVisible(_emailKey, _personalScroll);
+    }
+    if (_validatePhone(telefoneController.text) != null) {
+      return _ensureVisible(_telKey, _personalScroll);
+    }
+    if (_validateRequired(
+          emergenciaController.text,
+          'Contacto de emergência',
+        ) !=
+        null) {
+      return _ensureVisible(_emergKey, _personalScroll);
+    }
+    if (_validateRequired(tshirtController.text, 'Tamanho da T-shirt') !=
+        null) {
+      return _ensureVisible(_tshirtKey, _personalScroll);
+    }
+    if (equipaSelecionada == null) {
+      return _ensureVisible(_equipaKey, _personalScroll);
+    }
+    if (veiculoSelecionado == null) {
+      return _ensureVisible(_veiculoKey, _personalScroll);
+    }
+    // fallback
+    await _personalScroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> _scrollToFirstInvalidPayment() async {
+    if (_validatePrice(priceController.text) != null) {
+      return _ensureVisible(_priceKey, _paymentScroll);
+    }
+    // fallback
+    await _paymentScroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -289,8 +544,12 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white, // cor da aba ativa
+          unselectedLabelColor: Colors.white70, // cor das inativas
           tabs: const [
             Tab(icon: Icon(Icons.person), text: 'Pessoal'),
+            Tab(icon: Icon(Icons.group), text: 'Acompanhantes'),
             Tab(icon: Icon(Icons.payment), text: 'Pagamento'),
             Tab(icon: Icon(Icons.emoji_events), text: 'Pontuações'),
           ],
@@ -326,6 +585,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         controller: _tabController,
         children: [
           _buildDadosPessoaisTab(),
+          _buildAcompanhantesTab(),
           _buildPagamentoTab(),
           _buildPontuacoesTab(),
         ],
@@ -333,10 +593,246 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     );
   }
 
+  Widget _buildAcompanhantesTab() {
+    // Se o participante ainda não tem veículo selecionado
+    if (veiculoSelecionado == null || veiculoSelecionado!.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSectionCard(
+            title: 'Acompanhantes do Condutor',
+            icon: Icons.group_outlined,
+            children: const [
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Nenhum veículo selecionado para este participante. Selecione um veículo na aba Pessoal para ver os passageiros.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream:
+          FirebaseFirestore.instance
+              .collection('veiculos')
+              .doc(veiculoSelecionado)
+              .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildSectionCard(
+                title: 'Acompanhantes do Condutor',
+                icon: Icons.group_outlined,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Erro ao carregar veículo: ${snap.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+        if (!snap.hasData || !snap.data!.exists) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildSectionCard(
+                title: 'Acompanhantes do Condutor',
+                icon: Icons.group_outlined,
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Veículo não encontrado.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+
+        final vData = snap.data!.data() ?? {};
+        final raw = vData['passageiros'];
+        final List<Map<String, dynamic>> passageiros = [];
+        if (raw is List) {
+          for (final e in raw) {
+            if (e is Map) {
+              try {
+                passageiros.add(Map<String, dynamic>.from(e));
+              } catch (_) {}
+            }
+          }
+        }
+
+        // Determina índices de condutor e co‑piloto
+        int? driverIdx;
+        int? copilotoIdx;
+        // 1) Condutor = o passageiro cujo userId == widget.userId
+        for (var i = 0; i < passageiros.length; i++) {
+          final uid = passageiros[i]['userId'];
+          if (uid != null && uid.toString() == widget.userId) {
+            driverIdx = i;
+            break;
+          }
+        }
+        // 2) Copiloto preferencial: flag explícita
+        for (var i = 0; i < passageiros.length; i++) {
+          final papel =
+              (passageiros[i]['papel'] ?? '').toString().toLowerCase();
+          final isCo =
+              passageiros[i]['isCoPiloto'] == true ||
+              papel == 'copiloto' ||
+              papel == 'co-piloto' ||
+              papel == 'co_piloto';
+          if (isCo) {
+            copilotoIdx = i;
+            break;
+          }
+        }
+        // 3) Se ainda não definido, escolhe o primeiro passageiro diferente do condutor
+        if (copilotoIdx == null && passageiros.isNotEmpty) {
+          for (var i = 0; i < passageiros.length; i++) {
+            if (driverIdx != null && i == driverIdx) continue;
+            copilotoIdx = i;
+            break;
+          }
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildSectionCard(
+              title: 'Acompanhantes do Condutor',
+              icon: Icons.group_outlined,
+              children: [
+                if (passageiros.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Sem passageiros registados neste veículo.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: passageiros.length,
+                    separatorBuilder: (_, _) => const Divider(height: 8),
+                    itemBuilder: (_, i) {
+                      final p = passageiros[i];
+                      final nome = (p['nome'] ?? '').toString();
+                      final telefone = (p['telefone'] ?? '').toString();
+                      // Papel por identificação (prioriza userId / flags; fallback por posição)
+                      String papel;
+                      if (driverIdx != null && i == driverIdx) {
+                        papel = 'Condutor';
+                      } else if (copilotoIdx != null && i == copilotoIdx) {
+                        papel = 'Co‑piloto';
+                      } else {
+                        papel = 'Acompanhante';
+                      }
+
+                      // Campos extra quaisquer
+                      final extra = <String, String>{};
+                      for (final k in p.keys) {
+                        if (k == 'nome' ||
+                            k == 'telefone' ||
+                            k == 'isAcompanhante') {
+                          continue;
+                        }
+                        final v = p[k];
+                        if (v == null) continue;
+                        extra[k] = v.toString();
+                      }
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              (driverIdx != null && i == driverIdx)
+                                  ? Colors.green
+                                  : (copilotoIdx != null && i == copilotoIdx
+                                      ? Colors.orange
+                                      : Colors.blue),
+                          child: Icon(
+                            (driverIdx != null && i == driverIdx)
+                                ? Icons.directions_car
+                                : (copilotoIdx != null && i == copilotoIdx
+                                    ? Icons.co_present
+                                    : Icons.person_outline),
+                            color: Colors.white,
+                          ),
+                        ),
+                        title: Text(nome.isEmpty ? '(Sem nome)' : nome),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (telefone.isNotEmpty)
+                              Text('Telefone: $telefone'),
+                            if (extra.isNotEmpty)
+                              ...extra.entries.map(
+                                (e) => Text('${e.key}: ${e.value}'),
+                              ),
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(papel),
+                          backgroundColor:
+                              (driverIdx != null && i == driverIdx)
+                                  ? Colors.green[50]
+                                  : (copilotoIdx != null && i == copilotoIdx
+                                      ? Colors.orange[50]
+                                      : Colors.blue[50]),
+                          labelStyle: TextStyle(
+                            color:
+                                (driverIdx != null && i == driverIdx)
+                                    ? Colors.green[800]
+                                    : (copilotoIdx != null && i == copilotoIdx
+                                        ? Colors.orange[800]
+                                        : Colors.blue[800]),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildDadosPessoaisTab() {
     return Form(
-      key: _formKey,
+      key: _personalFormKey,
+      autovalidateMode:
+          _tabController.index == 0
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
       child: ListView(
+        controller: _personalScroll,
         padding: const EdgeInsets.all(16),
         children: [
           // Status Card
@@ -348,38 +844,51 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             title: 'Informações Pessoais',
             icon: Icons.person,
             children: [
-              _buildTextFormField(
-                controller: nomeController,
-                label: 'Nome Completo',
-                icon: Icons.person_outline,
-                validator: (value) => _validateRequired(value, 'Nome'),
+              KeyedSubtree(
+                key: _nomeKey,
+                child: _buildTextFormField(
+                  controller: nomeController,
+                  label: 'Nome Completo',
+                  icon: Icons.person_outline,
+                  validator: (value) => _validateRequired(value, 'Nome'),
+                ),
               ),
               const SizedBox(height: 16),
-              _buildTextFormField(
-                controller: emailController,
-                label: 'Email',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-                validator: _validateEmail,
-                enabled: false, // Email não deve ser editável
+              KeyedSubtree(
+                key: _emailKey,
+                child: _buildTextFormField(
+                  controller: emailController,
+                  label: 'Email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  validator:
+                      (_) => null, // campo desativado não bloqueia validação
+                  enabled: false, // Email não deve ser editável
+                ),
               ),
               const SizedBox(height: 16),
-              _buildTextFormField(
-                controller: telefoneController,
-                label: 'Telefone',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                validator: _validatePhone,
+              KeyedSubtree(
+                key: _telKey,
+                child: _buildTextFormField(
+                  controller: telefoneController,
+                  label: 'Telefone',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                  validator: _validatePhone,
+                ),
               ),
               const SizedBox(height: 16),
-              _buildTextFormField(
-                controller: emergenciaController,
-                label: 'Contacto de Emergência',
-                icon: Icons.emergency_outlined,
-                keyboardType: TextInputType.phone,
-                validator:
-                    (value) =>
-                        _validateRequired(value, 'Contacto de emergência'),
+              KeyedSubtree(
+                key: _emergKey,
+                child: _buildTextFormField(
+                  controller: emergenciaController,
+                  label: 'Contacto de Emergência',
+                  icon: Icons.emergency_outlined,
+                  keyboardType: TextInputType.phone,
+                  validator:
+                      (value) =>
+                          _validateRequired(value, 'Contacto de emergência'),
+                ),
               ),
             ],
           ),
@@ -390,90 +899,101 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             title: 'Configurações do Evento',
             icon: Icons.settings,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue:
-                    tamanhosTshirt.contains(tshirtController.text)
-                        ? tshirtController.text
-                        : null,
-                decoration: InputDecoration(
-                  labelText: 'Tamanho da T-shirt',
-                  prefixIcon: const Icon(Icons.checkroom_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              KeyedSubtree(
+                key: _tshirtKey,
+                child: DropdownButtonFormField<String>(
+                  initialValue:
+                      tamanhosTshirt.contains(tshirtController.text)
+                          ? tshirtController.text
+                          : null,
+                  decoration: InputDecoration(
+                    labelText: 'Tamanho da T-shirt',
+                    prefixIcon: const Icon(Icons.checkroom_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
+                  items:
+                      tamanhosTshirt
+                          .map(
+                            (size) => DropdownMenuItem(
+                              value: size,
+                              child: Text(size),
+                            ),
+                          )
+                          .toList(),
+                  onChanged:
+                      (value) =>
+                          setState(() => tshirtController.text = value ?? ''),
+                  validator:
+                      (value) => _validateRequired(value, 'Tamanho da T-shirt'),
                 ),
-                items:
-                    tamanhosTshirt
-                        .map(
-                          (size) =>
-                              DropdownMenuItem(value: size, child: Text(size)),
-                        )
-                        .toList(),
-                onChanged:
-                    (value) =>
-                        setState(() => tshirtController.text = value ?? ''),
-                validator:
-                    (value) => _validateRequired(value, 'Tamanho da T-shirt'),
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                initialValue:
-                    equipas.containsKey(equipaSelecionada)
-                        ? equipaSelecionada
-                        : null,
-                decoration: InputDecoration(
-                  labelText: 'Equipa',
-                  prefixIcon: const Icon(Icons.group_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              KeyedSubtree(
+                key: _equipaKey,
+                child: DropdownButtonFormField<String>(
+                  initialValue:
+                      equipas.containsKey(equipaSelecionada)
+                          ? equipaSelecionada
+                          : null,
+                  decoration: InputDecoration(
+                    labelText: 'Equipa',
+                    prefixIcon: const Icon(Icons.group_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
+                  items:
+                      equipas.entries
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e.key,
+                              child: Text(e.value),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (val) => setState(() => equipaSelecionada = val),
+                  validator:
+                      (value) => value == null ? 'Selecione uma equipa' : null,
                 ),
-                items:
-                    equipas.entries
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) => setState(() => equipaSelecionada = val),
-                validator:
-                    (value) => value == null ? 'Selecione uma equipa' : null,
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                initialValue:
-                    veiculos.containsKey(veiculoSelecionado)
-                        ? veiculoSelecionado
-                        : null,
-                decoration: InputDecoration(
-                  labelText: 'Veículo',
-                  prefixIcon: const Icon(Icons.directions_car_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              KeyedSubtree(
+                key: _veiculoKey,
+                child: DropdownButtonFormField<String>(
+                  initialValue:
+                      veiculos.containsKey(veiculoSelecionado)
+                          ? veiculoSelecionado
+                          : null,
+                  decoration: InputDecoration(
+                    labelText: 'Veículo',
+                    prefixIcon: const Icon(Icons.directions_car_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
+                  items:
+                      veiculos.entries
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e.key,
+                              child: Text(e.value),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (val) => setState(() => veiculoSelecionado = val),
+                  validator:
+                      (value) => value == null ? 'Selecione um veículo' : null,
                 ),
-                items:
-                    veiculos.entries
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) => setState(() => veiculoSelecionado = val),
-                validator:
-                    (value) => value == null ? 'Selecione um veículo' : null,
               ),
               const SizedBox(height: 16),
 
@@ -596,11 +1116,20 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
   }
 
   Widget _buildPagamentoTab() {
-    final price = double.tryParse(priceController.text) ?? 0;
+    final price =
+        double.tryParse(
+          priceController.text.trim().replaceAll(' ', '').replaceAll(',', '.'),
+        ) ??
+        0.0;
 
     return Form(
-      // ADICIONAR FORM AQUI
+      key: _paymentFormKey,
+      autovalidateMode:
+          _tabController.index == 2
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
       child: ListView(
+        controller: _paymentScroll,
         padding: const EdgeInsets.all(16),
         children: [
           // Card de resumo de pagamento
@@ -659,29 +1188,33 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
             title: 'Detalhes do Pagamento',
             icon: Icons.payment,
             children: [
-              TextFormField(
-                // MUDAR DE _buildTextFormField para TextFormField
-                controller: priceController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: _validatePrice,
-                inputFormatters: [
-                  // permite números, ponto e vírgula
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,\.]')),
-                ],
-                decoration: InputDecoration(
-                  labelText: 'Valor do Pagamento (CVE)',
-                  prefixIcon: const Icon(Icons.attach_money),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              KeyedSubtree(
+                key: _priceKey,
+                child: TextFormField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  validator: _validatePrice,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9,\.]')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Valor do Pagamento (CVE)',
+                    prefixIcon: const Icon(Icons.attach_money),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.blue,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
                 ),
               ),
               const SizedBox(height: 20),
@@ -1306,7 +1839,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
           await FirebaseFirestore.instance
               .collection('users')
               .doc(widget.userId)
-              .collection('eventos')
+              .collection('events')
               .limit(1)
               .get();
 
@@ -1318,7 +1851,7 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
       return await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
-          .collection('eventos')
+          .collection('events')
           .doc(eventoId)
           .collection('pontuacoes')
           .get();

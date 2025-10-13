@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:csv/csv.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'edit_participantes.dart';
 import 'package:flutter/services.dart';
+import '../../web_download_stub.dart'
+    if (dart.library.html) '../../web_download_html.dart'
+    as webdl;
+import 'package:excel/excel.dart' as xlsx;
 
 class ParticipantesPorEventoView extends StatefulWidget {
   const ParticipantesPorEventoView({super.key});
@@ -822,6 +825,42 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     return result;
   }
 
+  /// Lê o documento do veículo associado ao utilizador e devolve a lista de passageiros.
+  /// Tenta os possíveis campos no user: 'veiculoId', 'veiculoSelecionado', 'veiculoSelecionadoId'.
+  Future<List<Map<String, dynamic>>> _getPassageirosDoVeiculo(
+    Map<String, dynamic> userData,
+  ) async {
+    final veiculoId =
+        (userData['veiculoId'] ??
+                userData['veiculoSelecionado'] ??
+                userData['veiculoSelecionadoId'])
+            ?.toString();
+    if (veiculoId == null || veiculoId.isEmpty) return const [];
+    try {
+      final vSnap =
+          await FirebaseFirestore.instance
+              .collection('veiculos')
+              .doc(veiculoId)
+              .get();
+      if (!vSnap.exists) return const [];
+      final vData = vSnap.data() ?? {};
+      final raw = vData['passageiros'];
+      final List<Map<String, dynamic>> passageiros = [];
+      if (raw is List) {
+        for (final e in raw) {
+          if (e is Map) {
+            try {
+              passageiros.add(Map<String, dynamic>.from(e));
+            } catch (_) {}
+          }
+        }
+      }
+      return passageiros;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Widget _buildQuickStats() {
     return StreamBuilder<List<String>>(
       stream: _participanteUserIdsStream(),
@@ -938,6 +977,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
   Widget _buildParticipantesList() {
     if (eventoSelecionadoId == null || edicaoSelecionadaId == null) {
       return SliverFillRemaining(
+        hasScrollBody: false,
         child: _buildEmptyState(
           icon: Icons.event_note,
           title: 'Selecione um evento',
@@ -953,6 +993,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
       builder: (context, idsSnap) {
         if (idsSnap.connectionState == ConnectionState.waiting) {
           return SliverFillRemaining(
+            hasScrollBody: false,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -996,6 +1037,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
 
         if (idsSnap.hasError) {
           return SliverFillRemaining(
+            hasScrollBody: false,
             child: _buildEmptyState(
               icon: Icons.error_outline,
               title: 'Erro ao carregar',
@@ -1008,6 +1050,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
         final ids = idsSnap.data ?? [];
         if (ids.isEmpty) {
           return SliverFillRemaining(
+            hasScrollBody: false,
             child: _buildEmptyState(
               icon: Icons.people_outline,
               title: 'Nenhum participante',
@@ -1022,6 +1065,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
           builder: (context, usersSnap) {
             if (usersSnap.connectionState == ConnectionState.waiting) {
               return SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(primaryOrange),
@@ -1031,6 +1075,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
             }
             if (usersSnap.hasError || !usersSnap.hasData) {
               return SliverFillRemaining(
+                hasScrollBody: false,
                 child: _buildEmptyState(
                   icon: Icons.error_outline,
                   title: 'Erro ao carregar',
@@ -1044,6 +1089,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
 
             if (participantes.isEmpty) {
               return SliverFillRemaining(
+                hasScrollBody: false,
                 child: _buildEmptyState(
                   icon: Icons.search_off,
                   title: 'Nenhum resultado',
@@ -1085,40 +1131,47 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     required String subtitle,
     required Color color,
   }) {
+    // Evita overflow dentro de SliverFillRemaining(hasScrollBody: false)
+    // sem usar LayoutBuilder (que não fornece intrinsics em slivers).
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color:
-                  (color == primaryYellow
-                      ? primaryYellow.withValues(alpha: 0.12)
-                      : color.withValues(alpha: 0.1)),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 80, color: color),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color:
+                      (color == primaryYellow
+                          ? primaryYellow.withValues(alpha: 0.12)
+                          : color.withValues(alpha: 0.1)),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 80, color: color),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: darkGrey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: darkGrey,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              subtitle,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1683,6 +1736,41 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
     });
   }
 
+  /// Converte uma matriz de linhas em bytes de um ficheiro Excel (.xlsx)
+  Uint8List _excelBytesFromRows(List<List<dynamic>> rows) {
+    final book = xlsx.Excel.createExcel();
+    final sheet = book['Participantes'];
+    for (final row in rows) {
+      sheet.appendRow(
+        row.map<xlsx.CellValue?>((e) {
+          if (e == null) return null;
+          if (e is int) return xlsx.IntCellValue(e);
+          if (e is double) return xlsx.DoubleCellValue(e);
+          if (e is num) return xlsx.DoubleCellValue(e.toDouble());
+          if (e is bool) return xlsx.BoolCellValue(e);
+          if (e is DateTime) {
+            return xlsx.DateTimeCellValue(
+              year: e.year,
+              month: e.month,
+              day: e.day,
+              hour: e.hour,
+              minute: e.minute,
+              second: e.second,
+            );
+          }
+          return xlsx.TextCellValue(e.toString());
+        }).toList(),
+      );
+    }
+    // Remove a folha padrão se existir (evita ficar com "Sheet1")
+    final defaultSheet = book.getDefaultSheet();
+    if (defaultSheet != null && defaultSheet != 'Participantes') {
+      book.delete(defaultSheet);
+    }
+    final bytes = book.encode();
+    return Uint8List.fromList(bytes!);
+  }
+
   Future<void> _exportarParticipantes(
     List<QueryDocumentSnapshot> participantes,
   ) async {
@@ -1735,7 +1823,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Preparando arquivo CSV',
+                      'Preparando ficheiro Excel',
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
@@ -1753,12 +1841,43 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
         'T-shirt',
         'Equipa',
         'Pontuação Total',
+        // Detalhes do veículo / passageiros
+        'Condutor - Nome',
+        'Condutor - Telefone',
+        'Condutor - T-shirt',
+        'Co-piloto - Nome',
+        'Co-piloto - Telefone',
+        'Co-piloto - T-shirt',
+        'Acompanhante 1 - Nome',
+        'Acompanhante 1 - Telefone',
+        'Acompanhante 1 - T-shirt',
+        'Acompanhante 2 - Nome',
+        'Acompanhante 2 - Telefone',
+        'Acompanhante 2 - T-shirt',
       ]);
 
       for (final doc in participantes) {
         final data = doc.data() as Map<String, dynamic>;
         final equipaId = data['equipaId'];
         final pontos = await _getPontuacaoTotal(doc.id);
+
+        // Lê passageiros do veículo associado
+        final passageiros = await _getPassageirosDoVeiculo(data);
+        // Helpers seguros para extrair campos
+        String nomeAt(int i) =>
+            (i < passageiros.length ? (passageiros[i]['nome'] ?? '') : '')
+                .toString();
+        String telAt(int i) =>
+            (i < passageiros.length ? (passageiros[i]['telefone'] ?? '') : '')
+                .toString();
+        String tshirtAt(int i) =>
+            (i < passageiros.length
+                    ? (passageiros[i]['tshirt'] ??
+                        passageiros[i]['T-shirt'] ??
+                        passageiros[i]['t_shirt'] ??
+                        '')
+                    : '')
+                .toString();
 
         rows.add([
           data['nome'] ?? '',
@@ -1768,31 +1887,50 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
           data['tshirt'] ?? '',
           equipaId != null ? (equipasCache[equipaId] ?? '') : '',
           pontos,
+          // Passageiros por posição
+          nomeAt(0), telAt(0), tshirtAt(0), // Condutor
+          nomeAt(1), telAt(1), tshirtAt(1), // Co-piloto
+          nomeAt(2), telAt(2), tshirtAt(2), // Acomp 1
+          nomeAt(3), telAt(3), tshirtAt(3), // Acomp 2
         ]);
       }
 
-      String csv = const ListToCsvConverter().convert(rows);
+      // Gera bytes do Excel (.xlsx) a partir das linhas
+      final xlsBytes = _excelBytesFromRows(rows);
 
-      // Web: partilhar o CSV como texto (evita path_provider no Web)
+      // Web: descarrega o ficheiro Excel (.xlsx) diretamente
       if (kIsWeb) {
         if (mounted) Navigator.of(context).pop(); // fechar o diálogo de loading
-        // ignore: deprecated_member_use
-        await Share.share(csv, subject: 'Participantes - $eventoSelecionadoId');
+        final filename =
+            'participantes_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+        await webdl.saveBytesWeb(filename, xlsBytes);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ficheiro Excel descarregado com sucesso'),
+              backgroundColor: accentGreen,
+            ),
+          );
+        }
         return;
       }
 
       final directory = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = '${directory.path}/participantes_$timestamp.csv';
+      final path = '${directory.path}/participantes_$timestamp.xlsx';
       final file = File(path);
-      await file.writeAsString(csv);
+      await file.writeAsBytes(xlsBytes, flush: true);
 
       if (mounted) Navigator.of(context).pop();
 
-      // ignore: deprecated_member_use
       await Share.shareXFiles([
-        XFile(path),
-      ], subject: 'Participantes - $eventoSelecionadoId');
+        XFile(
+          path,
+          mimeType:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          name: 'participantes_$timestamp.xlsx',
+        ),
+      ], subject: 'Participantes (Excel) - $eventoSelecionadoId');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1817,7 +1955,7 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Arquivo CSV criado com sucesso',
+                          'Ficheiro Excel criado com sucesso',
                           style: TextStyle(fontSize: 13),
                         ),
                       ],
