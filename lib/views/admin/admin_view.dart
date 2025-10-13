@@ -13,7 +13,7 @@ import 'jogos_create_view.dart';
 import 'ranking_detailed_view.dart';
 import 'participantes_por_evento_view.dart';
 import 'package:mano_mano_dashboard/theme/app_backend_theme.dart';
-import 'create_user_view.dart';
+import 'manage_users_view.dart';
 
 void showAddEventDialog(BuildContext context) {
   final formKey = GlobalKey<FormState>();
@@ -373,7 +373,7 @@ class _AdminViewState extends State<AdminView> {
     const GenerateQrView(),
     const perguntas_view.PerguntasView(),
     const JogosManagementView(),
-    const CreateUserView(),
+    ManageUsersView(),
     // const ReportsView(), // Removed
     const ParticipantesView(),
     const ParticipantesPorEventoView(),
@@ -420,13 +420,13 @@ class _AdminViewState extends State<AdminView> {
       isSubMenu: true,
     ),
     // NavigationItem for 'Reports' removed
-    NavigationItem(
-      icon: Icons.groups_outlined,
-      selectedIcon: Icons.groups,
-      label: 'Participantes',
-      color: const Color(0xFF94E2D5),
-      isSubMenu: true,
-    ),
+    //  NavigationItem(
+    //    icon: Icons.groups_outlined,
+    //    selectedIcon: Icons.groups,
+    //    label: 'Participantes',
+    //    color: const Color(0xFF94E2D5),
+    //    isSubMenu: true,
+    //  ),
     NavigationItem(
       icon: Icons.event_available_outlined,
       selectedIcon: Icons.event_available,
