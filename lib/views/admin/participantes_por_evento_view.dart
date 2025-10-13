@@ -1336,7 +1336,129 @@ class _ParticipantesPorEventoViewState extends State<ParticipantesPorEventoView>
                 ),
               ),
               const SizedBox(width: 8),
-              // Trailing: pontos em Chip
+              // Trailing: pagamento status icon, pontos em Chip
+              FutureBuilder<DocumentSnapshot>(
+                future:
+                    (eventoSelecionadoId == null)
+                        ? Future.value(
+                          FirebaseFirestore.instance.doc('dummy/path').get(),
+                        )
+                        : FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(doc.id)
+                            .collection('eventos')
+                            .doc(eventoSelecionadoId)
+                            .get(),
+                builder: (context, snap) {
+                  // Extrai dados com segurança
+                  final raw = snap.data?.data();
+                  final map =
+                      raw is Map<String, dynamic>
+                          ? raw
+                          : const <String, dynamic>{};
+                  final pag = map['pagamento'];
+                  final pagMap =
+                      pag is Map<String, dynamic>
+                          ? pag
+                          : const <String, dynamic>{};
+
+                  // Possíveis campos usados no app:
+                  // - pagamento.valorPago (num)
+                  // - pagamento.valorPrevisto | valor | preco (num)
+                  // - pagamento.status | estado | state | statusPagamento ('pago'/'paid'/...)
+                  // - pagamento.pago | pago | isPaid (bool)
+                  // - (fallback) campo raiz: pago | statusPagamento
+                  num toNum(dynamic v) {
+                    if (v is num) return v;
+                    if (v is String) {
+                      final s = v.replaceAll(RegExp(r'[^0-9\.\-]'), '');
+                      return num.tryParse(s) ?? 0;
+                    }
+                    return 0;
+                  }
+
+                  final valorPago = toNum(
+                    pagMap['valorPago'] ?? map['valorPago'],
+                  );
+                  final valorPrevisto = toNum(
+                    pagMap['valorPrevisto'] ??
+                        pagMap['valor'] ??
+                        map['valorPrevisto'] ??
+                        map['preco'] ??
+                        0,
+                  );
+
+                  final statusRaw =
+                      (pagMap['status'] ??
+                          pagMap['estado'] ??
+                          pagMap['state'] ??
+                          map['statusPagamento'] ??
+                          map['pago'] ??
+                          pagMap['pago'] ??
+                          pagMap['isPaid']);
+
+                  bool statusStringPaid = false;
+                  if (statusRaw is String) {
+                    final s = statusRaw.toLowerCase().trim();
+                    statusStringPaid = [
+                      'pago',
+                      'paga',
+                      'paid',
+                      'confirmado',
+                      'confirmada',
+                      'ok',
+                    ].contains(s);
+                  }
+                  final statusBoolPaid =
+                      statusRaw is bool ? statusRaw == true : false;
+
+                  // Regras:
+                  // 1) Pago se status for "pago/paid" OU bool true OU valorPago >= valorPrevisto (com tolerância)
+                  // 2) Parcial se valorPago > 0 mas < valorPrevisto
+                  // 3) Pendente caso contrário
+                  const tol = 0.01; // tolerância monetária
+                  final isPaidByAmount =
+                      (valorPrevisto > 0)
+                          ? (valorPago + tol >= valorPrevisto)
+                          : (valorPago > 0);
+                  final isPago =
+                      statusStringPaid || statusBoolPaid || isPaidByAmount;
+                  final isParcial = !isPago && (valorPago > 0);
+
+                  String tooltip;
+                  IconData iconData;
+                  Color iconColor;
+
+                  if (isPago) {
+                    tooltip =
+                        valorPrevisto > 0
+                            ? 'Pago • ${valorPago.toStringAsFixed(0)} / ${valorPrevisto.toStringAsFixed(0)} CVE'
+                            : 'Pago';
+                    iconData = Icons.check_circle;
+                    iconColor = accentGreen;
+                  } else if (isParcial) {
+                    tooltip =
+                        'Parcial • ${valorPago.toStringAsFixed(0)} / ${valorPrevisto.toStringAsFixed(0)} CVE';
+                    iconData = Icons.payments;
+                    iconColor = primaryOrange; // parcial em laranja
+                  } else {
+                    tooltip =
+                        valorPrevisto > 0
+                            ? 'Pendente • 0 / ${valorPrevisto.toStringAsFixed(0)} CVE'
+                            : 'Pendente';
+                    iconData = Icons.warning_amber_rounded;
+                    iconColor = primaryYellow;
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Tooltip(
+                      message: tooltip,
+                      child: Icon(iconData, color: iconColor, size: 20),
+                    ),
+                  );
+                },
+              ),
               FutureBuilder<int>(
                 future: _getPontuacaoTotal(doc.id),
                 builder: (context, snapshot) {

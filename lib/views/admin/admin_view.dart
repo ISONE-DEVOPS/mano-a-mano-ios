@@ -420,13 +420,13 @@ class _AdminViewState extends State<AdminView> {
       isSubMenu: true,
     ),
     // NavigationItem for 'Reports' removed
-    //  NavigationItem(
-    //    icon: Icons.groups_outlined,
-    //    selectedIcon: Icons.groups,
-    //    label: 'Participantes',
-    //    color: const Color(0xFF94E2D5),
-    //    isSubMenu: true,
-    //  ),
+    NavigationItem(
+      icon: Icons.groups_outlined,
+      selectedIcon: Icons.groups,
+      label: 'Participantes',
+      color: const Color(0xFF94E2D5),
+      isSubMenu: true,
+    ),
     NavigationItem(
       icon: Icons.event_available_outlined,
       selectedIcon: Icons.event_available,
