@@ -593,6 +593,124 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
     );
   }
 
+  // Adiciona/edita passageiro/acompanhante do veículo
+  Future<void> _showPassengerDialog({Map<String, dynamic>? initial, int? index}) async {
+    if (veiculoSelecionado == null || veiculoSelecionado!.isEmpty) {
+      _showErrorSnackBar('Selecione um veículo primeiro.');
+      return;
+    }
+
+    final nomeCtrl = TextEditingController(text: (initial?['nome'] ?? '').toString());
+    final telCtrl = TextEditingController(text: (initial?['telefone'] ?? '').toString());
+    String papel = (initial?['papel'] ?? (initial?['isCoPiloto'] == true ? 'copiloto' : 'acompanhante')).toString().toLowerCase();
+    if (papel.isEmpty) papel = 'acompanhante';
+
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(index == null ? 'Adicionar Acompanhante' : 'Editar Acompanhante'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nomeCtrl,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Nome é obrigatório' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: telCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Telefone'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Telefone é obrigatório';
+                    if (v.trim().length < 7) return 'Mínimo 7 dígitos';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: ['condutor','copiloto','acompanhante'].contains(papel) ? papel : 'acompanhante',
+                  items: const [
+                    DropdownMenuItem(value: 'condutor', child: Text('Condutor')),
+                    DropdownMenuItem(value: 'copiloto', child: Text('Co‑piloto')),
+                    DropdownMenuItem(value: 'acompanhante', child: Text('Acompanhante')),
+                  ],
+                  onChanged: (v) => papel = (v ?? 'acompanhante'),
+                  decoration: const InputDecoration(labelText: 'Papel'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: const Text('Guardar'),
+              onPressed: () async {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+
+                final veicRef = FirebaseFirestore.instance.collection('veiculos').doc(veiculoSelecionado);
+                final veicSnap = await veicRef.get();
+                final vData = veicSnap.data() ?? {};
+                final rawList = vData['passageiros'];
+                final List<Map<String, dynamic>> passageiros = [];
+                if (rawList is List) {
+                  for (final e in rawList) {
+                    if (e is Map) {
+                      try {
+                        passageiros.add(Map<String, dynamic>.from(e));
+                      } catch (_) {}
+                    }
+                  }
+                }
+
+                final newItem = <String, dynamic>{
+                  'nome': nomeCtrl.text.trim(),
+                  'telefone': telCtrl.text.trim(),
+                  'papel': papel,
+                  // flags de compatibilidade legada:
+                  'isCoPiloto': papel == 'copiloto',
+                  'isAcompanhante': papel == 'acompanhante',
+                };
+
+                // Se for edição, substitui; senão, adiciona (respeitando limite de 4 pessoas no carro)
+                if (index != null) {
+                  if (index >= 0 && index < passageiros.length) {
+                    passageiros[index] = {...passageiros[index], ...newItem};
+                  } else {
+                    _showErrorSnackBar('Índice inválido para edição.');
+                    return;
+                  }
+                } else {
+                  // Limite total de pessoas no carro: 4 (Piloto + Co‑piloto + até 2 acompanhantes)
+                  if (passageiros.length >= 4) {
+                    _showErrorSnackBar('Limite de 4 pessoas por viatura atingido.');
+                    return;
+                  }
+                  passageiros.add(newItem);
+                }
+
+                await veicRef.update({'passageiros': passageiros});
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+                _showSuccessSnackBar(index == null ? 'Acompanhante adicionado!' : 'Acompanhante atualizado!');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildAcompanhantesTab() {
     // Se o participante ainda não tem veículo selecionado
     if (veiculoSelecionado == null || veiculoSelecionado!.isEmpty) {
@@ -680,6 +798,8 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
           }
         }
 
+        final bool canAddPassenger = passageiros.length < 4;
+
         // Determina índices de condutor e co‑piloto
         int? driverIdx;
         int? copilotoIdx;
@@ -717,6 +837,22 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Botão rápido para adicionar acompanhante
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  onPressed: canAddPassenger ? () => _showPassengerDialog() : null,
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Adicionar acompanhante'),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             _buildSectionCard(
               title: 'Acompanhantes do Condutor',
               icon: Icons.group_outlined,
@@ -795,23 +931,34 @@ class _EditParticipantesViewState extends State<EditParticipantesView>
                               ),
                           ],
                         ),
-                        trailing: Chip(
-                          label: Text(papel),
-                          backgroundColor:
-                              (driverIdx != null && i == driverIdx)
-                                  ? Colors.green[50]
-                                  : (copilotoIdx != null && i == copilotoIdx
-                                      ? Colors.orange[50]
-                                      : Colors.blue[50]),
-                          labelStyle: TextStyle(
-                            color:
-                                (driverIdx != null && i == driverIdx)
-                                    ? Colors.green[800]
-                                    : (copilotoIdx != null && i == copilotoIdx
-                                        ? Colors.orange[800]
-                                        : Colors.blue[800]),
-                            fontWeight: FontWeight.w600,
-                          ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Chip(
+                              label: Text(papel),
+                              backgroundColor:
+                                  (driverIdx != null && i == driverIdx)
+                                      ? Colors.green[50]
+                                      : (copilotoIdx != null && i == copilotoIdx
+                                          ? Colors.orange[50]
+                                          : Colors.blue[50]),
+                              labelStyle: TextStyle(
+                                color:
+                                    (driverIdx != null && i == driverIdx)
+                                        ? Colors.green[800]
+                                        : (copilotoIdx != null && i == copilotoIdx
+                                            ? Colors.orange[800]
+                                            : Colors.blue[800]),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton(
+                              tooltip: 'Editar',
+                              icon: const Icon(Icons.edit, size: 20),
+                              onPressed: () => _showPassengerDialog(initial: p, index: i),
+                            ),
+                          ],
                         ),
                       );
                     },

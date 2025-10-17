@@ -90,7 +90,7 @@ class _CriarContaViewState extends State<CriarContaView>
           ),
           const SizedBox(height: 8),
           Text(
-            'Junte-se ao Shell ao KM',
+            'Junte-se ao Mano a Mano!',
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
         ],
@@ -302,7 +302,7 @@ class _CriarContaViewState extends State<CriarContaView>
         if (success) {
           Get.snackbar(
             'Sucesso',
-            'Conta criada com sucesso! Bem-vindo(a) ao Shell ao KM',
+            'Conta criada com sucesso! Bem-vindo(a) ao Mano a Mano Off Road.',
             backgroundColor: Colors.green,
             colorText: Colors.white,
             icon: const Icon(Icons.check_circle, color: Colors.white),

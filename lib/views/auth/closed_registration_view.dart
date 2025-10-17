@@ -14,7 +14,7 @@ class ClosedRegistrationView extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/images/shell_logo.png', height: 120),
+                Image.asset('assets/images/logo.jpeg', height: 120),
                 const SizedBox(height: 24),
                 Icon(
                   Icons.lock_outline,

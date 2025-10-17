@@ -118,7 +118,7 @@ class _AdminLoginViewState extends State<AdminLoginView> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Shell ao KM - Admin Login'),
+        title: const Text('Mano a Mano - Admin Login'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
