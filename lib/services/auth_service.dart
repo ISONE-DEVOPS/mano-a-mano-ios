@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer';
 
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
@@ -17,6 +18,20 @@ class AuthService extends GetxService {
   final RxString _userRole = 'user'.obs;
   final RxMap<String, dynamic> _userData = <String, dynamic>{}.obs;
   final RxBool _isLoading = false.obs;
+
+  // Convenience getters para evento ativo/selecionado no userData
+  String? get activeEventPath => _userData['activeEventPath'] as String?;
+  String? get selectedEventPath => _userData['selectedEventPath'] as String?;
+
+  String? get currentEventPath => activeEventPath ?? selectedEventPath;
+  String? get currentEventId {
+    final path = currentEventPath;
+    if (path == null) return null;
+    final parts = path.split('/');
+    return parts.length >= 4
+        ? parts[3]
+        : null; // editions/{editionId}/events/{eventId}
+  }
 
   // Getters
   User? get currentUser => _user.value;
@@ -56,6 +71,11 @@ class AuthService extends GetxService {
       if (result.user != null) {
         await _updateLastLogin(result.user!.uid);
         await _loadUserData();
+        if (currentEventPath != null) {
+          log('👤 User logado com evento ativo: $currentEventPath');
+        } else {
+          log('👤 User logado sem evento ativo/selecionado.');
+        }
         return true;
       }
       return false;
@@ -98,6 +118,17 @@ class AuthService extends GetxService {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
         _userData.value = data;
         _userRole.value = data['role'] ?? 'user';
+
+        // Normaliza activeEventPath (preferir activeEventPath > selectedEventPath)
+        if (_userData['activeEventPath'] == null &&
+            _userData['selectedEventPath'] != null) {
+          _userData['activeEventPath'] = _userData['selectedEventPath'];
+          try {
+            await _firestore.collection('users').doc(_user.value!.uid).update({
+              'activeEventPath': _userData['selectedEventPath'],
+            });
+          } catch (_) {}
+        }
 
         // Verificar se usuário está ativo apenas se for participante
         if (_userRole.value == 'user' && data['ativo'] != true) {
@@ -179,19 +210,22 @@ class AuthService extends GetxService {
     try {
       if (_user.value == null) return false;
 
-      DocumentSnapshot pontuacaoDoc =
+      final eventId = currentEventId;
+      if (eventId == null) return false;
+
+      final doc =
           await _firestore
               .collection('users')
               .doc(_user.value!.uid)
+              .collection('eventos')
+              .doc(eventId)
               .collection('pontuacoes')
               .doc(checkpointId)
               .get();
 
-      if (pontuacaoDoc.exists) {
-        Map<String, dynamic> data = pontuacaoDoc.data() as Map<String, dynamic>;
-        return data['timestampEntrada'] != null;
-      }
-      return false;
+      if (!doc.exists) return false;
+      final data = doc.data() as Map<String, dynamic>;
+      return data['timestampEntrada'] != null;
     } catch (e) {
       debugPrint('Erro ao verificar check-in: $e');
       return false;
@@ -203,25 +237,28 @@ class AuthService extends GetxService {
     try {
       if (_user.value == null) return false;
 
-      DocumentSnapshot pontuacaoDoc =
+      final eventId = currentEventId;
+      if (eventId == null) return false;
+
+      final doc =
           await _firestore
               .collection('users')
               .doc(_user.value!.uid)
+              .collection('eventos')
+              .doc(eventId)
               .collection('pontuacoes')
               .doc(checkpointId)
               .get();
 
-      if (pontuacaoDoc.exists) {
-        Map<String, dynamic> data = pontuacaoDoc.data() as Map<String, dynamic>;
+      if (!doc.exists) return false;
+      final data = doc.data() as Map<String, dynamic>;
 
-        // Deve ter feito entrada e respondido pergunta
-        bool hasEntry = data['timestampEntrada'] != null;
-        bool hasAnswered = data['respostaCorreta'] != null;
-        bool hasExit = data['timestampSaida'] != null;
+      // Deve ter feito entrada e respondido pergunta; ainda sem saída
+      final hasEntry = data['timestampEntrada'] != null;
+      final hasAnswered = (data['respostaCorreta'] ?? false) == true;
+      final hasExit = data['timestampSaida'] != null;
 
-        return hasEntry && hasAnswered && !hasExit;
-      }
-      return false;
+      return hasEntry && hasAnswered && !hasExit;
     } catch (e) {
       debugPrint('Erro ao verificar check-out: $e');
       return false;
@@ -500,5 +537,15 @@ class AuthService extends GetxService {
       );
       return false;
     }
+  }
+
+  // Define e persiste o caminho do evento ativo do utilizador
+  Future<void> setActiveEventPath(String path) async {
+    if (_user.value == null) return;
+    _userData['activeEventPath'] = path;
+    await _firestore.collection('users').doc(_user.value!.uid).update({
+      'activeEventPath': path,
+    });
+    log('🔗 activeEventPath definido: $path');
   }
 }

@@ -13,6 +13,25 @@ import '../../widgets/shared/nav_bottom.dart';
 import '../checkin/responder_pergunta_view.dart';
 import '../checkin/hint_popup.dart';
 
+// ---- Active event helpers (prefer user's selected/active path) ----
+String? _userActiveEventPath(AuthService auth) {
+  final data = auth.userData;
+  final path =
+      (data['activeEventPath'] ?? data['selectedEventPath']) as String?;
+  if (path == null) return null;
+  // Expecting: editions/{editionId}/events/{eventId}
+  final parts = path.split('/');
+  if (parts.length >= 4 && parts[0] == 'editions' && parts[2] == 'events') {
+    return path;
+  }
+  return null;
+}
+
+({String editionId, String eventId}) _idsFromPath(String path) {
+  final parts = path.split('/');
+  return (editionId: parts[1], eventId: parts[3]);
+}
+
 class CheckinView extends StatefulWidget {
   const CheckinView({super.key});
 
@@ -20,7 +39,7 @@ class CheckinView extends StatefulWidget {
   State<CheckinView> createState() => _CheckinViewState();
 }
 
-class _CheckinViewState extends State<CheckinView> {
+class _CheckinViewState extends State<CheckinView> with WidgetsBindingObserver {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? _controller;
   final AuthService _authService = AuthService.to;
@@ -39,15 +58,28 @@ class _CheckinViewState extends State<CheckinView> {
   bool _isLoadingConfig = true;
   bool _hasActiveEvent = false;
   String? _activeEventName;
-  
+
   // NOVO: Configuração do comportamento após check-in single
-  String _singleModeNextAction = 'question'; // 'question', 'hint', 'home', 'none'
+  String _singleModeNextAction =
+      'question'; // 'question', 'hint', 'home', 'none'
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
     _loadActiveEventConfig();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_controller == null) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _controller?.pauseCamera();
+    } else if (state == AppLifecycleState.resumed) {
+      _controller?.resumeCamera();
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -69,12 +101,49 @@ class _CheckinViewState extends State<CheckinView> {
     try {
       setState(() => _isLoadingConfig = true);
 
-      // 1. Buscar edição ativa
-      final editionsSnapshot = await FirebaseFirestore.instance
-          .collection('editions')
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
+      // 0) Prefer the event explicitly selecionado pelo utilizador/logado
+      final userPath = _userActiveEventPath(_authService);
+      if (userPath != null) {
+        final ids = _idsFromPath(userPath);
+        _activeEditionId = ids.editionId;
+        _activeEventId = ids.eventId;
+
+        final eventDoc = await FirebaseFirestore.instance.doc(userPath).get();
+        if (eventDoc.exists) {
+          final data = eventDoc.data() as Map<String, dynamic>;
+          _activeEventName =
+              (data['nome'] ?? data['name'] ?? _activeEventId) as String?;
+          _hasActiveEvent = true;
+
+          final checkinMode =
+              (data['checkinMode'] as String? ?? 'entry_exit')
+                  .toLowerCase()
+                  .trim();
+          _singleModeNextAction =
+              (data['singleModeNextAction'] as String? ?? 'question')
+                  .toLowerCase()
+                  .trim();
+
+          setState(() {
+            _isSingleMode = checkinMode == 'single';
+            _isLoadingConfig = false;
+          });
+
+          log('>>> (USER) Edição ativa: $_activeEditionId');
+          log('>>> (USER) Evento ativo: $_activeEventId');
+          log('>>> Modo de check-in: $checkinMode (single: $_isSingleMode)');
+          log('>>> Ação após single check-in: $_singleModeNextAction');
+          return;
+        }
+      }
+
+      // 1) Buscar edição ativa (fallback global)
+      final editionsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('editions')
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
 
       if (editionsSnapshot.docs.isEmpty) {
         log('>>> Nenhuma edição ativa encontrada');
@@ -86,14 +155,15 @@ class _CheckinViewState extends State<CheckinView> {
       _activeEditionId = editionDoc.id;
       log('>>> Edição ativa: $_activeEditionId');
 
-      // 2. Buscar evento ativo dentro da edição
-      final eventsSnapshot = await FirebaseFirestore.instance
-          .collection('editions')
-          .doc(_activeEditionId)
-          .collection('events')
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
+      // 2) Buscar evento ativo dentro da edição
+      final eventsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('editions')
+              .doc(_activeEditionId)
+              .collection('events')
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
 
       if (eventsSnapshot.docs.isEmpty) {
         log('>>> Nenhum evento ativo encontrado na edição');
@@ -108,15 +178,15 @@ class _CheckinViewState extends State<CheckinView> {
           (eventData['nome'] ?? eventData['name'] ?? _activeEventId) as String?;
       _hasActiveEvent = true;
 
-      // 3. Carregar modo de check-in
-      final checkinMode = (eventData['checkinMode'] as String? ?? 'entry_exit')
-          .toLowerCase()
-          .trim();
-
-      // NOVO: Carregar ação após check-in single
-      _singleModeNextAction = (eventData['singleModeNextAction'] as String? ?? 'question')
-          .toLowerCase()
-          .trim();
+      // 3) Carregar modo de check-in
+      final checkinMode =
+          (eventData['checkinMode'] as String? ?? 'entry_exit')
+              .toLowerCase()
+              .trim();
+      _singleModeNextAction =
+          (eventData['singleModeNextAction'] as String? ?? 'question')
+              .toLowerCase()
+              .trim();
 
       setState(() {
         _isSingleMode = checkinMode == 'single';
@@ -151,6 +221,32 @@ class _CheckinViewState extends State<CheckinView> {
         title: const Text('Leitura de QR Code'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Tooltip(
+              message:
+                  _isSingleMode
+                      ? (_singleModeNextAction == 'hint'
+                          ? 'Modo: Single (após entrada abre Pista)'
+                          : 'Modo: Single (após entrada abre Pergunta)')
+                      : 'Modo: Entrada/Saída',
+              child: Chip(
+                label: Text(
+                  _isSingleMode ? 'Single' : 'Entrada/Saída',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                side: BorderSide.none,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
           Obx(
             () => Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -167,296 +263,322 @@ class _CheckinViewState extends State<CheckinView> {
           ),
         ],
       ),
-      body: _isLoadingConfig
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Carregando configuração...',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
+      body:
+          _isLoadingConfig
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                  ),
-                ],
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // Info da equipa
-                  Obx(
-                    () => Card(
-                      color: Theme.of(context).colorScheme.surface,
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.event,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Evento: ${_activeEventName ?? '-'}',
+                    const SizedBox(height: 16),
+                    Text(
+                      'Carregando configuração...',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Info da equipa
+                    Obx(
+                      () => Card(
+                        color: Theme.of(context).colorScheme.surface,
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.event,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Evento: ${_activeEventName ?? '-'}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.group,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.group,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Equipa: ${_authService.userData['equipaNome'] ?? 'N/A'}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_isSingleMode)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle_outline,
-                                        size: 16,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Modo: Check-in único',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                ],
                               ),
-                          ],
+                              if (_isSingleMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle_outline,
+                                          size: 16,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Modo: Check-in único',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // ToggleButtons para Entrada/Saída (apenas quando NÃO for single)
-                  if (!_isSingleMode)
-                    Column(
-                      children: [
-                        ToggleButtons(
-                          isSelected: _toggleSelections,
-                          borderRadius: BorderRadius.circular(8),
-                          selectedColor: Theme.of(context).colorScheme.onPrimary,
-                          fillColor: Theme.of(context).colorScheme.primary,
-                          color: Theme.of(context).colorScheme.primary,
-                          borderColor: Theme.of(context).colorScheme.primary,
-                          selectedBorderColor:
-                              Theme.of(context).colorScheme.primary,
-                          onPressed: (int index) {
-                            setState(() {
-                              for (int i = 0; i < _toggleSelections.length; i++) {
-                                _toggleSelections[i] = i == index;
-                              }
-                            });
-                          },
-                          children: const [
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 24.0,
-                                vertical: 8.0,
-                              ),
-                              child: Text(
-                                'Entrada',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 24.0,
-                                vertical: 8.0,
-                              ),
-                              child: Text(
-                                'Saída',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-
-                  Text(
-                    _isSingleMode
-                        ? 'Escaneie o QR Code do checkpoint'
-                        : 'Escaneie o QR Code do posto',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-
-                  Expanded(
-                    flex: 4,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: kIsWeb
-                          ? Container(
-                              alignment: Alignment.center,
-                              color: Theme.of(context).colorScheme.surface,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                    // ToggleButtons para Entrada/Saída (apenas quando NÃO for single)
+                    if (!_isSingleMode)
+                      Column(
+                        children: [
+                          ToggleButtons(
+                            isSelected: _toggleSelections,
+                            borderRadius: BorderRadius.circular(8),
+                            selectedColor:
+                                Theme.of(context).colorScheme.onPrimary,
+                            fillColor: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(context).colorScheme.primary,
+                            borderColor: Theme.of(context).colorScheme.primary,
+                            selectedBorderColor:
+                                Theme.of(context).colorScheme.primary,
+                            onPressed: (int index) {
+                              setState(() {
+                                for (
+                                  int i = 0;
+                                  i < _toggleSelections.length;
+                                  i++
+                                ) {
+                                  _toggleSelections[i] = i == index;
+                                }
+                              });
+                            },
+                            children: const [
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24.0,
+                                  vertical: 8.0,
+                                ),
                                 child: Text(
-                                  'Leitura de QR não está disponível na versão Web. Use a app móvel para fazer o check-in.',
+                                  'Entrada',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24.0,
+                                  vertical: 8.0,
+                                ),
+                                child: Text(
+                                  'Saída',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+
+                    Text(
+                      _isSingleMode
+                          ? 'Escaneie o QR Code do checkpoint'
+                          : 'Escaneie o QR Code do posto',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      flex: 4,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child:
+                            kIsWeb
+                                ? Container(
+                                  alignment: Alignment.center,
+                                  color: Theme.of(context).colorScheme.surface,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Text(
+                                      'Leitura de QR não está disponível na versão Web. Use a app móvel para fazer o check-in.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.80),
+                                        fontSize: 14,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                : Stack(
+                                  children: [
+                                    QRView(
+                                      key: qrKey,
+                                      onQRViewCreated: _onQRViewCreated,
+                                    ),
+                                    if (isProcessing)
+                                      Container(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.54),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              CircularProgressIndicator(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface,
+                                              ),
+                                              const SizedBox(height: 16),
+                                              Text(
+                                                'Processando QR Code...',
+                                                style: TextStyle(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      flex: 1,
+                      child:
+                          resultMessage != null
+                              ? Card(
+                                color: Theme.of(context).colorScheme.surface,
+                                elevation: 2,
+                                margin: EdgeInsets.zero,
+                                child: Center(
+                                  child: Text(
+                                    resultMessage!,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.70),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              )
+                              : Center(
+                                child: Text(
+                                  _isSingleMode
+                                      ? 'Aponte a câmera para o QR do checkpoint'
+                                      : 'Aponte a câmera para o QR do posto',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurface
-                                        .withValues(alpha: 0.80),
-                                    fontSize: 14,
-                                    height: 1.4,
+                                        .withValues(alpha: 0.70),
                                   ),
                                 ),
                               ),
-                            )
-                          : Stack(
-                              children: [
-                                QRView(
-                                  key: qrKey,
-                                  onQRViewCreated: _onQRViewCreated,
-                                ),
-                                if (isProcessing)
-                                  Container(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.54),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          CircularProgressIndicator(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'Processando QR Code...',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Expanded(
-                    flex: 1,
-                    child: resultMessage != null
-                        ? Card(
-                            color: Theme.of(context).colorScheme.surface,
-                            elevation: 2,
-                            margin: EdgeInsets.zero,
-                            child: Center(
-                              child: Text(
-                                resultMessage!,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.70),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          )
-                        : Center(
-                            child: Text(
-                              _isSingleMode
-                                  ? 'Aponte a câmera para o QR do checkpoint'
-                                  : 'Aponte a câmera para o QR do posto',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.70),
-                              ),
-                            ),
-                          ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 2,
         onTap: (index) {
           if (index != 2) {
             if (!mounted) return;
             Navigator.of(context).pushReplacementNamed(
-              ['/home', '/my-events', '/checkin', '/ranking', '/profile'][index],
+              [
+                '/home',
+                '/my-events',
+                '/checkin',
+                '/ranking',
+                '/profile',
+              ][index],
             );
           }
         },
@@ -500,9 +622,14 @@ class _CheckinViewState extends State<CheckinView> {
       }
 
       final tipoSelecionado = _isSingleMode ? 'single' : _selectedTipo;
-      log('>>> Checkpoint: ${checkpointData['checkpointId']}, Tipo: $tipoSelecionado');
+      log(
+        '>>> Checkpoint: ${checkpointData['checkpointId']}, Tipo: $tipoSelecionado',
+      );
 
-      await _processCheckpoint(checkpointData['checkpointId']!, tipoSelecionado);
+      await _processCheckpoint(
+        checkpointData['checkpointId']!,
+        tipoSelecionado,
+      );
     } catch (e) {
       log('>>> Erro no handleQRScan: $e');
       _showError('Erro ao processar QR Code: $e');
@@ -536,14 +663,15 @@ class _CheckinViewState extends State<CheckinView> {
 
       // 3. Buscar no Firestore
       if (_activeEditionId != null && _activeEventId != null) {
-        final checkpointDoc = await FirebaseFirestore.instance
-            .collection('editions')
-            .doc(_activeEditionId)
-            .collection('events')
-            .doc(_activeEventId)
-            .collection('checkpoints')
-            .doc(qrCode)
-            .get();
+        final checkpointDoc =
+            await FirebaseFirestore.instance
+                .collection('editions')
+                .doc(_activeEditionId)
+                .collection('events')
+                .doc(_activeEventId)
+                .collection('checkpoints')
+                .doc(qrCode)
+                .get();
 
         if (checkpointDoc.exists) {
           final data = checkpointDoc.data()!;
@@ -562,7 +690,9 @@ class _CheckinViewState extends State<CheckinView> {
   }
 
   Future<void> _processCheckpoint(String checkpointId, String tipo) async {
-    if (!_hasActiveEvent || _activeEventId == null || _activeEditionId == null) {
+    if (!_hasActiveEvent ||
+        _activeEventId == null ||
+        _activeEditionId == null) {
       _showError('Evento não está ativo. Não é possível fazer check-in.');
       return;
     }
@@ -603,11 +733,11 @@ class _CheckinViewState extends State<CheckinView> {
         .doc(checkpointId);
 
     final existing = await docRef.get();
-    
+
     if (existing.exists) {
       final data = existing.data()!;
       final validated = data['validated'] ?? false;
-      
+
       if (validated) {
         _showError('Este checkpoint já foi validado.');
         return;
@@ -616,7 +746,7 @@ class _CheckinViewState extends State<CheckinView> {
 
     // Registrar check-in único
     final now = DateTime.now().toUtc().toIso8601String();
-    
+
     await docRef.set({
       'checkpointId': checkpointId,
       'timestamp': now,
@@ -695,14 +825,15 @@ class _CheckinViewState extends State<CheckinView> {
   ) async {
     log('>>> Processando check-in ENTRY/EXIT: $checkpointId ($tipo)');
 
-    final pontuacaoDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('eventos')
-        .doc(_activeEventId)
-        .collection('pontuacoes')
-        .doc(checkpointId)
-        .get();
+    final pontuacaoDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('eventos')
+            .doc(_activeEventId)
+            .collection('pontuacoes')
+            .doc(checkpointId)
+            .get();
 
     bool temEntrada = false;
     bool temSaida = false;
@@ -715,12 +846,16 @@ class _CheckinViewState extends State<CheckinView> {
       perguntaRespondida = data['perguntaRespondida'] ?? false;
     }
 
-    log('>>> Estado: Entrada=$temEntrada, Saída=$temSaida, Pergunta=$perguntaRespondida');
+    log(
+      '>>> Estado: Entrada=$temEntrada, Saída=$temSaida, Pergunta=$perguntaRespondida',
+    );
 
     // Validações
     if (tipo == 'entrada') {
       if (temEntrada && !temSaida) {
-        _showError('Já fizeste check-in neste posto. Agora deves fazer check-out.');
+        _showError(
+          'Já fizeste check-in neste posto. Agora deves fazer check-out.',
+        );
         return;
       }
       if (temEntrada && temSaida) {
@@ -769,12 +904,15 @@ class _CheckinViewState extends State<CheckinView> {
     final now = DateTime.now().toUtc().toIso8601String();
 
     try {
-      await FirebaseFirestore.instance.collection('veiculos').doc(veiculoId).set({
-        'checkpoints': {
-          checkpointId: {tipo: now, 'ultima_leitura': now},
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('veiculos')
+          .doc(veiculoId)
+          .set({
+            'checkpoints': {
+              checkpointId: {tipo: now, 'ultima_leitura': now},
+            },
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       log('>>> Erro ao registrar no veículo: $e');
     }
@@ -808,7 +946,9 @@ class _CheckinViewState extends State<CheckinView> {
         'classificacao': 0,
       }, SetOptions(merge: true));
 
-      final pontuacaoRef = eventoDocRef.collection('pontuacoes').doc(checkpointId);
+      final pontuacaoRef = eventoDocRef
+          .collection('pontuacoes')
+          .doc(checkpointId);
 
       if (tipo == 'entrada') {
         await pontuacaoRef.set({
@@ -842,13 +982,14 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarPontuacaoTotal(String uid) async {
     try {
-      final pontuacoesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('eventos')
-          .doc(_activeEventId)
-          .collection('pontuacoes')
-          .get();
+      final pontuacoesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc(_activeEventId)
+              .collection('pontuacoes')
+              .get();
 
       int total = 0;
 
@@ -874,13 +1015,14 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarTempoTotal(String uid) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('eventos')
-          .doc(_activeEventId)
-          .collection('pontuacoes')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('eventos')
+              .doc(_activeEventId)
+              .collection('pontuacoes')
+              .get();
 
       int totalSegundos = 0;
 
@@ -915,19 +1057,20 @@ class _CheckinViewState extends State<CheckinView> {
 
   Future<void> _atualizarClassificacaoGeral() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collectionGroup(_activeEventId!)
-          .orderBy('pontuacaoTotal', descending: true)
-          .orderBy('tempoTotal')
-          .get();
+      if (_activeEventId == null) return;
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collectionGroup('eventos')
+              .where('eventId', isEqualTo: _activeEventId)
+              .orderBy('pontuacaoTotal', descending: true)
+              .orderBy('tempoTotal')
+              .get();
 
       int posicao = 1;
-
       for (var doc in snapshot.docs) {
         await doc.reference.update({'classificacao': posicao});
         posicao++;
       }
-
       log('>>> classificacoes atualizadas');
     } catch (e) {
       log('>>> Erro ao atualizar classificacao: $e');
@@ -936,7 +1079,7 @@ class _CheckinViewState extends State<CheckinView> {
 
   void _navigateToQuestion(String checkpointId) {
     if (!mounted) return;
-    
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ResponderPerguntaView(checkpointId: checkpointId),
@@ -952,12 +1095,13 @@ class _CheckinViewState extends State<CheckinView> {
     try {
       String grupo = _authService.userData['grupo'] ?? 'A';
 
-      final conchaSnapshot = await FirebaseFirestore.instance
-          .collection('conchas')
-          .where('checkpointId', isEqualTo: checkpointId)
-          .where('grupo', isEqualTo: grupo)
-          .limit(1)
-          .get();
+      final conchaSnapshot =
+          await FirebaseFirestore.instance
+              .collection('conchas')
+              .where('checkpointId', isEqualTo: checkpointId)
+              .where('grupo', isEqualTo: grupo)
+              .limit(1)
+              .get();
 
       String pistaTexto = 'Parabéns! Continue para o próximo posto.';
 
@@ -976,9 +1120,10 @@ class _CheckinViewState extends State<CheckinView> {
       if (mounted) {
         showDialog(
           context: context,
-          builder: (context) => HintPopup(
-            clueText: 'Parabéns! Continue para o próximo posto.',
-          ),
+          builder:
+              (context) => HintPopup(
+                clueText: 'Parabéns! Continue para o próximo posto.',
+              ),
         );
       }
     }
@@ -1018,6 +1163,7 @@ class _CheckinViewState extends State<CheckinView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
   }
